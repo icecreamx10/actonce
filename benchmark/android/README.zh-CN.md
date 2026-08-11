@@ -28,13 +28,20 @@ npm run benchmark:android:smoke
 
 ```bash
 npm run android:install:markor
+npm run android:prepare:markor
 ```
 
 建议的第一个任务是：
 
 > 创建名为 `actonce-benchmark.md` 的 Markdown 笔记，输入 `Replay this task without AI.`，保存后返回文件列表，重新打开文件并验证内容。
 
-每次正式测量前，测试环境会清除 Markor App 数据并重新创建固定状态。首次 onboarding 属于环境准备，不计入任务测量。在 Settings smoke test 生成成功的 Midscene 报告后，我们再添加 Markor task runner。
+每次正式测量前，测试环境会清除 Markor App 数据、授予所需的 storage app-op、通过 accessibility target 完成 onboarding、删除 benchmark 笔记并打开 Documents 列表。这部分环境准备不计入测量时间。
+
+配置 Midscene 模型变量后运行：
+
+```bash
+npm run benchmark:android:markor
+```
 
 ## 可复现环境约定
 

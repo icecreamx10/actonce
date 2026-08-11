@@ -28,13 +28,20 @@ The first external APK is [Markor](https://github.com/gsantner/markor), pinned t
 
 ```bash
 npm run android:install:markor
+npm run android:prepare:markor
 ```
 
 The proposed first task is:
 
 > Create a Markdown note named `actonce-benchmark.md`, enter `Replay this task without AI.`, save it, return to the file list, reopen it, and verify the content.
 
-Before every measured run, the harness will clear Markor's app data and recreate a fixed fixture state. Onboarding belongs to environment setup, not the measured task. The Markor task runner will be added after the Settings smoke test has produced a successful Midscene report.
+Before every measured run, the harness clears Markor's app data, grants its required storage app-op, completes onboarding by accessibility target, removes the benchmark note, and opens the Documents list. This setup is excluded from measured time.
+
+With Midscene model variables configured, run the task with:
+
+```bash
+npm run benchmark:android:markor
+```
 
 ## Reproducibility contract
 
