@@ -1,0 +1,5 @@
+node_modules/
+artifacts/
+midscene_run/
+.env
+.DS_Store

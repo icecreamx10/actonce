@@ -1,0 +1,26 @@
+{
+  "name": "actonce",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Record AI device actions once, replay them deterministically.",
+  "scripts": {
+    "benchmark:fixture": "tsx benchmark/fixture/server.ts",
+    "benchmark:midscene": "tsx benchmark/midscene-baseline.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@midscene/web": "1.10.10",
+    "playwright": "1.62.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "4.23.12",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

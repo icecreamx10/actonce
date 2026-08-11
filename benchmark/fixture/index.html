@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ActOnce Benchmark — Create Ticket</title>
+    <style>
+      :root {
+        color: #172033;
+        background: #eef2f7;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        place-items: center;
+      }
+
+      main {
+        width: min(520px, calc(100vw - 48px));
+        padding: 32px;
+        border: 1px solid #d8deea;
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 20px 60px rgb(28 40 68 / 10%);
+      }
+
+      h1 { margin: 0 0 8px; }
+      p { color: #68738a; }
+      form { display: grid; gap: 18px; margin-top: 28px; }
+      label { display: grid; gap: 8px; font-weight: 650; }
+
+      input, select, button {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid #b9c3d4;
+        border-radius: 9px;
+        background: white;
+        color: inherit;
+        font: inherit;
+      }
+
+      .check {
+        display: flex;
+        align-items: center;
+        font-weight: 500;
+      }
+
+      .check input { width: auto; }
+
+      button {
+        border-color: #315ff4;
+        background: #315ff4;
+        color: white;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      button:disabled { cursor: wait; opacity: 0.7; }
+
+      #result {
+        display: none;
+        padding: 18px;
+        border: 1px solid #78c49b;
+        border-radius: 10px;
+        background: #eaf8f0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section id="create-view">
+        <h1>Create test ticket</h1>
+        <p>Use this deterministic form to benchmark UI agents.</p>
+        <form id="ticket-form">
+          <label for="title">
+            Title
+            <input id="title" name="title" autocomplete="off" required />
+          </label>
+
+          <label for="priority">
+            Priority
+            <select id="priority" name="priority">
+              <option>Low</option>
+              <option selected>Normal</option>
+              <option>High</option>
+            </select>
+          </label>
+
+          <label class="check" for="diagnostics">
+            <input id="diagnostics" name="diagnostics" type="checkbox" />
+            Include diagnostics
+          </label>
+
+          <button id="submit" type="submit">Create ticket</button>
+        </form>
+      </section>
+
+      <section id="result" role="status" aria-live="polite"></section>
+    </main>
+
+    <script>
+      const form = document.querySelector("#ticket-form");
+      const createView = document.querySelector("#create-view");
+      const result = document.querySelector("#result");
+      const submit = document.querySelector("#submit");
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submit.disabled = true;
+        submit.textContent = "Creating…";
+
+        window.setTimeout(() => {
+          const data = new FormData(form);
+          createView.style.display = "none";
+          result.style.display = "block";
+          result.dataset.ticketId = "T-1001";
+          result.innerHTML = `
+            <strong>Ticket T-1001 created</strong>
+            <p>${data.get("title")}</p>
+            <p>Priority: ${data.get("priority")}</p>
+            <p>Diagnostics: ${data.has("diagnostics") ? "included" : "not included"}</p>
+          `;
+        }, 350);
+      });
+    </script>
+  </body>
+</html>
