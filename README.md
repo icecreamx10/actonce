@@ -104,6 +104,8 @@ Run the Midscene baseline:
 npm run benchmark:midscene
 ```
 
+For the Android emulator, Midscene connection smoke test, and pinned Markor APK benchmark setup, see [the Android benchmark guide](benchmark/android/README.md).
+
 Run repository checks:
 
 ```bash

@@ -104,6 +104,8 @@ npm run benchmark:fixture
 npm run benchmark:midscene
 ```
 
+Android 模拟器、Midscene 连接 smoke test 以及固定版本 Markor APK 的 benchmark 设置请参阅 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
+
 运行仓库检查：
 
 ```bash

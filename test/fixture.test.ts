@@ -15,7 +15,11 @@ describe("create-ticket fixture", () => {
   });
 
   afterAll(async () => {
-    await browser.close();
+    const closeBrowser = browser.close().catch(() => undefined);
+    await Promise.race([
+      closeBrowser,
+      new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+    ]);
     await fixture.close();
   });
 
