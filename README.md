@@ -81,14 +81,20 @@ npm install
 npx playwright install chromium
 ```
 
-Configure Midscene using its standard environment variables:
+For the first baseline, use the Gemini free tier. Create an API key in
+[Google AI Studio](https://aistudio.google.com/apikey), then create the local
+configuration from the tracked template:
 
 ```bash
-export MIDSCENE_MODEL_BASE_URL="https://your-provider.example/v1"
-export MIDSCENE_MODEL_API_KEY="..."
-export MIDSCENE_MODEL_NAME="your-model"
-export MIDSCENE_MODEL_FAMILY="your-model-family"
+cp .env.example .env
+# Edit .env and replace MIDSCENE_MODEL_API_KEY.
+npm run model:verify
 ```
+
+The template uses `gemini-3.5-flash`, which Midscene recommends for Gemini UI
+localization. Free-tier limits can change, and Google may use free-tier inputs
+to improve its products, so benchmark screenshots must not contain sensitive
+data. The real `.env` file is ignored by Git.
 
 Start only the deterministic fixture:
 

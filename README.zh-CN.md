@@ -81,14 +81,18 @@ npm install
 npx playwright install chromium
 ```
 
-使用 Midscene 标准环境变量配置模型：
+第一个 baseline 使用 Gemini 免费层。先在
+[Google AI Studio](https://aistudio.google.com/apikey) 创建 API Key，再根据仓库模板创建本地配置：
 
 ```bash
-export MIDSCENE_MODEL_BASE_URL="https://your-provider.example/v1"
-export MIDSCENE_MODEL_API_KEY="..."
-export MIDSCENE_MODEL_NAME="your-model"
-export MIDSCENE_MODEL_FAMILY="your-model-family"
+cp .env.example .env
+# 编辑 .env，替换 MIDSCENE_MODEL_API_KEY。
+npm run model:verify
 ```
+
+模板使用 Midscene 推荐用于 Gemini UI 定位的 `gemini-3.5-flash`。免费层额度可能变化，
+且 Google 可能使用免费层输入改进产品，因此 benchmark 截图中不能包含敏感数据。
+真实 `.env` 文件已被 Git 忽略。
 
 只启动确定性测试页面：
 

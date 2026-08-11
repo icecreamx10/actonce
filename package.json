@@ -17,6 +17,7 @@
     "benchmark:android:midscene": "bash scripts/android/run-midscene-benchmark.sh",
     "benchmark:android:smoke": "bash scripts/android/run-midscene-smoke.sh",
     "benchmark:midscene": "tsx benchmark/midscene-baseline.ts",
+    "model:verify": "npx @midscene/cli@1.10.10 model verify",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
