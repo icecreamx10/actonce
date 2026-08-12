@@ -112,6 +112,10 @@ npm run benchmark:midscene
 
 For the Android emulator, Midscene connection smoke test, and pinned Markor APK benchmark setup, see [the Android benchmark guide](benchmark/android/README.md).
 
+For the dedicated iOS Simulator, WebDriverAgent, and Midscene iOS smoke task, see [the iOS benchmark guide](benchmark/ios/README.md).
+
+The passive, append-only WDA capture boundary is specified in [the interceptor design](interceptor/README.md).
+
 Run repository checks:
 
 ```bash

@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://actonce.dev/schema/raw-wda-event.schema.json",
+  "title": "ActOnce raw WDA event",
+  "description": "Append-only, uninterpreted evidence captured at the WDA HTTP boundary.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "recordingId",
+    "sequence",
+    "kind",
+    "origin",
+    "wallTime",
+    "monotonicNs"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "recordingId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kind": {
+      "enum": [
+        "http.request.started",
+        "http.request.completed",
+        "http.response.started",
+        "http.response.completed",
+        "http.exchange.failed",
+        "checkpoint.started",
+        "checkpoint.screenshot.before.completed",
+        "checkpoint.native-ui.completed",
+        "checkpoint.screenshot.after.completed",
+        "checkpoint.completed",
+        "recorder.integrity"
+      ]
+    },
+    "origin": {
+      "enum": ["client", "upstream", "recorder", "interceptor"]
+    },
+    "wallTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "monotonicNs": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Nanoseconds represented as a decimal string to avoid JSON precision loss."
+    },
+    "connectionId": {
+      "type": "string"
+    },
+    "requestId": {
+      "type": "string"
+    },
+    "captureId": {
+      "type": "string"
+    },
+    "parentRequestId": {
+      "type": "string"
+    },
+    "sessionId": {
+      "type": ["string", "null"]
+    },
+    "http": {
+      "$ref": "#/$defs/httpMetadata"
+    },
+    "body": {
+      "$ref": "#/$defs/blobReference"
+    },
+    "error": {
+      "$ref": "#/$defs/error"
+    },
+    "integrity": {
+      "$ref": "#/$defs/integrity"
+    },
+    "checkpoint": {
+      "$ref": "#/$defs/checkpoint"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "pattern": "^http\\."
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["connectionId", "requestId", "http"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "pattern": "^checkpoint\\."
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["captureId", "checkpoint"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "recorder.integrity"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["integrity"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "http.exchange.failed"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["requestId", "error"]
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "httpMetadata": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "headerTransformations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "blobReference": {
+      "type": "object",
+      "required": ["sha256", "size", "path"],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^artifacts/[a-f0-9]{2}/[a-f0-9]{64}(\\.[a-zA-Z0-9]+)?$"
+        },
+        "mediaType": {
+          "type": ["string", "null"]
+        },
+        "contentEncoding": {
+          "type": ["string", "null"]
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "integrity": {
+      "type": "object",
+      "required": ["status", "reason"],
+      "properties": {
+        "status": {
+          "enum": ["complete", "incomplete"]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectedRequestIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "droppedEventCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "checkpoint": {
+      "type": "object",
+      "required": ["phase"],
+      "properties": {
+        "phase": {
+          "enum": [
+            "started",
+            "screenshot-before",
+            "native-ui",
+            "screenshot-after",
+            "completed"
+          ]
+        },
+        "trigger": {
+          "enum": [
+            "session-start",
+            "after-action",
+            "before-action-recovery",
+            "failure",
+            "final-state",
+            "manual"
+          ]
+        },
+        "artifact": {
+          "$ref": "#/$defs/blobReference"
+        },
+        "coherence": {
+          "enum": ["pending", "coherent", "incoherent", "unknown"]
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

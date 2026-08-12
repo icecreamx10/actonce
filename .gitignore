@@ -1,6 +1,7 @@
 node_modules/
 artifacts/
 midscene_run/
+recordings/
 .cache/
 .env
 .DS_Store

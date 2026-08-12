@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://actonce.dev/schema/recording.schema.json",
+  "title": "ActOnce recording index",
+  "description": "Rebuildable index over an append-only platform event log and content-addressed artifacts.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "recordingId",
+    "status",
+    "startedAt",
+    "device",
+    "rawLog",
+    "states",
+    "actions",
+    "captures",
+    "integrity"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "recordingId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": ["recording", "complete", "incomplete"]
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "device": {
+      "$ref": "#/$defs/device"
+    },
+    "rawLog": {
+      "type": "object",
+      "required": ["path", "eventCount"],
+      "properties": {
+        "path": {
+          "const": "events.ndjson"
+        },
+        "eventCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/state"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    },
+    "captures": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/capture"
+      }
+    },
+    "integrity": {
+      "$ref": "#/$defs/integrity"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "device": {
+      "type": "object",
+      "required": ["platform"],
+      "properties": {
+        "platform": {
+          "enum": ["ios", "macos"]
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "orientation": {
+          "type": ["string", "null"]
+        },
+        "udid": {
+          "type": ["string", "null"]
+        },
+        "displayId": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "required": ["stateId", "captureId"],
+      "properties": {
+        "stateId": {
+          "type": "string"
+        },
+        "captureId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "actionId",
+        "requestId",
+        "annotation",
+        "sourceEvents"
+      ],
+      "properties": {
+        "actionId": {
+          "type": "string"
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "beforeStateId": {
+          "type": ["string", "null"]
+        },
+        "afterStateId": {
+          "type": ["string", "null"]
+        },
+        "annotation": {
+          "$ref": "protocol-annotation.schema.json"
+        },
+        "sourceEvents": {
+          "$ref": "#/$defs/sourceEvents"
+        }
+      },
+      "additionalProperties": false
+    },
+    "capture": {
+      "type": "object",
+      "required": [
+        "captureId",
+        "trigger",
+        "screenshot",
+        "nativeUi",
+        "coherence",
+        "sourceEvents"
+      ],
+      "properties": {
+        "captureId": {
+          "type": "string"
+        },
+        "trigger": {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "enum": [
+                "session-start",
+                "after-action",
+                "before-action-recovery",
+                "failure",
+                "final-state",
+                "manual"
+              ]
+            },
+            "actionId": {
+              "type": "string"
+            },
+            "requestId": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "screenshot": {
+          "type": "object",
+          "required": ["finalImage"],
+          "properties": {
+            "beforeImage": {
+              "$ref": "#/$defs/artifact"
+            },
+            "finalImage": {
+              "$ref": "#/$defs/artifact"
+            },
+            "rawResponse": {
+              "$ref": "#/$defs/artifact"
+            }
+          },
+          "additionalProperties": false
+        },
+        "nativeUi": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": ["available", "unavailable"]
+            },
+            "format": {
+              "enum": ["xml", "json"]
+            },
+            "source": {
+              "$ref": "#/$defs/artifact"
+            },
+            "rawResponse": {
+              "$ref": "#/$defs/artifact"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "oneOf": [
+            {
+              "required": ["format", "source"],
+              "properties": { "status": { "const": "available" } }
+            },
+            {
+              "required": ["status", "reason"],
+              "properties": { "status": { "const": "unavailable" } }
+            }
+          ],
+          "additionalProperties": false
+        },
+        "coherence": {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "enum": ["coherent", "incoherent", "unknown"]
+            },
+            "visualChange": {
+              "type": "number",
+              "minimum": 0
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "timing": {
+          "type": "object",
+          "properties": {
+            "startedMonotonicNs": {
+              "$ref": "#/$defs/monotonicNs"
+            },
+            "completedMonotonicNs": {
+              "$ref": "#/$defs/monotonicNs"
+            },
+            "recorderOverheadMs": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "sourceEvents": {
+          "$ref": "#/$defs/sourceEvents"
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["sha256", "size", "path", "mediaType"],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^artifacts/[a-f0-9]{2}/[a-f0-9]{64}$"
+        },
+        "mediaType": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sourceEvents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "monotonicNs": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "integrity": {
+      "type": "object",
+      "required": ["status", "reasons"],
+      "properties": {
+        "status": {
+          "enum": ["complete", "incomplete"]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

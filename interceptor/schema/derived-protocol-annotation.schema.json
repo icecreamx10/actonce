@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://actonce.dev/schema/derived-protocol-annotation.schema.json",
+  "title": "ActOnce derived WDA protocol annotation event",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "recordingId",
+    "sourceEventSequence",
+    "requestId",
+    "method",
+    "target",
+    "normalizedTarget",
+    "annotation"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "recordingId": {
+      "type": "string"
+    },
+    "sourceEventSequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "requestId": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
+    },
+    "normalizedTarget": {
+      "type": "string"
+    },
+    "annotation": {
+      "$ref": "protocol-annotation.schema.json"
+    }
+  },
+  "additionalProperties": false
+}

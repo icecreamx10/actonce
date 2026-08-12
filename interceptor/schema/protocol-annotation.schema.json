@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://actonce.dev/schema/protocol-annotation.schema.json",
+  "title": "ActOnce WDA protocol annotation",
+  "description": "Derived classification of a WDA request. It never replaces or mutates the raw event.",
+  "type": "object",
+  "required": [
+    "ruleId",
+    "category",
+    "operation",
+    "stateEffect",
+    "replayRole",
+    "checkpoint",
+    "confidence"
+  ],
+  "properties": {
+    "ruleId": {
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "session",
+        "configuration",
+        "observation",
+        "element-query",
+        "input",
+        "navigation",
+        "app-lifecycle",
+        "device-control",
+        "unknown"
+      ]
+    },
+    "operation": {
+      "type": "string"
+    },
+    "stateEffect": {
+      "enum": ["none", "session", "ui", "app", "device", "unknown"]
+    },
+    "replayRole": {
+      "enum": ["candidate", "context", "exclude", "unknown"]
+    },
+    "checkpoint": {
+      "$ref": "#/$defs/checkpoint"
+    },
+    "confidence": {
+      "enum": ["exact", "family", "unknown"]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "checkpoint": {
+      "type": "object",
+      "required": ["role", "phase", "provides", "requiredEvidence"],
+      "properties": {
+        "role": {
+          "enum": ["trigger", "contributor", "metadata", "boundary", "none"]
+        },
+        "phase": {
+          "enum": ["initial-state", "after-settle", "observation", "final-state", "on-error", "none"]
+        },
+        "provides": {
+          "$ref": "#/$defs/evidenceList"
+        },
+        "requiredEvidence": {
+          "$ref": "#/$defs/evidenceList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidenceList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["screenshot", "native-ui", "device-metadata", "viewport", "screen", "element-query"]
+      }
+    }
+  }
+}

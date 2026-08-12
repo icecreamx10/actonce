@@ -46,9 +46,10 @@ npm run benchmark:android:markor
 ## 可复现环境约定
 
 - Android API：35
-- image：AOSP Automated Test Device（`aosp_atd`），可以运行普通 APK，同时避免不必要的 Google service 体积
+- image：标准 Google APIs（`google_apis`），为视觉自动化提供真实 framebuffer
+- GPU 模式：默认使用软件渲染（`swiftshader`）；如有需要可通过 `ACTONCE_EMULATOR_GPU` 覆盖
 - AVD 设备配置：Pixel 6
-- AVD 名称：`actonce_api35_atd`
+- AVD 名称：`actonce_api35_google_apis`
 - 默认 emulator serial：`emulator-5554`
 - userdata 分区：512 MB，足够 benchmark APK 使用并适合 CI 磁盘
 - 动画：开机后关闭

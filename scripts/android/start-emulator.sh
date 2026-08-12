@@ -42,7 +42,7 @@ EMULATOR_ARGS=(
   -no-cache
   -no-boot-anim
   -no-audio
-  -gpu swiftshader_indirect
+  -gpu "${ACTONCE_EMULATOR_GPU}"
   -camera-back none
   -camera-front none
   -partition-size "${ACTONCE_PARTITION_SIZE_MB}"

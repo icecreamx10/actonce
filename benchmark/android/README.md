@@ -46,9 +46,10 @@ npm run benchmark:android:markor
 ## Reproducibility contract
 
 - Android API: 35
-- image flavor: AOSP Automated Test Device (`aosp_atd`), which runs normal APKs but avoids unnecessary Google service weight
+- image flavor: standard Google APIs (`google_apis`), which exposes a real framebuffer for vision-driven automation
+- GPU mode: software rendering (`swiftshader`) by default; override with `ACTONCE_EMULATOR_GPU` when needed
 - AVD device profile: Pixel 6
-- AVD name: `actonce_api35_atd`
+- AVD name: `actonce_api35_google_apis`
 - default emulator serial: `emulator-5554`
 - userdata partition: 512 MB (sufficient for the benchmark APK and friendly to CI disks)
 - animations: disabled after boot
