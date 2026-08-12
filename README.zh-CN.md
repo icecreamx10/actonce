@@ -112,6 +112,8 @@ Android 模拟器、Midscene 连接 smoke test 以及固定版本 Markor APK 的
 
 专用 iOS Simulator、WebDriverAgent 和 Midscene iOS smoke task 的设置请参阅 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
 
+可复现的 macOS Lynxtron Fiddle 诊断 hover 用例（包含固定版本的 app fixture、自然语言 testcase、runner 与产物契约）请参阅 [Lynxtron Fiddle benchmark 指南](benchmark/macos/lynxtron-fiddle/README.zh-CN.md)。
+
 被动、append-only 的 WDA capture boundary 见 [Interceptor 设计](interceptor/README.zh-CN.md)。
 
 运行仓库检查：

@@ -1,0 +1,12 @@
+{
+  "name": "@actonce/benchmark-lynxtron-fiddle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pinned Lynxtron Fiddle runtime dependencies for the ActOnce macOS benchmark.",
+  "dependencies": {
+    "@lynx-js/lynxtron": "0.0.8",
+    "@lynxtron-examples/cli": "0.0.1",
+    "typescript": "5.9.3"
+  }
+}

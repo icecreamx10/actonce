@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "name": "Lynxtron Fiddle desktop fixture",
+  "upstream": "https://github.com/lynx-community/lynxtron-examples.git",
+  "commit": "4c524f4c1ea0b05b273a211c6371e4a265b0e7b3",
+  "sourcePath": "lynxtron-go/dist/desktop",
+  "archive": "lynxtron-fiddle-desktop-arm64.tgz",
+  "archiveSha256": "de387c8a991face5fff188ee2c07ce305360c212c7c41ac5d7cfe482b811c3a4",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "lynxtronVersion": "0.0.8",
+  "lynxtronDownloadUrl": "https://github.com/lynx-family/lynxtron/releases/download/v0.0.8/lynxtron-v0.0.8-darwin-arm64.zip",
+  "lynxtronArchiveSha256": "f924bcbb81ce3d1643bf1cdc1e83fbe098725791cdd4008ed14845f5c57de76d",
+  "notes": "The archive is the verified desktop runtime used by the benchmark. It includes the Scintilla native module and its runtime closure, but not the 62 MB Lynxtron application runtime, which is installed from the pinned npm package."
+}

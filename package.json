@@ -27,6 +27,9 @@
     "benchmark:android:smoke": "bash scripts/android/run-midscene-smoke.sh",
     "benchmark:ios:smoke": "tsx benchmark/ios/midscene-settings-smoke.ts",
     "benchmark:midscene": "tsx benchmark/midscene-baseline.ts",
+    "benchmark:macos:lynxtron:prepare": "tsx benchmark/macos/lynxtron-fiddle/prepare.ts",
+    "benchmark:macos:lynxtron": "tsx benchmark/macos/lynxtron-fiddle/runner.ts",
+    "benchmark:macos:lynxtron:reproduce": "npm run benchmark:macos:lynxtron:prepare && npm run benchmark:macos:lynxtron",
     "model:verify": "npx @midscene/cli@1.10.10 model verify",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
