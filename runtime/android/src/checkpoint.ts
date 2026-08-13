@@ -96,7 +96,7 @@ export class AndroidCheckpointDriver
         actual.captureErrors.push(`screenshot: ${message(error)}`);
       }
     const differences = compareAndroidCheckpoint(spec.expected, actual);
-    return {
+    const result: CheckpointResult<AndroidCheckpointActual> = {
       status: actual.captureErrors.length
         ? "unknown"
         : differences.length
@@ -105,6 +105,8 @@ export class AndroidCheckpointDriver
       actual,
       differences,
     };
+    if (result.status !== "matched") this.android.invalidateObservation();
+    return result;
   }
 }
 export function compareAndroidCheckpoint(

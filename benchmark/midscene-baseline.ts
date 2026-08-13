@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { PlaywrightAgent } from "@midscene/web/playwright";
+import { PlaywrightAgent } from "@byted-lynx/actonce-midscene-adapter/web";
 import { chromium } from "playwright";
 import {
   type BenchmarkResult,

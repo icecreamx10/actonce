@@ -3,7 +3,7 @@ import {
   ComputerAgent,
   ComputerDevice,
   type ComputerAgentOpt,
-} from "@midscene/computer";
+} from "@byted-lynx/actonce-midscene-adapter";
 import {
   RecordingWriter,
   decodeDataUrl,

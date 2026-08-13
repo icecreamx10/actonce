@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { IOSCheckpointDriver, compareIOSCheckpoint } from "../src/checkpoint.js";
 
 describe("iOS checkpoints", () => {
@@ -21,5 +21,13 @@ describe("iOS checkpoints", () => {
     const driver = new IOSCheckpointDriver({ source: async () => "Name iOS Version" } as never);
     const result = await driver.verify({ id: "about", expected: { source: { includes: ["iOS Version"] } } });
     expect(result.status).toBe("matched");
+  });
+
+  it("invalidates a mismatched source so settle polling captures again", async () => {
+    const invalidateObservation = vi.fn();
+    const driver = new IOSCheckpointDriver({ source: async () => "Catalog", invalidateObservation } as never);
+    const result = await driver.verify({ id: "detail", expected: { source: { includes: ["Add to cart"] } } });
+    expect(result.status).toBe("mismatched");
+    expect(invalidateObservation).toHaveBeenCalledOnce();
   });
 });

@@ -54,6 +54,8 @@ ActOnce deliberately separates four concerns:
 - **Platform runtimes** expose fixed, testable action and checkpoint APIs to generated scripts.
 - **Benchmarks** compare correctness first, then execution time against the original AI run.
 
+Midscene is quarantined behind `@byted-lynx/actonce-midscene-adapter`: original AI demonstrations and recorder hooks may use it, while deterministic platform runtimes may not. iOS replay talks directly to WDA; Android replay uses ADB plus a persistent UIAutomator2 accessibility service. Accessibility checkpoints remain first-class on both platforms.
+
 ## Repository map
 
 | Path | Purpose |
@@ -61,6 +63,7 @@ ActOnce deliberately separates four concerns:
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published recording Skill; its macOS path is validated, while iOS support remains foundational |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
+| [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | The sole package boundary for Midscene dependencies used by AI recording |
 | [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos`, the deterministic macOS replay SDK and CLI |
 | [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios`, fixed WDA primitives, source/visual checkpoints, and replay runner |
 | [`runtime/android/`](runtime/android/README.md) | `@byted-lynx/actonce-android`, fixed Android primitives, UI-tree/screenshot checkpoints, and replay runner |

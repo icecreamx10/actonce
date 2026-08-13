@@ -119,8 +119,36 @@ describe("ReplayFlow", () => {
       fallbackCount: 0,
       fallbackDurationMs: 0,
       checkpointPollCount: 0,
+      checkpointCaptureDurationMs: 0,
+      checkpointSettleDelayMs: 0,
       checkpointWaitDurationMs: 0,
       checkpointTimeoutCount: 0,
+    });
+  });
+
+  it("separates checkpoint capture time from settle delay", async () => {
+    let now = 0;
+    const verify = vi.fn(async () => {
+      now += 25;
+      return verify.mock.calls.length < 3 ? mismatched("loading", "done") : matched("done");
+    });
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify },
+      now: () => now,
+      delay: async (durationMs) => { now += durationMs; },
+    });
+    await flow.checkpoint("segment", "postcondition", {
+      id: "captured",
+      expected: { state: "done" },
+    });
+    await flow.checkpoint("segment", "postcondition", {
+      id: "captured-again",
+      expected: { state: "done" },
+    });
+    expect(flow.diagnostics()).toMatchObject({
+      checkpointCaptureDurationMs: 50,
+      checkpointSettleDelayMs: 0,
+      checkpointWaitDurationMs: 50,
     });
   });
 
@@ -156,6 +184,8 @@ describe("ReplayFlow", () => {
     expect(now).toBe(200);
     expect(flow.diagnostics()).toMatchObject({
       checkpointPollCount: 2,
+      checkpointCaptureDurationMs: 0,
+      checkpointSettleDelayMs: 200,
       checkpointWaitDurationMs: 200,
       checkpointTimeoutCount: 0,
     });

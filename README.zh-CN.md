@@ -54,6 +54,8 @@ ActOnce 刻意拆分四类职责：
 - **平台 Runtime**：向生成脚本提供固定、可测试的动作与 checkpoint API。
 - **Benchmark**：先验证正确性，再将 replay 执行时间与原始 AI 运行比较。
 
+Midscene 被集中隔离在 `@byted-lynx/actonce-midscene-adapter`：原始 AI 示教和 recorder hook 可以使用它，确定性平台 runtime 不允许依赖它。iOS replay 直接调用 WDA；Android replay 使用 ADB 与常驻 UIAutomator2 accessibility 服务。两个平台都继续把 accessibility checkpoint 作为一级证据。
+
 ## 仓库结构
 
 | 路径 | 用途 |
@@ -61,6 +63,7 @@ ActOnce 刻意拆分四类职责：
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill；macOS 路径已经验证，iOS 仍处于基础建设阶段 |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | 发布 Skill：选择有证据支持的片段并生成 replay 脚本 |
 | [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
+| [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | AI 录制所需 Midscene 依赖的唯一 package 边界 |
 | [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos` 确定性回放 SDK 与 CLI |
 | [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios` 固定 WDA primitive、source/visual checkpoint 与 replay runner |
 | [`runtime/android/`](runtime/android/README.zh-CN.md) | `@byted-lynx/actonce-android` 固定 Android primitive、UI-tree/截图 checkpoint 与 replay runner |

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { compareAndroidCheckpoint } from "../src/checkpoint.js";
+import { describe, expect, it, vi } from "vitest";
+import { AndroidCheckpointDriver, compareAndroidCheckpoint } from "../src/checkpoint.js";
 
 describe("compareAndroidCheckpoint", () => {
   it("checks required and forbidden UI-tree values", () => {
@@ -23,5 +23,13 @@ describe("compareAndroidCheckpoint", () => {
         { source: "Products", captureErrors: [] },
       )[0]?.path,
     ).toBe("source");
+  });
+
+  it("invalidates a mismatched source so settle polling captures again", async () => {
+    const invalidateObservation = vi.fn();
+    const driver = new AndroidCheckpointDriver({ source: async () => "Products", invalidateObservation } as never);
+    const result = await driver.verify({ id: "product", expected: { source: { includes: ["Add to cart"] } } });
+    expect(result.status).toBe("mismatched");
+    expect(invalidateObservation).toHaveBeenCalledOnce();
   });
 });

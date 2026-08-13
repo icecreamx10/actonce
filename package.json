@@ -19,7 +19,7 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "changeset publish",
-    "build:packages": "npm run build -w @byted-lynx/actonce-replay && npm run build -w @byted-lynx/actonce-recorder && npm run build -w @byted-lynx/actonce-macos && npm run build -w @byted-lynx/actonce-ios && npm run build -w @byted-lynx/actonce-android && npm run build -w @byted-lynx/actonce-midscene-fallback && npm run build -w @byted-lynx/actonce",
+    "build:packages": "npm run build -w @byted-lynx/actonce-midscene-adapter && npm run build -w @byted-lynx/actonce-replay && npm run build -w @byted-lynx/actonce-recorder && npm run build -w @byted-lynx/actonce-macos && npm run build -w @byted-lynx/actonce-ios && npm run build -w @byted-lynx/actonce-android && npm run build -w @byted-lynx/actonce-midscene-fallback && npm run build -w @byted-lynx/actonce",
     "android:bootstrap": "bash scripts/android/bootstrap-sdk.sh",
     "android:start": "bash scripts/android/start-emulator.sh",
     "android:start:foreground": "bash scripts/android/start-emulator.sh --foreground",
@@ -86,7 +86,7 @@
     "benchmark:macos:lynxtron:suite": "tsx benchmark/macos/lynxtron-fiddle/suite-runner.ts",
     "benchmark:macos:lynxtron:reproduce-suite": "npm run benchmark:macos:lynxtron:prepare && npm run benchmark:macos:lynxtron:suite",
     "benchmark:macos:lynxtron:cli": "tsx benchmark/macos/lynxtron-fiddle/cli.ts",
-    "model:verify": "npx @midscene/cli@1.10.10 model verify",
+    "model:verify": "npm run model:verify -w @byted-lynx/actonce-midscene-adapter",
     "test": "vitest run",
     "test:macos-runtime": "npm --prefix runtime/macos test",
     "test:ios-runtime": "npm --prefix runtime/ios test",
@@ -97,10 +97,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@midscene/android": "1.10.10",
-    "@midscene/computer": "1.10.10",
-    "@midscene/ios": "1.10.10",
-    "@midscene/web": "1.10.10",
+    "@byted-lynx/actonce-midscene-adapter": "^0.1.0",
     "dotenv": "^17.2.3",
     "playwright": "1.62.1"
   },

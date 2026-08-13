@@ -1,8 +1,6 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { IOSAgent, IOSDevice } from "@midscene/ios";
-import type { AndroidAgent, AndroidDevice } from "@midscene/android";
-import type { ComputerAgent, ComputerDevice } from "@midscene/computer";
+import type { IOSAgent, IOSDevice, AndroidAgent, AndroidDevice, ComputerAgent, ComputerDevice } from "@byted-lynx/actonce-midscene-adapter";
 import { RecordingWriter } from "./common/recording-writer.js";
 import { agentForRecordedIOS } from "./ios/recording-ios-device.js";
 import { agentForRecordedComputer } from "./macos/recording-computer-device.js";

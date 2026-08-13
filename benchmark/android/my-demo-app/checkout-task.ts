@@ -1,4 +1,4 @@
-import type { AndroidAgent, AndroidDevice } from "@midscene/android";
+import type { AndroidAgent, AndroidDevice } from "@byted-lynx/actonce-midscene-adapter";
 import type { RecordingTaskContext } from "../../../interceptor/src/recording-profiles.js";
 
 const PACKAGE = "com.saucelabs.mydemoapp.android";

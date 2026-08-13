@@ -5,6 +5,8 @@ export declare class ReplayFlow<TExpectation, TActual> {
     private fallbackCount;
     private fallbackDurationMs;
     private checkpointPollCount;
+    private checkpointCaptureDurationMs;
+    private checkpointSettleDelayMs;
     private checkpointWaitDurationMs;
     private checkpointTimeoutCount;
     constructor(options: ReplayFlowOptions<TExpectation, TActual>);

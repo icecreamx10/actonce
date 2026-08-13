@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { IOSDevice } from "@midscene/ios";
+import { IOSDevice } from "@byted-lynx/actonce-midscene-adapter";
 
 const wdaHost = process.env.ACTONCE_WDA_HOST ?? "127.0.0.1";
 const wdaPort = Number(process.env.ACTONCE_WDA_PORT ?? "8100");

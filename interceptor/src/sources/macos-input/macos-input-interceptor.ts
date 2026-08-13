@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ComputerDevice } from "@midscene/computer";
+import type { ComputerDevice } from "@byted-lynx/actonce-midscene-adapter";
 import { decodeDataUrl } from "../../common/recording-writer.js";
 import type { LogicalAction } from "../../common/midscene-action-hooks.js";
 import type { CaptureCheckpoint } from "../../core/checkpoint.js";

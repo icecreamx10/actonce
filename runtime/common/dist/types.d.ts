@@ -56,6 +56,9 @@ export type ReplayDiagnostics = {
     fallbackCount: number;
     fallbackDurationMs: number;
     checkpointPollCount: number;
+    checkpointCaptureDurationMs: number;
+    checkpointSettleDelayMs: number;
+    /** @deprecated Use checkpointCaptureDurationMs and checkpointSettleDelayMs. */
     checkpointWaitDurationMs: number;
     checkpointTimeoutCount: number;
 };
@@ -88,6 +91,8 @@ export type ReplayEvent<TActual = unknown> = {
     attempt?: number;
     fallbackResult?: FallbackResult;
     durationMs?: number;
+    captureDurationMs?: number;
+    settleDelayMs?: number;
     error?: {
         name: string;
         message: string;

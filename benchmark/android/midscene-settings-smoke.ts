@@ -6,7 +6,7 @@ import {
   AndroidAgent,
   AndroidDevice,
   getConnectedDevices,
-} from "@midscene/android";
+} from "@byted-lynx/actonce-midscene-adapter";
 import {
   type BenchmarkResult,
   measureStep,

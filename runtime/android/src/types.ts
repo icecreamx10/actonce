@@ -11,6 +11,7 @@ export type AndroidSessionOptions = {
   androidAdbPath?: string;
   displayId?: number;
   screenshotStrategy?: "auto" | "always-yadb";
+  systemPort?: number;
 };
 export type AndroidReplayContext = {
   android: AndroidSession;

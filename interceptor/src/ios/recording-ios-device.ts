@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { IOSAgent, IOSDevice } from "@midscene/ios";
+import { IOSAgent, IOSDevice } from "@byted-lynx/actonce-midscene-adapter";
 import {
   RecordingWriter,
   decodeDataUrl,
