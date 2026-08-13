@@ -5,41 +5,34 @@ description: Record AI-driven device or desktop tasks through ActOnce CLI profil
 
 # Record Device Use
 
-Capture one authoritative run without changing the task's intended behavior. Preserve raw evidence so a later compiler can select replayable segments.
+Capture one authoritative run without changing the task. Preserve enough raw evidence for replay compilation.
 
 ## Availability and environment
 
-- The bundled verifier is self-contained and needs only Node.js 20.19+, 22.12+, or 24+.
-- Live recording requires `@byted-lynx/actonce-recorder` (included by `@byted-lynx/actonce`), the selected platform/device, and the permissions required by Midscene or WebDriverAgent.
-- macOS profiles require a supported macOS developer machine. iOS profiles require an explicitly selected Simulator or device and reachable WebDriverAgent. Android requires one connected ADB device; on macOS prefer the shared `$ANDROID_HOME`/`~/.android/avd` environment. Model-backed tasks also require the model credentials configured for Midscene.
-- If `actonce-record profiles --json` does not list the required profile, stop and report the missing runtime instead of inventing commands.
+- Offline verification needs only Node.js 20.19+, 22.12+, or 24+.
+- Recording is not self-contained in this skill package. It requires `@byted-lynx/actonce-recorder` (included by `@byted-lynx/actonce`) or an ActOnce checkout, plus the selected platform/device and permissions required by Midscene or WebDriverAgent.
+- macOS needs a supported developer machine and required permissions; iOS needs an explicitly selected Simulator/device and reachable WebDriverAgent; Android needs one connected ADB device. Model-backed tasks also need configured Midscene credentials.
+- If `actonce-record profiles --json` omits the required profile, report the missing runtime instead of inventing commands.
+- Use this skill to capture a new run. If the user only supplies an existing `manifest.json` and `events.ndjson`, use `compile-device-recording` instead; its inspection helpers do not require a live device.
 
 ## Workflow
 
-1. Locate the installed `actonce-record` CLI or an ActOnce checkout. In a checkout, identify it by the `interceptor:start` package script.
-2. Run `actonce-record profiles --json`; in a checkout use `npm run interceptor:start -- profiles --json`. Use only a profile returned by the CLI; do not construct or attach interceptor sources in the skill workflow.
-3. Read [references/cli-profiles.md](references/cli-profiles.md) and prepare the task module required by `midscene-macos`, `midscene-ios`, or `midscene-android`. Generic `ios-wda` recording does not require a task module.
-4. Establish a meaningful recording ID and run the selected CLI profile. The CLI owns source composition, startup order, checkpoint policy, and shutdown.
-5. Run the intended task normally. Do not add extra AI actions merely to improve the trace.
-6. Stop proxy profiles with SIGINT after the client completes. Task-module profiles close automatically in `finally`, including when the task fails.
-7. Resolve this skill's installation directory from the loaded `SKILL.md`, then run its bundled verifier by absolute path:
+1. Run `actonce-record profiles --json`; in a checkout use `npm run interceptor:start -- profiles --json` from its root.
+2. Read [references/cli-profiles.md](references/cli-profiles.md) completely. Use only a returned profile and its documented task-module contract.
+3. Choose a meaningful recording ID and run the profile. The CLI owns capture sources, startup order, checkpoints, and shutdown; never import recorder internals or change a profile's sources.
+4. Run the intended task normally. Do not add actions merely to improve the trace. Stop proxy profiles with SIGINT after the client completes; task-module profiles finalize automatically.
+5. Resolve this skill's directory from the loaded `SKILL.md`, then verify by absolute path:
 
    ```bash
    node /absolute/path/to/record-device-use/scripts/verify-recording.mjs <recording-dir>
    ```
 
-8. Report the recording directory, selected sources, integrity status, event count, and any unavailable evidence such as a missing AX tree.
-
-## Profile boundary
-
-- Treat `midscene-macos`, `midscene-ios`, `midscene-android`, and `ios-wda` as public CLI contracts.
-- Never import `RecorderSession`, `RecorderInterceptor`, or source implementations into a generated task module.
-- Never change a profile's source list from the skill. If a new combination is required, implement and test a new named profile in the CLI first.
-- Do not claim arbitrary OS input capture for tools that do not have a shipped CLI profile.
+6. Report the recording directory, sources, integrity, event count, and unavailable evidence.
 
 ## Integrity rules
 
 - Never place API keys, authorization headers, clipboard secrets, or `.env` contents in events or task reports. Redact at the source boundary.
 - Never edit a completed recording in place.
+- Do not claim capture beyond profiles shipped by the CLI.
 
 For exact commands and the task-module interface, read [references/cli-profiles.md](references/cli-profiles.md). For a concise Chinese workflow, read [references/guide.zh-CN.md](references/guide.zh-CN.md).

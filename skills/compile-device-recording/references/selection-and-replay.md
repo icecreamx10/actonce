@@ -13,6 +13,11 @@ The shared sequence explains file order, not necessarily physical causality acro
 
 ## Select a segment
 
+First prove that the recording contains the requested outcome. A complete manifest
+only means the writer finalized the trace. Reject recordings whose task failed,
+stopped early, or lacks independent evidence for the oracle/final checkpoint; do not
+generate or execute a partial replay and do not invent missing actions.
+
 Include:
 
 - the last checkpoint that establishes required preconditions;
@@ -112,7 +117,38 @@ the runtime must recapture and match its checkpoint before deterministic replay 
 Mark non-idempotent segments as `observe-before-retry` or `never-retry`. Never allow
 an AI fallback to repeat a `never-retry` postcondition action.
 
+Treat mechanically lowered calls as immutable implementations, not an unconditional
+schedule. Before every retry or cleanup call, observe its recorded postcondition. If
+the final target already matches, skip remaining calls; never undo, delete, submit,
+or close after cleanup is complete. Otherwise execute only the next opaque call,
+settle on its checkpoint, and reassess.
+
 Use bounded polling for asynchronous UI changes. Keep short input-settle delays only when required by the recorded driver behavior.
 
+## Correctness loop
+
+- Build the replay oracle before execution: action order, independently evidenced observations, equivalent checkpoint boundaries, cleanup, and final state. Compare semantic state, not timestamps, event counts, or raw artifact identity.
+- Require evidence on both sides of each state change. Event dispatch, protocol success, or an AX notification alone does not prove application state.
+- Preserve every failure. Classify the first mismatch as compiler, runtime, selector/coordinate, evaluator, fixture/environment, or fallback; fix the narrowest layer, reset, and rerun the complete case.
+- Require two consecutive fresh-fixture passes. Do not delete assertions, weaken values/modalities, enlarge recorded timeout bounds, exclude failures, or resume from contaminated state.
+- Stop only for unavailable authority, credentials, platform capability, external state, or irrecoverable source evidence. Report the exact boundary, expected/actual evidence, attempted fixes, artifacts, and smallest unblock action.
+
+For visual comparison, use the smallest content-bearing crop. Measure preserved live
+attempts against the recorded positive and nearest negative state; choose a threshold
+that admits benign raster/focus variation but still rejects the negative. Require
+consecutive matches for transient UI. Never widen crop or tolerance merely to pass.
+
+When a repository provides a benchmark, read its case/task, fixture reset, public CLI
+or result contract, timing boundary, and evaluator before generating code. Use that
+harness for every attempt. Do not copy an existing case-specific replay; derive the
+implementation from the recording and public runtime support.
+
+## Output contract
+
+Return generated replay and decision files; range/exclusions; fixture requirements;
+deterministic/hybrid mode and bounded fallback; oracle; and complete attempt history
+with diagnoses, fixes, consecutive pass count, fallback diagnostics, residual risks,
+or exact blocker evidence.
+
 For platform fragments and shared-session execution, read [macos-runtime.md](macos-runtime.md)
-or [ios-runtime.md](ios-runtime.md).
+or [ios-runtime.md](ios-runtime.md), or [android-runtime.md](android-runtime.md).
