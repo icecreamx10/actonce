@@ -27,9 +27,16 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 
 第一条正式 iOS checkout benchmark 也已通过：Midscene original 中位数
 `220.246 秒`，确定性 replay 中位数 `10.499 秒`，加速 `20.98×`；两次 replay
-均正确且没有 fallback。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
+均正确且没有 fallback。确定性 replay 切换到直连 WDA backend 后，一次开发验证
+用时 `8.969 秒`，其中 accessibility capture 为 `3.008 秒`，settle delay 与
+fallback 均为 0。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
 
-Android 现在通过固定 `midscene-android` profile 录制同构的 My Demo App checkout，并机械编译出 9 个归一化 tap primitive。第一次开发 smoke 中，AI original 约 `127 秒`，checkpoint replay 约 `18 秒`，最终配送地址 oracle 正确且 fallback 禁用。正式评分还需要第二次独立重置的 original 与 replay。详情见 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
+Android 通过固定 `midscene-android` profile 录制同构的 My Demo App checkout，
+并机械编译出 9 个归一化 tap primitive。正式基线中，original 中位数为
+`140.446 秒`，replay 中位数为 `17.412 秒`，加速 `8.07×`；两次 replay 均正确且
+没有 fallback。将冷启动 UI dump 替换为常驻 UIAutomator2 backend 后，一次开发验证
+正确完成于 `6.927 秒`：accessibility capture 为 `4.200 秒`，真正 settle delay
+仅 `0.203 秒`。详情见 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
 
 ## 工作原理
 
@@ -54,6 +61,8 @@ ActOnce 刻意拆分四类职责：
 - **平台 Runtime**：向生成脚本提供固定、可测试的动作与 checkpoint API。
 - **Benchmark**：先验证正确性，再将 replay 执行时间与原始 AI 运行比较。
 
+Midscene 被集中隔离在 `@byted-lynx/actonce-midscene-adapter`：原始 AI 示教和 recorder hook 可以使用它，确定性平台 runtime 不允许依赖它。iOS replay 直接调用 WDA；Android replay 使用 ADB 与常驻 UIAutomator2 accessibility 服务。两个平台都继续把 accessibility checkpoint 作为一级证据。
+
 ## 仓库结构
 
 | 路径 | 用途 |
@@ -61,6 +70,7 @@ ActOnce 刻意拆分四类职责：
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill；macOS 路径已经验证，iOS 仍处于基础建设阶段 |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | 发布 Skill：选择有证据支持的片段并生成 replay 脚本 |
 | [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
+| [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | AI 录制所需 Midscene 依赖的唯一 package 边界 |
 | [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos` 确定性回放 SDK 与 CLI |
 | [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios` 固定 WDA primitive、source/visual checkpoint 与 replay runner |
 | [`runtime/android/`](runtime/android/README.zh-CN.md) | `@byted-lynx/actonce-android` 固定 Android primitive、UI-tree/截图 checkpoint 与 replay runner |
@@ -179,6 +189,8 @@ Fallback 延迟、checkpoint 轮询、恢复和 cleanup 都计入 replay 时间�
 
 ## 当前状态
 
-ActOnce 是一个面向开发机器工作流的活跃原型。macOS 已有正式多 case suite；iOS 已有第一条经过 benchmark 验证的 original 到 replay 对比；Android 也已有完整 recorder、compiler、runtime、固定复杂 fixture 与通过的端到端 smoke，正在补第二个正式样本。
+ActOnce 是一个面向开发机器工作流的活跃原型。macOS 已有正式多 case suite；iOS
+和 Android 都已有经过正式 benchmark 验证的 original 到 replay 对比，其确定性
+runtime 现在使用直接的原生设备 backend，不再经过 Midscene adapter。
 
 接下来的工程重点是继续降低 checkpoint 开销、把编译能力推广到当前 benchmark 之外，并独立加入 Windows，而不是过早强行统一跨平台 action API。

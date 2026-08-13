@@ -33,7 +33,8 @@
   },
   "dependencies": {
     "@byted-lynx/actonce-replay": "^0.1.0",
-    "@midscene/android": "1.10.10",
+    "appium-uiautomator2-server": "10.6.1",
+    "fast-xml-parser": "5.3.8",
     "sharp": "0.35.3"
   },
   "devDependencies": {

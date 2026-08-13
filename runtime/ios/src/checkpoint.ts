@@ -56,7 +56,9 @@ export class IOSCheckpointDriver implements CheckpointDriver<IOSCheckpointExpect
       } catch (error) { actual.captureErrors.push(`screenshot: ${message(error)}`); }
     }
     const differences = compareIOSCheckpoint(spec.expected, actual);
-    return { status: actual.captureErrors.length ? "unknown" : differences.length ? "mismatched" : "matched", actual, differences };
+    const result: CheckpointResult<IOSCheckpointActual> = { status: actual.captureErrors.length ? "unknown" : differences.length ? "mismatched" : "matched", actual, differences };
+    if (result.status !== "matched") this.ios.invalidateObservation();
+    return result;
   }
 }
 

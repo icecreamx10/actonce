@@ -5,6 +5,8 @@ export class ReplayFlow {
     fallbackCount = 0;
     fallbackDurationMs = 0;
     checkpointPollCount = 0;
+    checkpointCaptureDurationMs = 0;
+    checkpointSettleDelayMs = 0;
     checkpointWaitDurationMs = 0;
     checkpointTimeoutCount = 0;
     constructor(options) {
@@ -20,18 +22,26 @@ export class ReplayFlow {
             fallbackCount: this.fallbackCount,
             fallbackDurationMs: this.fallbackDurationMs,
             checkpointPollCount: this.checkpointPollCount,
+            checkpointCaptureDurationMs: this.checkpointCaptureDurationMs,
+            checkpointSettleDelayMs: this.checkpointSettleDelayMs,
             checkpointWaitDurationMs: this.checkpointWaitDurationMs,
             checkpointTimeoutCount: this.checkpointTimeoutCount,
         };
     }
     async checkpoint(segmentId, phase, spec, context) {
+        const now = this.options.now ?? Date.now;
+        const started = now();
         const result = await this.options.checkpoints.verify(spec, context);
+        const captureDurationMs = Math.max(0, now() - started);
+        this.checkpointCaptureDurationMs += captureDurationMs;
+        this.checkpointWaitDurationMs += captureDurationMs;
         await this.emit({
             kind: "replay.checkpoint.checked",
             segmentId,
             phase,
             checkpointId: spec.id,
             checkpoint: result,
+            captureDurationMs,
         });
         return result;
     }
@@ -148,6 +158,7 @@ export class ReplayFlow {
         let result;
         let checkCount = 1;
         let matchCount = 0;
+        let settleDelayMs = 0;
         try {
             await this.emit({
                 kind: "replay.checkpoint.settle.started",
@@ -162,10 +173,16 @@ export class ReplayFlow {
             });
             matchCount = result.status === "matched" && now() <= deadline ? 1 : 0;
             if (matchCount >= consecutiveMatches) {
-                return await this.completeSettle(segmentId, phase, spec.id, result, checkCount, started, now());
+                return await this.completeSettle(segmentId, phase, spec.id, result, checkCount, started, now(), settleDelayMs);
             }
             while (now() < deadline && !controller.signal.aborted) {
-                await delay(Math.min(intervalMs, Math.max(0, deadline - now())));
+                const requestedDelayMs = Math.min(intervalMs, Math.max(0, deadline - now()));
+                const delayStarted = now();
+                await delay(requestedDelayMs);
+                const capturedDelayMs = Math.max(0, now() - delayStarted);
+                this.checkpointSettleDelayMs += capturedDelayMs;
+                this.checkpointWaitDurationMs += capturedDelayMs;
+                settleDelayMs += capturedDelayMs;
                 if (now() >= deadline || controller.signal.aborted)
                     break;
                 this.checkpointPollCount += 1;
@@ -176,11 +193,10 @@ export class ReplayFlow {
                 });
                 matchCount = result.status === "matched" && now() <= deadline ? matchCount + 1 : 0;
                 if (matchCount >= consecutiveMatches) {
-                    return await this.completeSettle(segmentId, phase, spec.id, result, checkCount, started, now());
+                    return await this.completeSettle(segmentId, phase, spec.id, result, checkCount, started, now(), settleDelayMs);
                 }
             }
             const durationMs = Math.max(0, now() - started);
-            this.checkpointWaitDurationMs += durationMs;
             this.checkpointTimeoutCount += 1;
             await this.emit({
                 kind: "replay.checkpoint.settle.timed-out",
@@ -190,6 +206,7 @@ export class ReplayFlow {
                 checkpoint: result,
                 checkCount,
                 durationMs,
+                settleDelayMs,
             });
             return result;
         }
@@ -197,9 +214,8 @@ export class ReplayFlow {
             clearTimeout(timeout);
         }
     }
-    async completeSettle(segmentId, phase, checkpointId, result, checkCount, started, completed) {
+    async completeSettle(segmentId, phase, checkpointId, result, checkCount, started, completed, settleDelayMs) {
         const durationMs = Math.max(0, completed - started);
-        this.checkpointWaitDurationMs += durationMs;
         await this.emit({
             kind: "replay.checkpoint.settle.completed",
             segmentId,
@@ -208,6 +224,7 @@ export class ReplayFlow {
             checkpoint: result,
             checkCount,
             durationMs,
+            settleDelayMs,
         });
         return result;
     }

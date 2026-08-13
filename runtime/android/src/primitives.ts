@@ -36,48 +36,55 @@ export async function replayAndroidPrimitive(
 ): Promise<void> {
   android.invalidateObservation?.();
   const args = primitive.arguments;
-  const input = android.device.inputPrimitives;
   switch (primitive.operation) {
     case "tap":
-      await input.pointer.tap(point(args[0], "tap point"));
+      await android.device.tap(point(args[0], "tap point"));
       return;
     case "doubleClick":
-      await input.pointer.doubleClick(point(args[0], "doubleClick point"));
+      await android.device.doubleClick(point(args[0], "doubleClick point"));
       return;
     case "longPress":
-      await input.pointer.longPress(point(args[0], "longPress point"), {
-        duration: optionalNumber(args[1]),
-      });
+      await android.device.longPress(point(args[0], "longPress point"), optionalNumber(args[1]));
       return;
     case "swipe":
-      await input.touch.swipe(
+      await android.device.swipe(
         point(args[0], "swipe start"),
         point(args[1], "swipe end"),
-        options(args[2]),
+        optionalDuration(options(args[2])),
       );
       return;
     case "dragAndDrop":
-      await input.pointer.dragAndDrop(
+      await android.device.swipe(
         point(args[0], "drag start"),
         point(args[1], "drag end"),
       );
       return;
     case "typeText":
-      await input.keyboard.typeText(
-        string(args[0], "typeText value"),
-        options(args[1]),
-      );
+      {
+        const value = string(args[0], "typeText value");
+        const inputOptions = options(args[1]);
+        const target = inputOptions?.target;
+        if (target && typeof target === "object") {
+          await android.device.tap(point(target, "typeText target"));
+          if (inputOptions?.replace !== false) await android.device.clearInput();
+        }
+        if (!inputOptions?.focusOnly) await android.device.typeText(value);
+      }
       return;
     case "keyboardPress":
-      await input.keyboard.keyboardPress(string(args[0], "keyboardPress key"));
+      await android.device.keyboardPress(string(args[0], "keyboardPress key"));
       return;
     case "clearInput":
-      await input.keyboard.clearInput(args[0] as never);
+      await android.device.clearInput();
       return;
     case "scroll": {
       const value = options(args[0]);
       if (!value) throw new TypeError("scroll arguments[0] must be an object");
-      await input.scroll?.scroll(value as never);
+      const direction = typeof value.direction === "string" ? value.direction : "down";
+      const center = { x: finite(value.x ?? 205, "scroll.x"), y: finite(value.y ?? 450, "scroll.y") };
+      const distance = finite(value.distance ?? 300, "scroll.distance");
+      const end = direction === "up" ? { x: center.x, y: center.y + distance } : direction === "left" ? { x: center.x + distance, y: center.y } : direction === "right" ? { x: center.x - distance, y: center.y } : { x: center.x, y: center.y - distance };
+      await android.device.swipe(center, end, optionalDuration(value));
       return;
     }
     case "back":
@@ -128,4 +135,8 @@ function finite(value: unknown, label: string): number {
 }
 function optionalNumber(value: unknown): number | undefined {
   return value === undefined ? undefined : finite(value, "duration");
+}
+function optionalDuration(value: Record<string, unknown> | undefined): number | undefined {
+  const duration = value?.duration ?? value?.durationMs;
+  return duration === undefined ? undefined : finite(duration, "duration");
 }

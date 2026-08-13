@@ -15,9 +15,9 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveMidsceneComputerAsset } from "@byted-lynx/actonce-midscene-adapter";
 import { agentForRecordedComputer } from "../../../interceptor/src/macos/recording-computer-device.js";
 import type { RecorderContext } from "../../../interceptor/src/core/source-interceptor.js";
 import {
@@ -109,14 +109,7 @@ const lynxtronExecutable = join(
   "Lynxtron.app/Contents/MacOS/lynxtron",
 );
 const lynxtronApp = resolve(lynxtronExecutable, "../../..");
-const require = createRequire(import.meta.url);
-const midsceneComputerRoot = dirname(
-  require.resolve("@midscene/computer/package.json"),
-);
-const displayInfoHelper = join(
-  midsceneComputerRoot,
-  "bin/darwin/display-info",
-);
+const displayInfoHelper = resolveMidsceneComputerAsset("bin/darwin/display-info");
 
 if (process.platform !== provenance.platform || process.arch !== provenance.architecture) {
   throw new Error(

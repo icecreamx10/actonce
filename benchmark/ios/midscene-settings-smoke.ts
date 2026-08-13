@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { IOSAgent, IOSDevice } from "@midscene/ios";
+import { IOSAgent, IOSDevice } from "@byted-lynx/actonce-midscene-adapter";
 import {
   type BenchmarkResult,
   type StepMetric,

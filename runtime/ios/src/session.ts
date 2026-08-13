@@ -1,19 +1,19 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { IOSDevice } from "@midscene/ios";
 import type { IOSSessionOptions } from "./types.js";
+import { NativeIOSDevice } from "./native-device.js";
 
 export class IOSSession {
-  private constructor(readonly device: IOSDevice) {}
+  private sourceCache?: string;
+  private constructor(readonly device: NativeIOSDevice) {}
 
   static async connect(options: IOSSessionOptions = {}): Promise<IOSSession> {
-    const device = new IOSDevice(options);
-    await device.connect();
+    const device = await NativeIOSDevice.connect(options);
     return new IOSSession(device);
   }
 
   async close(): Promise<void> {
-    await this.device.destroy();
+    await this.device.close();
   }
 
   async launch(bundleId: string): Promise<void> {
@@ -25,23 +25,18 @@ export class IOSSession {
   }
 
   async source(): Promise<string> {
-    const response = await this.device.runWdaRequest<unknown>("GET", "/source");
-    if (typeof response === "string") return response;
-    if (isRecord(response) && typeof response.value === "string") return response.value;
-    return JSON.stringify(response);
+    if (this.sourceCache === undefined) this.sourceCache = await this.device.source();
+    return this.sourceCache;
   }
 
+  invalidateObservation(): void { this.sourceCache = undefined; }
+
   async screenshot(path?: string): Promise<string> {
-    const dataUrl = await this.device.screenshotBase64();
-    const base64 = dataUrl.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, "");
+    const base64 = await this.device.screenshotBase64();
     if (path) {
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, Buffer.from(base64, "base64"));
     }
     return base64;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

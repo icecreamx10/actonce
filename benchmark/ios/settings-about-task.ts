@@ -1,4 +1,4 @@
-import type { IOSAgent, IOSDevice } from "@midscene/ios";
+import type { IOSAgent, IOSDevice } from "@byted-lynx/actonce-midscene-adapter";
 import type { RecordingTaskContext } from "../../interceptor/src/recording-profiles.js";
 
 /** Canonical AI demonstration consumed by the fixed midscene-ios recorder profile. */

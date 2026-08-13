@@ -1,4 +1,4 @@
-import type { ComputerAgent, ComputerDevice } from "@midscene/computer";
+import type { ComputerAgent, ComputerDevice } from "@byted-lynx/actonce-midscene-adapter";
 import type { CaptureCheckpoint } from "../../core/checkpoint.js";
 import type {
   RecorderContext,

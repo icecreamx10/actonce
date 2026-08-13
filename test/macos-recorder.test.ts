@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ComputerDevice } from "@midscene/computer";
+import type { ComputerDevice } from "@byted-lynx/actonce-midscene-adapter";
 import { afterEach, describe, expect, it } from "vitest";
 import { RecordingWriter } from "../interceptor/src/common/recording-writer.js";
 import {

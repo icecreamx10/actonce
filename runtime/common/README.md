@@ -47,7 +47,9 @@ the next deterministic segment may run. `never-retry` postconditions are exposed
 fallback drivers as observation-only.
 
 Call `flow.diagnostics()` when writing a replay result. It reports the selected
-strategy, fallback count and duration, checkpoint poll count, actual checkpoint wait
-duration, and timeout count. The benchmark's enclosing
+strategy, fallback count and duration, checkpoint poll count, `checkpointCaptureDurationMs`
+for device evidence acquisition, `checkpointSettleDelayMs` for actual polling delays,
+and timeout count. `checkpointWaitDurationMs` remains as their deprecated compatibility
+sum. The benchmark's enclosing
 execution timer must still cover the complete flow, including checkpoint verification
 before and after fallback.

@@ -27,9 +27,19 @@ All live screenshot checkpoints passed, the fixtures were restored without savin
 
 The first formal iOS checkout benchmark also passed: Midscene original median
 `220.246 s`, deterministic replay median `10.499 s`, `20.98×` speedup, with two
-of two replays correct and no fallback. See the [iOS benchmark guide](benchmark/ios/README.md).
+of two replays correct and no fallback. After moving deterministic replay to a
+direct WDA backend, a one-pass development validation completed in `8.969 s`,
+including `3.008 s` of accessibility capture and no settle delay or fallback.
+See the [iOS benchmark guide](benchmark/ios/README.md).
 
-Android now records the matching My Demo App checkout through a fixed `midscene-android` profile and mechanically compiles nine normalized tap primitives. The first development smoke completed in about `127 s` for the AI original and `18 s` for checkpoint-gated replay, with the final shipping-address oracle correct and fallback disabled. Formal scoring still requires a second independently reset original and replay. See the [Android benchmark guide](benchmark/android/README.md).
+Android records the matching My Demo App checkout through a fixed
+`midscene-android` profile and mechanically compiles nine normalized tap
+primitives. Its formal baseline passed with an original median of `140.446 s`
+and replay median of `17.412 s` (`8.07×` speedup), two of two replays correct,
+and no fallback. After replacing cold UI dumps with a persistent UIAutomator2
+backend, a one-pass development validation completed correctly in `6.927 s`:
+`4.200 s` was accessibility capture and only `0.203 s` was actual settle delay.
+See the [Android benchmark guide](benchmark/android/README.md).
 
 ## How it works
 
@@ -54,6 +64,8 @@ ActOnce deliberately separates four concerns:
 - **Platform runtimes** expose fixed, testable action and checkpoint APIs to generated scripts.
 - **Benchmarks** compare correctness first, then execution time against the original AI run.
 
+Midscene is quarantined behind `@byted-lynx/actonce-midscene-adapter`: original AI demonstrations and recorder hooks may use it, while deterministic platform runtimes may not. iOS replay talks directly to WDA; Android replay uses ADB plus a persistent UIAutomator2 accessibility service. Accessibility checkpoints remain first-class on both platforms.
+
 ## Repository map
 
 | Path | Purpose |
@@ -61,6 +73,7 @@ ActOnce deliberately separates four concerns:
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published recording Skill; its macOS path is validated, while iOS support remains foundational |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
+| [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | The sole package boundary for Midscene dependencies used by AI recording |
 | [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos`, the deterministic macOS replay SDK and CLI |
 | [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios`, fixed WDA primitives, source/visual checkpoints, and replay runner |
 | [`runtime/android/`](runtime/android/README.md) | `@byted-lynx/actonce-android`, fixed Android primitives, UI-tree/screenshot checkpoints, and replay runner |
@@ -179,6 +192,6 @@ Fallback latency, checkpoint polling, recovery, and cleanup remain inside replay
 
 ## Status
 
-ActOnce is an active prototype focused on developer-machine workflows. macOS has a formal multi-case suite; iOS has its first formal benchmark-validated original-to-replay comparison; Android now has a complete recorder, compiler, runtime, pinned complex fixture, and a passing end-to-end smoke awaiting its second formal sample.
+ActOnce is an active prototype focused on developer-machine workflows. macOS has a formal multi-case suite; iOS and Android both have formal benchmark-validated original-to-replay comparisons. Their deterministic runtimes now use direct native device backends rather than Midscene adapters.
 
 The next engineering focus is reducing checkpoint capture overhead further, generalizing compilation beyond the current benchmark cases, and adding Windows independently rather than forcing a premature cross-platform action API.

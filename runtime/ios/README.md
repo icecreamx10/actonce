@@ -1,9 +1,10 @@
 # @byted-lynx/actonce-ios
 
-The iOS counterpart to `@byted-lynx/actonce-macos`. It connects to an existing
-WebDriverAgent session through Midscene's pinned iOS device adapter and exposes
+The iOS counterpart to `@byted-lynx/actonce-macos`. It connects directly to an existing
+WebDriverAgent HTTP endpoint, creates a native WDA session, and exposes
 fixed replay primitives, WDA-source checkpoints, screenshot checkpoints,
 bounded checkpoint settling through `@byted-lynx/actonce-replay`, and a script runner.
+The deterministic runtime has no Midscene dependency.
 
 The runtime does not start or select a Simulator implicitly. Use the repository's
 `ios:start` and `ios:wda` commands so the controlled device remains explicit.
