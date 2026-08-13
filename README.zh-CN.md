@@ -27,9 +27,16 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 
 第一条正式 iOS checkout benchmark 也已通过：Midscene original 中位数
 `220.246 秒`，确定性 replay 中位数 `10.499 秒`，加速 `20.98×`；两次 replay
-均正确且没有 fallback。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
+均正确且没有 fallback。确定性 replay 切换到直连 WDA backend 后，一次开发验证
+用时 `8.969 秒`，其中 accessibility capture 为 `3.008 秒`，settle delay 与
+fallback 均为 0。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
 
-Android 现在通过固定 `midscene-android` profile 录制同构的 My Demo App checkout，并机械编译出 9 个归一化 tap primitive。第一次开发 smoke 中，AI original 约 `127 秒`，checkpoint replay 约 `18 秒`，最终配送地址 oracle 正确且 fallback 禁用。正式评分还需要第二次独立重置的 original 与 replay。详情见 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
+Android 通过固定 `midscene-android` profile 录制同构的 My Demo App checkout，
+并机械编译出 9 个归一化 tap primitive。正式基线中，original 中位数为
+`140.446 秒`，replay 中位数为 `17.412 秒`，加速 `8.07×`；两次 replay 均正确且
+没有 fallback。将冷启动 UI dump 替换为常驻 UIAutomator2 backend 后，一次开发验证
+正确完成于 `6.927 秒`：accessibility capture 为 `4.200 秒`，真正 settle delay
+仅 `0.203 秒`。详情见 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
 
 ## 工作原理
 
@@ -182,6 +189,8 @@ Fallback 延迟、checkpoint 轮询、恢复和 cleanup 都计入 replay 时间�
 
 ## 当前状态
 
-ActOnce 是一个面向开发机器工作流的活跃原型。macOS 已有正式多 case suite；iOS 已有第一条经过 benchmark 验证的 original 到 replay 对比；Android 也已有完整 recorder、compiler、runtime、固定复杂 fixture 与通过的端到端 smoke，正在补第二个正式样本。
+ActOnce 是一个面向开发机器工作流的活跃原型。macOS 已有正式多 case suite；iOS
+和 Android 都已有经过正式 benchmark 验证的 original 到 replay 对比，其确定性
+runtime 现在使用直接的原生设备 backend，不再经过 Midscene adapter。
 
 接下来的工程重点是继续降低 checkpoint 开销、把编译能力推广到当前 benchmark 之外，并独立加入 Windows，而不是过早强行统一跨平台 action API。
