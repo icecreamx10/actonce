@@ -5,6 +5,8 @@ ActOnce keeps replay orchestration separate from platform control:
 - `common/` publishes `@actonce/replay`: checkpoint-gated segments, structured
   events, idempotency policy, bounded fallback, and resume semantics.
 - `macos/` publishes `@actonce/macos`: Mac2/AX execution and checkpoint evidence.
+- `ios/` publishes `@actonce/ios`: fixed WDA actions, accessibility-source and
+  screenshot checkpoints, and shared-session replay execution.
 - `midscene-fallback/` publishes `@actonce/midscene-fallback`: an optional adapter
   around an existing, recorder-attached Midscene Agent.
 

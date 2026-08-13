@@ -65,6 +65,26 @@ Validated locally on the dedicated iPhone 17 Pro / iOS 26.5 simulator: the task
 passed in 25.9 seconds with 2 agent calls and 4 model calls. This is the first
 mobile baseline to compare with a recorded replay.
 
+## Recorded deterministic replay smoke
+
+The Settings path now also validates the ActOnce loop itself. Keep WDA running,
+record one Midscene demonstration, mechanically lower its completed logical
+actions, and run the fixed replay:
+
+```bash
+npm run benchmark:ios:record-settings
+npm run ios:compile-primitives -- <recording-dir> --output /tmp/settings-actions.js
+npm run benchmark:ios:replay-settings
+```
+
+The validated recording contains one ordered session with Midscene semantics,
+four screenshot/native-source checkpoints, and all intercepted WDA exchanges.
+The compiler lowers the two completed taps from normalized logical device points;
+the replay guards Settings, General, About, device-information, and cleanup states
+with live WDA source checks. Two development smoke executions passed with no
+checkpoint timeout or AI fallback. This is not yet the formal two-original versus
+two-replay performance score used by the macOS suite.
+
 The next qualitative benchmark will use the built-in Reminders app: create a
 fixed reminder, set its priority, return to the list, reopen it, and verify the
 result. `com.apple.reminders` is present in the pinned simulator runtime, so it

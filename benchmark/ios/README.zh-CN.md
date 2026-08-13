@@ -58,6 +58,23 @@ JSON 指标保存在 `artifacts/benchmarks/`，Midscene 报告保存在
 25.9 秒，包含 2 次 Agent 调用和 4 次模型调用。这是后续录制回放要对比的第一条
 移动端 baseline。
 
+## 录制到确定性 replay smoke
+
+Settings 路径现在也验证 ActOnce 自身的闭环。保持 WDA 运行，录制一次 Midscene
+示教，将完成的逻辑动作机械降低，再运行固定 replay：
+
+```bash
+npm run benchmark:ios:record-settings
+npm run ios:compile-primitives -- <recording-dir> --output /tmp/settings-actions.js
+npm run benchmark:ios:replay-settings
+```
+
+已验证的 recording 在同一条有序 session 中包含 Midscene 语义、4 个截图/native
+source checkpoint，以及全部被拦截的 WDA exchange。compiler 从 normalized 逻辑设备
+坐标降低两个 tap；replay 使用实时 WDA source 检查 Settings、通用、关于本机、设备
+信息和 cleanup 状态。两次开发 smoke 均通过，没有 checkpoint timeout 或 AI fallback。
+这还不是 macOS suite 所采用的两次 original 对两次 replay 正式性能评分。
+
 下一条定性 benchmark 将使用系统内置 Reminders App：创建一个固定 reminder、
 设置优先级、返回列表、重新打开并验证结果。固定的 Simulator runtime 已包含
 `com.apple.reminders`，不需要外部 App 源。Settings 会保留为更便宜的连接门禁。

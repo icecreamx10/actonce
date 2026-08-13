@@ -10,7 +10,7 @@ When the live UI still matches the recording, replay stays deterministic. When i
 
 > The recording is evidence. The compiled, state-aware replay is the executable artifact.
 
-> **Platform status:** Only the macOS workflow has been validated end to end so far: recording a Midscene run, compiling it, replaying it with live checkpoints, and benchmarking correctness and speed. The iOS and Android directories currently contain capture, simulator, and integration foundations; they are not yet completed or benchmark-validated replay platforms. Windows support is planned.
+> **Platform status:** macOS is the only platform with a formal original-versus-replay correctness and speed benchmark. iOS now has a validated Settings smoke path from recorded Midscene/WDA evidence through mechanical primitive compilation and deterministic checkpoint replay, but it does not yet have the full scored benchmark suite. Android remains foundational, and Windows support is planned.
 
 ## Current result
 
@@ -56,6 +56,7 @@ ActOnce deliberately separates four concerns:
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
 | [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos`, the deterministic macOS replay SDK and CLI |
+| [`runtime/ios/`](runtime/ios/README.md) | `@actonce/ios`, fixed WDA primitives, source/visual checkpoints, and replay runner |
 | [`runtime/common/`](runtime/common/README.md) | Shared checkpoint-gated replay flow |
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | Optional bounded Midscene recovery adapter |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.md) | Pinned desktop fixture, natural-language cases, runners, evidence, and evaluator |
@@ -144,6 +145,6 @@ Fallback latency, checkpoint polling, recovery, and cleanup remain inside replay
 
 ## Status
 
-ActOnce is an active prototype focused on developer-machine workflows. **macOS is currently the only platform with a working, benchmark-validated end-to-end recording-to-replay path.** The repository also includes Android/iOS capture foundations, but those platforms have not yet completed the same replay and correctness benchmark.
+ActOnce is an active prototype focused on developer-machine workflows. **macOS is currently the only platform with a formal benchmark-validated original-to-replay comparison.** iOS has a working recorded Settings smoke loop with real WDA evidence, mechanical action lowering, live checkpoints, deterministic replay, cleanup, and no fallback; formal iOS scoring is still pending. Android remains at the capture/environment foundation stage.
 
 The next engineering focus is reducing screenshot capture overhead further, generalizing compilation beyond the current benchmark cases, and implementing platform-native runtimes independently for iOS, Android, and Windows rather than forcing a premature cross-platform action API.

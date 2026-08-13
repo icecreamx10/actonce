@@ -1,0 +1,9 @@
+export { IOSSession } from "./session.js";
+export { replayIOSPrimitive, SUPPORTED_IOS_PRIMITIVES } from "./primitives.js";
+export { IOSCheckpointDriver, compareIOSCheckpoint, compareIOSVisualScreenshot, createIOSReplayFlow } from "./checkpoint.js";
+export { runIOSScripts, mergeIOSConfigs } from "./runner.js";
+export { compileIOSPrimitives, compileIOSPrimitivesFile } from "./primitive-compiler.js";
+export type { CompileIOSPrimitivesResult } from "./primitive-compiler.js";
+export type { IOSPrimitiveOperation, IOSPrimitiveSession, RecordedIOSPrimitive } from "./primitives.js";
+export type { IOSCheckpointActual, IOSCheckpointExpectation, IOSReplayFlowOptions, IOSVisualComparison, IOSVisualExpectation } from "./checkpoint.js";
+export type { IOSReplayContext, IOSReplayModule, IOSReplayScript, IOSSessionOptions, Point } from "./types.js";

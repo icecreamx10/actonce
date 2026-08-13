@@ -114,4 +114,5 @@ an AI fallback to repeat a `never-retry` postcondition action.
 
 Use bounded polling for asynchronous UI changes. Keep short input-settle delays only when required by the recorded driver behavior.
 
-For macOS fragments and shared-session execution, read [macos-runtime.md](macos-runtime.md).
+For platform fragments and shared-session execution, read [macos-runtime.md](macos-runtime.md)
+or [ios-runtime.md](ios-runtime.md).
