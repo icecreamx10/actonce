@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "lynxtron-fiddle-macos",
+  "title": "Lynxtron Fiddle macOS interaction suite",
+  "cases": [
+    "diagnostic-hover",
+    "palette-find-navigation",
+    "dual-editor-diagnostic-recovery",
+    "console-gallery-roundtrip",
+    "edit-run-preview-stop-restore"
+  ]
+}

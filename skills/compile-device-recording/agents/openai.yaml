@@ -1,0 +1,4 @@
+interface:
+  display_name: "Compile Device Recording"
+  short_description: "Compile and stabilize evidence-matched device replay"
+  default_prompt: "Use $compile-device-recording to inspect this recording, compile checkpoint-gated replay, and execute, compare, fix, and retest it until fresh-fixture results stably match the recorded outcome or a concrete blocker is proven."

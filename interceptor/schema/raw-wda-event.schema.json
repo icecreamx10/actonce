@@ -7,11 +7,15 @@
   "required": [
     "schemaVersion",
     "recordingId",
+    "platform",
     "sequence",
+    "sourceSequence",
+    "source",
     "kind",
     "origin",
     "wallTime",
-    "monotonicNs"
+    "monotonicNs",
+    "timing"
   ],
   "properties": {
     "schemaVersion": {
@@ -21,9 +25,26 @@
       "type": "string",
       "minLength": 1
     },
+    "platform": {
+      "const": "ios"
+    },
     "sequence": {
       "type": "integer",
       "minimum": 0
+    },
+    "sourceSequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source": {
+      "type": "object",
+      "required": ["type", "instanceId"],
+      "properties": {
+        "type": { "const": "wda" },
+        "instanceId": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": false
     },
     "kind": {
       "enum": [
@@ -43,6 +64,9 @@
     "origin": {
       "enum": ["client", "upstream", "recorder", "interceptor"]
     },
+    "lifecycle": {
+      "enum": ["started", "completed", "failed", "instant"]
+    },
     "wallTime": {
       "type": "string",
       "format": "date-time"
@@ -51,6 +75,33 @@
       "type": "string",
       "pattern": "^[0-9]+$",
       "description": "Nanoseconds represented as a decimal string to avoid JSON precision loss."
+    },
+    "timing": {
+      "type": "object",
+      "required": ["observedMonotonicNs", "ingestedMonotonicNs"],
+      "properties": {
+        "observedMonotonicNs": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "ingestedMonotonicNs": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      },
+      "additionalProperties": true
+    },
+    "correlation": {
+      "type": "object",
+      "properties": {
+        "traceId": { "type": "string" },
+        "spanId": { "type": "string" },
+        "parentSpanId": { "type": "string" },
+        "logicalActionId": { "type": "string" },
+        "requestId": { "type": "string" },
+        "captureId": { "type": "string" }
+      },
+      "additionalProperties": false
     },
     "connectionId": {
       "type": "string"

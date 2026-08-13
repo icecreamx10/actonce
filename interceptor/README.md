@@ -2,31 +2,35 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-The interceptor layer is ActOnce's platform-facing flight recorder. iOS uses a
-passive WebDriverAgent proxy; macOS uses an in-process Midscene device decorator.
+The interceptor layer is ActOnce's composable, platform-facing flight recorder.
+All sources write through one `RecorderSession`; none owns files directly.
 
 ```text
 src/
-  common/  append-only events, artifact store, manifest, platform selection
-  ios/     transparent WDA HTTP proxy
-  macos/   Midscene Computer device adapter
+  core/     session, source interface, ordering, artifacts, lifecycle
+  sources/  Midscene, macOS input, macOS AX, and WDA interceptors
+  ios/      WDA CLI composition
+  macos/    recorded Midscene Computer composition
 ```
 
-## Select a platform
+See the [composable interceptor architecture](spec/interceptors.md) for source
+contracts, ordering, correlation, and supported combinations.
+
+## CLI recording profiles
 
 ```bash
-# Explicit selection is recommended in CI
-ACTONCE_PLATFORM=ios npm run interceptor:start
-ACTONCE_PLATFORM=macos npm run interceptor:start
-
-# Auto: WDA reachable => iOS; otherwise => local macOS read-only smoke
-npm run interceptor:start
+npm run interceptor:start -- profiles --json
+npm run interceptor:start -- record midscene-macos --entry /absolute/task.ts --display-id 0
+npm run interceptor:start -- record midscene-ios --entry /absolute/task.ts --upstream-port 8100
+npm run interceptor:start -- record ios-wda --upstream-port 8100
 ```
 
-The macOS CLI performs only a read-only screenshot smoke. Real AI runs must use
-`agentForRecordedComputer()` from
-`src/macos/recording-computer-device.ts`; an external Midscene process cannot be
-intercepted transparently because native desktop calls happen in its process.
+Source composition is owned by named CLI profiles. Skills and task modules never
+attach sources directly. `midscene-macos` fixes the `midscene + macos-input +
+checkpoint` combination. `midscene-ios` fixes `midscene + wda + checkpoint`,
+including screenshot and native UI tree capture. `ios-wda` is the protocol-only
+proxy profile. Add and test a new named CLI profile when another combination is
+needed.
 
 ## iOS / WDA
 
@@ -138,7 +142,9 @@ stored by SHA-256 under `artifacts/`; duplicate content is written only once. Th
 manifest contains the schema version, recorder version, upstream address,
 started and completed timestamps, and final integrity status.
 
-The initial raw event contract is defined in
+The common event envelope is defined in
+[`schema/event-envelope.schema.json`](schema/event-envelope.schema.json). The
+initial raw WDA event contract is defined in
 [`schema/raw-wda-event.schema.json`](schema/raw-wda-event.schema.json).
 The complete directory contract and checkpoint semantics are defined in
 [`spec/recording.md`](spec/recording.md).

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "id": "dual-editor-diagnostic-recovery",
+  "title": "Create and recover diagnostics across two editors",
+  "complexity": "advanced",
+  "dimensions": ["multi-editor", "language-service", "command-palette", "state-recovery", "negative-assertion"],
+  "estimatedDurationMs": 110000,
+  "naturalLanguageTask": "Create a syntax error in main.js and verify its red diagnostic underline, switch to renderer.js through the command palette and create a separate JSX syntax error there, verify both editors' errors independently, then return to each editor and undo the changes until both diagnostics disappear. Do not save.",
+  "setup": {
+    "readyAssertion": "Lynxtron Fiddle is the foreground window, no Welcome or other modal dialog is open, and the unobstructed default main.js and renderer.js editors are visible"
+  },
+  "precondition": "Lynxtron Fiddle shows the unmodified default main.js and renderer.js editors with no red diagnostic underlines",
+  "steps": [
+    {
+      "id": "break-main",
+      "kind": "input",
+      "target": "the main.js editor",
+      "value": "const actOnceMainProbe = ("
+    },
+    {
+      "id": "main-error-source-applied",
+      "kind": "assert",
+      "prompt": "The main.js editor now visibly contains exactly 'const actOnceMainProbe = (' instead of its default source"
+    },
+    { "id": "main-diagnostic-settle", "kind": "wait", "durationMs": 2500 },
+    {
+      "id": "main-error-visible",
+      "kind": "boolean",
+      "prompt": "main.js visibly has a red wavy diagnostic underline on 'const actOnceMainProbe = ('",
+      "expect": true
+    },
+    { "id": "palette-renderer", "kind": "press", "key": "Cmd+P" },
+    {
+      "id": "filter-renderer",
+      "kind": "input",
+      "target": "the command palette search input",
+      "value": "renderer.js"
+    },
+    {
+      "id": "renderer-palette-filtered",
+      "kind": "assert",
+      "prompt": "The command palette search contains renderer.js and its renderer.js result is selected"
+    },
+    { "id": "choose-renderer", "kind": "press", "key": "Enter" },
+    {
+      "id": "break-renderer",
+      "kind": "input",
+      "target": "the renderer.js editor",
+      "value": "function ActOnceProbe() { return <view>"
+    },
+    {
+      "id": "renderer-error-source-applied",
+      "kind": "assert",
+      "prompt": "The renderer.js editor now visibly contains exactly the incomplete ActOnceProbe JSX source"
+    },
+    { "id": "renderer-diagnostic-settle", "kind": "wait", "durationMs": 2500 },
+    {
+      "id": "renderer-error-visible",
+      "kind": "boolean",
+      "prompt": "renderer.js visibly has a red wavy diagnostic underline on the incomplete JSX source",
+      "expect": true
+    },
+    { "id": "palette-main", "kind": "press", "key": "Cmd+P" },
+    {
+      "id": "filter-main",
+      "kind": "input",
+      "target": "the command palette search input",
+      "value": "main.js"
+    },
+    { "id": "choose-main", "kind": "press", "key": "Enter" },
+    { "id": "undo-main-paste", "kind": "press", "key": "Cmd+Z" },
+    { "id": "undo-main-clear", "kind": "press", "key": "Cmd+Z" },
+    { "id": "main-recovery-settle", "kind": "wait", "durationMs": 2500 },
+    {
+      "id": "main-recovered",
+      "kind": "boolean",
+      "prompt": "main.js is restored to its default source and has no red diagnostic underline",
+      "expect": true
+    },
+    { "id": "palette-renderer-recovery", "kind": "press", "key": "Cmd+P" },
+    {
+      "id": "filter-renderer-recovery",
+      "kind": "input",
+      "target": "the command palette search input",
+      "value": "renderer.js"
+    },
+    { "id": "choose-renderer-recovery", "kind": "press", "key": "Enter" },
+    { "id": "undo-renderer-paste", "kind": "press", "key": "Cmd+Z" },
+    { "id": "undo-renderer-clear", "kind": "press", "key": "Cmd+Z" },
+    { "id": "renderer-recovery-settle", "kind": "wait", "durationMs": 2500 },
+    {
+      "id": "renderer-recovered",
+      "kind": "boolean",
+      "prompt": "renderer.js is restored to the default Hello Lynxtron ReactLynx source and has no red diagnostic underline",
+      "expect": true
+    }
+  ],
+  "cleanup": {
+    "mode": "on-failure",
+    "save": false,
+    "steps": [
+      { "id": "dismiss-overlay", "kind": "press", "key": "Escape" },
+      { "id": "cleanup-palette-main", "kind": "press", "key": "Cmd+P" },
+      { "id": "cleanup-filter-main", "kind": "input", "target": "the command palette search input", "value": "main.js" },
+      { "id": "cleanup-choose-main", "kind": "press", "key": "Enter" },
+      { "id": "cleanup-main-1", "kind": "press", "key": "Cmd+Z" },
+      { "id": "cleanup-main-2", "kind": "press", "key": "Cmd+Z" },
+      { "id": "cleanup-palette-renderer", "kind": "press", "key": "Cmd+P" },
+      { "id": "cleanup-filter-renderer", "kind": "input", "target": "the command palette search input", "value": "renderer.js" },
+      { "id": "cleanup-choose-renderer", "kind": "press", "key": "Enter" },
+      { "id": "cleanup-renderer-1", "kind": "press", "key": "Cmd+Z" },
+      { "id": "cleanup-renderer-2", "kind": "press", "key": "Cmd+Z" }
+    ]
+  }
+}

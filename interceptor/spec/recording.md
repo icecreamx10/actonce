@@ -21,6 +21,7 @@ recordings/<recording-id>/
 
 The machine-readable contracts are:
 
+- [`event-envelope.schema.json`](../schema/event-envelope.schema.json)
 - [`raw-wda-event.schema.json`](../schema/raw-wda-event.schema.json)
 - [`protocol-annotation.schema.json`](../schema/protocol-annotation.schema.json)
 - [`derived-protocol-annotation.schema.json`](../schema/derived-protocol-annotation.schema.json)
@@ -36,8 +37,9 @@ boundary is not:
 | iOS | transparent HTTP proxy in front of WDA | requests, responses, bodies, timing |
 | macOS | decorator around Midscene `ComputerDevice` | screenshots and concrete pointer, keyboard, and scroll primitive calls |
 
-Shared persistence code lives in `src/common/`. Protocol-specific adapters live
-in `src/ios/` and `src/macos/`. The macOS adapter cannot observe an unmodified
+Shared persistence code lives in `src/core/`. Composable source adapters live
+in `src/sources/`; `src/ios/` and `src/macos/` are scenario compositions. The
+macOS adapter cannot observe an unmodified
 external Midscene process because `@midscene/computer` calls native input
 libraries in-process; callers must construct the agent with
 `agentForRecordedComputer()`.

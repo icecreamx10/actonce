@@ -18,26 +18,76 @@ const provenance = JSON.parse(
   lynxtronDownloadUrl: string;
   lynxtronArchiveSha256: string;
 };
-const testCase = JSON.parse(
-  readFileSync(join(benchmarkDir, "testcase.json"), "utf8"),
-) as {
+const benchmarkLock = JSON.parse(
+  readFileSync(join(benchmarkDir, "package-lock.json"), "utf8"),
+) as { packages: Record<string, { version?: string }> };
+const suite = JSON.parse(readFileSync(join(benchmarkDir, "suite.json"), "utf8")) as {
   schemaVersion: number;
-  naturalLanguageTask: string;
-  expected: Record<string, unknown>;
-  cleanup: { undoCount: number; save: boolean };
+  cases: string[];
 };
+const cliSource = readFileSync(join(benchmarkDir, "cli.ts"), "utf8");
+const fixtureStateSource = readFileSync(join(benchmarkDir, "fixture-state.ts"), "utf8");
+const suiteRunnerSource = readFileSync(join(benchmarkDir, "suite-runner.ts"), "utf8");
+const rootPackage = JSON.parse(readFileSync(join(repositoryRoot, "package.json"), "utf8")) as {
+  scripts: Record<string, string>;
+};
+const testCases = suite.cases.map((id) =>
+  JSON.parse(readFileSync(join(benchmarkDir, "cases", `${id}.json`), "utf8")) as {
+    schemaVersion: number;
+    id: string;
+    complexity: string;
+    dimensions: string[];
+    naturalLanguageTask: string;
+    setup: { readyAssertion: string };
+    precondition: string;
+    steps: Array<{ id: string; kind: string; prompt?: string }>;
+    cleanup: { mode: string; save: boolean; steps: Array<{ id: string }> };
+  }
+);
 
 describe("Lynxtron Fiddle benchmark fixture", () => {
-  it("pins the natural-language case and non-saving cleanup", () => {
-    expect(testCase.schemaVersion).toBe(1);
-    expect(testCase.naturalLanguageTask).toContain("red wavy underline");
-    expect(testCase.naturalLanguageTask).toContain("Expression expected.");
-    expect(testCase.expected).toEqual({
-      syntaxErrorVisible: true,
-      tooltipVisible: true,
-      tooltipMessage: "Expression expected.",
-    });
-    expect(testCase.cleanup).toEqual({ undoCount: 2, save: false });
+  it("defines a layered suite with unique, non-saving cases", () => {
+    expect(suite.schemaVersion).toBe(1);
+    expect(suite.cases).toHaveLength(5);
+    expect(new Set(suite.cases).size).toBe(suite.cases.length);
+    expect(testCases.map((testCase) => testCase.id)).toEqual(suite.cases);
+    expect(testCases.map((testCase) => testCase.complexity)).toEqual([
+      "basic",
+      "intermediate",
+      "advanced",
+      "advanced",
+      "deep",
+    ]);
+
+    for (const testCase of testCases) {
+      expect(testCase.schemaVersion).toBe(1);
+      expect(testCase.naturalLanguageTask.length).toBeGreaterThan(80);
+      expect(testCase.dimensions.length).toBeGreaterThanOrEqual(4);
+      expect(testCase.steps.length).toBeGreaterThanOrEqual(5);
+      expect(testCase.cleanup.save).toBe(false);
+      expect(testCase.setup.readyAssertion).toMatch(/no Welcome|no modal/i);
+      const stepIds = testCase.steps.map((step) => step.id);
+      expect(new Set(stepIds).size).toBe(stepIds.length);
+    }
+
+    const diagnostic = testCases[0];
+    expect(diagnostic.naturalLanguageTask).toContain("red wavy underline");
+    expect(diagnostic.naturalLanguageTask).toContain("Expression expected.");
+    expect(diagnostic.precondition).toContain("no modal dialog is open");
+    expect(diagnostic.precondition).toContain("app.whenReady");
+    expect(diagnostic.precondition).toContain("LynxWindow");
+    expect(diagnostic.steps.map((step) => step.id)).toEqual(
+      expect.arrayContaining(["error-source-applied", "red-squiggle", "tooltip-message"]),
+    );
+    expect(
+      testCases
+        .flatMap((testCase) => testCase.steps)
+        .filter((step) => step.id.includes("applied") || step.id.includes("filtered")),
+    ).toHaveLength(8);
+    const deepest = testCases.at(-1)!;
+    expect(deepest.steps.length).toBeGreaterThanOrEqual(20);
+    expect(deepest.dimensions).toContain("multi-window");
+    expect(deepest.dimensions).toContain("state-recovery");
   });
 
   it("matches the pinned archive checksum and expected bundle structure", () => {
@@ -66,5 +116,24 @@ describe("Lynxtron Fiddle benchmark fixture", () => {
         "desktop/node_modules/lynxtron-scintilla-editor/build/Release/lynx_scintilla_module.node",
       ),
     ).toBe(true);
+    expect(members.has("desktop/node_modules/typescript/package.json")).toBe(false);
+    expect(benchmarkLock.packages["node_modules/typescript"]?.version).toBe("5.9.3");
+  });
+
+  it("resets file-backed Fiddle state before every CLI run", () => {
+    expect(cliSource).toContain("await resetBenchmarkFixture(output)");
+    expect(cliSource).toContain("ACTONCE_LYNXTRON_TMPDIR: fixture.temporaryDirectory");
+    expect(cliSource).not.toContain("\n    TMPDIR: fixture.temporaryDirectory");
+    expect(cliSource.indexOf("await resetBenchmarkFixture(output)"))
+      .toBeLessThan(cliSource.indexOf("await spawnAndWait("));
+    expect(fixtureStateSource).toContain("await rm(fixtureRoot, { recursive: true, force: true })");
+    expect(fixtureStateSource).toContain("await extractArchive(archive, fixtureRoot)");
+    expect(fixtureStateSource).toContain("await rm(temporaryDirectory, { recursive: true, force: true })");
+    expect(fixtureStateSource).toContain('"fiddle.tour.seen": true');
+    expect(fixtureStateSource).toContain("process.env.ACTONCE_LYNXTRON_CONFIG_PATH||");
+    expect(suiteRunnerSource).toContain('join(benchmarkDir, "cli.ts")');
+    expect(suiteRunnerSource).not.toContain('join(benchmarkDir, "runner.ts")');
+    expect(rootPackage.scripts["benchmark:macos:lynxtron"]).toContain("cli.ts run");
+    expect(rootPackage.scripts["benchmark:macos:lynxtron"]).not.toContain("runner.ts");
   });
 });

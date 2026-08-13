@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { RecordingWriter } from "./recording-writer.js";
+import type { CaptureCheckpoint } from "../core/checkpoint.js";
+import type { RecorderContext } from "../core/source-interceptor.js";
 
 export type MidsceneHookableInterface = {
   beforeInvokeAction?: (actionName: string, param: unknown) => Promise<void>;
@@ -10,6 +11,8 @@ export type LogicalAction = {
   actionId: string;
   actionName: string;
   beforeCaptureId: string;
+  traceId: string;
+  spanId: string;
 };
 
 export type MidsceneActionHookController = {
@@ -20,11 +23,8 @@ export type MidsceneActionHookController = {
 /** Adds logical action boundaries while preserving hooks already on the device. */
 export function installMidsceneActionHooks(
   target: MidsceneHookableInterface,
-  writer: RecordingWriter,
-  captureCheckpoint: (
-    phase: "before-action" | "after-action",
-    actionId: string,
-  ) => Promise<{ captureId: string }>,
+  context: RecorderContext,
+  captureCheckpoint: CaptureCheckpoint,
 ): MidsceneActionHookController {
   const originalBefore = target.beforeInvokeAction?.bind(target);
   const originalAfter = target.afterInvokeAction?.bind(target);
@@ -32,13 +32,19 @@ export function installMidsceneActionHooks(
 
   const abandon = (reason: string) => {
     if (!active) return;
-    writer.append({
+    context.emit({
       kind: "logical.action.outcome-unknown",
+      lifecycle: "failed",
       origin: "midscene-action-hook",
       actionId: active.actionId,
       operation: active.actionName,
       beforeCaptureId: active.beforeCaptureId,
       reason,
+      correlation: {
+        traceId: active.traceId,
+        spanId: active.spanId,
+        logicalActionId: active.actionId,
+      },
     });
     active = undefined;
   };
@@ -49,23 +55,39 @@ export function installMidsceneActionHooks(
     abandon("superseded before afterInvokeAction was called");
     await originalBefore?.(actionName, rawParam);
     const actionId = randomUUID();
-    const before = await captureCheckpoint("before-action", actionId);
-    active = { actionId, actionName, beforeCaptureId: before.captureId };
-    writer.append({
+    const traceId = randomUUID();
+    const spanId = randomUUID();
+    const correlation = { traceId, spanId, logicalActionId: actionId };
+    const before = await captureCheckpoint("before-action", actionId, {
+      traceId,
+      parentSpanId: spanId,
+      logicalActionId: actionId,
+    });
+    active = {
+      actionId,
+      actionName,
+      beforeCaptureId: before.captureId,
+      traceId,
+      spanId,
+    };
+    context.emit({
       kind: "logical.action.started",
+      lifecycle: "started",
       origin: "midscene-action-hook",
       actionId,
       operation: actionName,
       rawArguments: rawParam,
       beforeCaptureId: before.captureId,
+      correlation,
     });
   };
 
   target.afterInvokeAction = async (actionName, normalizedParam) => {
     await originalAfter?.(actionName, normalizedParam);
     if (!active) {
-      writer.append({
+      context.emit({
         kind: "logical.action.unmatched-after-hook",
+        lifecycle: "instant",
         origin: "midscene-action-hook",
         operation: actionName,
         normalizedArguments: normalizedParam,
@@ -73,15 +95,25 @@ export function installMidsceneActionHooks(
       return;
     }
     const logical = active;
-    const after = await captureCheckpoint("after-action", logical.actionId);
-    writer.append({
+    const after = await captureCheckpoint("after-action", logical.actionId, {
+      traceId: logical.traceId,
+      parentSpanId: logical.spanId,
+      logicalActionId: logical.actionId,
+    });
+    context.emit({
       kind: "logical.action.completed",
+      lifecycle: "completed",
       origin: "midscene-action-hook",
       actionId: logical.actionId,
       operation: actionName,
       normalizedArguments: normalizedParam,
       beforeCaptureId: logical.beforeCaptureId,
       afterCaptureId: after.captureId,
+      correlation: {
+        traceId: logical.traceId,
+        spanId: logical.spanId,
+        logicalActionId: logical.actionId,
+      },
     });
     active = undefined;
   };

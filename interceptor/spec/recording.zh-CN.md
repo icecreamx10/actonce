@@ -20,6 +20,7 @@ recordings/<recording-id>/
 
 机器可读契约包括：
 
+- [`event-envelope.schema.json`](../schema/event-envelope.schema.json)
 - [`raw-wda-event.schema.json`](../schema/raw-wda-event.schema.json)
 - [`protocol-annotation.schema.json`](../schema/protocol-annotation.schema.json)
 - [`derived-protocol-annotation.schema.json`](../schema/derived-protocol-annotation.schema.json)
@@ -34,8 +35,8 @@ recordings/<recording-id>/
 | iOS | WDA 前的透明 HTTP 代理 | 请求、响应、body 和时间信息 |
 | macOS | Midscene `ComputerDevice` 的装饰器 | 截图及实际执行的鼠标、键盘和滚动 primitive |
 
-公共持久化代码位于 `src/common/`，协议相关 adapter 位于 `src/ios/` 和
-`src/macos/`。`@midscene/computer` 在进程内直接调用原生输入库，因此 macOS
+公共持久化代码位于 `src/core/`，可组合 source adapter 位于 `src/sources/`；
+`src/ios/` 和 `src/macos/` 负责场景组合。`@midscene/computer` 在进程内直接调用原生输入库，因此 macOS
 adapter 无法观察一个未经修改的外部 Midscene 进程；调用方必须使用
 `agentForRecordedComputer()` 创建 agent。
 

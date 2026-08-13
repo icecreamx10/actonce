@@ -1,0 +1,44 @@
+{
+  "name": "@actonce/macos",
+  "version": "0.1.0",
+  "description": "Deterministic macOS replay runtime for ActOnce-generated scripts.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0",
+    "npm": ">=10"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "actonce-macos": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "doctor": "node dist/cli.js doctor",
+    "prepack": "npm run clean && npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actonce/replay": "file:../common",
+    "appium": "3.6.0",
+    "appium-mac2-driver": "4.2.0",
+    "sharp": "0.35.3",
+    "webdriverio": "9.30.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

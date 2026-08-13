@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://actonce.dev/schema/event-envelope.schema.json",
+  "title": "ActOnce source event envelope",
+  "description": "Common ordering and correlation envelope shared by every interceptor source.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "recordingId",
+    "platform",
+    "sequence",
+    "sourceSequence",
+    "source",
+    "kind",
+    "wallTime",
+    "monotonicNs",
+    "timing"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "recordingId": { "type": "string", "minLength": 1 },
+    "platform": { "enum": ["ios", "macos"] },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "sourceSequence": { "type": "integer", "minimum": 0 },
+    "source": {
+      "type": "object",
+      "required": ["type", "instanceId"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "instanceId": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "kind": { "type": "string", "minLength": 1 },
+    "lifecycle": {
+      "enum": ["started", "completed", "failed", "instant"]
+    },
+    "wallTime": { "type": "string", "format": "date-time" },
+    "monotonicNs": { "type": "string", "pattern": "^[0-9]+$" },
+    "timing": {
+      "type": "object",
+      "required": ["observedMonotonicNs", "ingestedMonotonicNs"],
+      "properties": {
+        "observedMonotonicNs": { "type": "string", "pattern": "^[0-9]+$" },
+        "ingestedMonotonicNs": { "type": "string", "pattern": "^[0-9]+$" }
+      },
+      "additionalProperties": true
+    },
+    "correlation": {
+      "type": "object",
+      "properties": {
+        "traceId": { "type": "string" },
+        "spanId": { "type": "string" },
+        "parentSpanId": { "type": "string" },
+        "logicalActionId": { "type": "string" },
+        "requestId": { "type": "string" },
+        "captureId": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

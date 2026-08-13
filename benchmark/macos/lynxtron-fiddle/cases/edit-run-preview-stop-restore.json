@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "id": "edit-run-preview-stop-restore",
+  "title": "Edit, run preview, inspect output, stop, and restore",
+  "complexity": "deep",
+  "dimensions": ["multi-editor", "command-palette", "build-run", "multi-window", "console-output", "lifecycle", "state-recovery"],
+  "estimatedDurationMs": 180000,
+  "naturalLanguageTask": "Change renderer.js so the Fiddle renders the unique text 'ActOnce Deep Chain Ready', change styles.css to give that view a dark blue background and white title, run the Fiddle, verify the launched preview shows the unique text and styling, return to the Fiddle and verify the console reports a successful run, stop the preview, then undo both files back to their original contents without saving.",
+  "setup": {
+    "readyAssertion": "Lynxtron Fiddle is the foreground window, no Welcome or other modal dialog is open, its unobstructed default source editors and console are visible, and no preview process is running"
+  },
+  "precondition": "The default Hello Lynxtron Fiddle is unmodified, renderer.js and styles.css are available through the command palette, and the Run control is enabled",
+  "steps": [
+    { "id": "palette-renderer", "kind": "press", "key": "Cmd+P" },
+    { "id": "filter-renderer", "kind": "input", "target": "the command palette search input", "value": "renderer.js" },
+    {
+      "id": "renderer-palette-filtered",
+      "kind": "assert",
+      "prompt": "The command palette search contains renderer.js and its renderer.js result is selected"
+    },
+    { "id": "choose-renderer", "kind": "press", "key": "Enter" },
+    {
+      "id": "edit-renderer",
+      "kind": "input",
+      "target": "the renderer.js source editor",
+      "value": "import { root } from '@lynx-js/react';\nimport './styles.css';\n\nfunction App() {\n  return (\n    <view className=\"hello\">\n      <text className=\"hello-title\">ActOnce Deep Chain Ready</text>\n    </view>\n  );\n}\n\nroot.render(<App />);\n"
+    },
+    {
+      "id": "renderer-edit-applied",
+      "kind": "assert",
+      "prompt": "The renderer.js editor visibly contains the unique text 'ActOnce Deep Chain Ready' and the replacement ReactLynx source"
+    },
+    { "id": "palette-styles", "kind": "press", "key": "Cmd+P" },
+    { "id": "filter-styles", "kind": "input", "target": "the command palette search input", "value": "styles.css" },
+    {
+      "id": "styles-palette-filtered",
+      "kind": "assert",
+      "prompt": "The command palette search contains styles.css and its styles.css result is selected"
+    },
+    { "id": "choose-styles", "kind": "press", "key": "Enter" },
+    {
+      "id": "edit-styles",
+      "kind": "input",
+      "target": "the styles.css source editor",
+      "value": ".hello {\n  padding: 32px;\n  background-color: #123b63;\n}\n\n.hello-title {\n  color: white;\n  font-size: 30px;\n}\n"
+    },
+    {
+      "id": "styles-edit-applied",
+      "kind": "assert",
+      "prompt": "The styles.css editor visibly contains background-color #123b63, white title text, and font-size 30px"
+    },
+    {
+      "id": "dirty-state",
+      "kind": "assert",
+      "prompt": "Lynxtron Fiddle indicates there are unsaved edits and styles.css contains the dark blue background and white title rules"
+    },
+    { "id": "run", "kind": "tap", "target": "the Run control in the top command bar" },
+    { "id": "run-settle", "kind": "wait", "durationMs": 15000 },
+    {
+      "id": "preview-visible",
+      "kind": "query",
+      "prompt": "{visible: boolean, text: string | null, darkBlueBackground: boolean, whiteTitle: boolean}, inspect the newly launched Fiddle preview window and report its unique title text and requested visual styling",
+      "expect": { "visible": true, "text": "ActOnce Deep Chain Ready", "darkBlueBackground": true, "whiteTitle": true }
+    },
+    { "id": "return-to-fiddle-window", "kind": "press", "key": "Cmd+`" },
+    {
+      "id": "run-output",
+      "kind": "boolean",
+      "prompt": "The parent Lynxtron Fiddle window is visible and its console contains a successful Run line with a process id or workspace path",
+      "expect": true
+    },
+    { "id": "stop-preview", "kind": "tap", "target": "the Stop control in the top command bar" },
+    { "id": "stop-settle", "kind": "wait", "durationMs": 1500 },
+    {
+      "id": "stopped",
+      "kind": "boolean",
+      "prompt": "The top command bar shows Run rather than Stop and the console reports that the preview process stopped or exited",
+      "expect": true
+    },
+    { "id": "palette-renderer-restore", "kind": "press", "key": "Cmd+P" },
+    { "id": "filter-renderer-restore", "kind": "input", "target": "the command palette search input", "value": "renderer.js" },
+    { "id": "choose-renderer-restore", "kind": "press", "key": "Enter" },
+    { "id": "undo-renderer-paste", "kind": "press", "key": "Cmd+Z" },
+    { "id": "undo-renderer-clear", "kind": "press", "key": "Cmd+Z" },
+    { "id": "palette-styles-restore", "kind": "press", "key": "Cmd+P" },
+    { "id": "filter-styles-restore", "kind": "input", "target": "the command palette search input", "value": "styles.css" },
+    { "id": "choose-styles-restore", "kind": "press", "key": "Enter" },
+    { "id": "undo-styles-paste", "kind": "press", "key": "Cmd+Z" },
+    { "id": "undo-styles-clear", "kind": "press", "key": "Cmd+Z" },
+    {
+      "id": "source-restored",
+      "kind": "assert",
+      "prompt": "renderer.js and styles.css are restored to the default Hello Lynxtron contents and the unsaved-edits indicator is gone"
+    }
+  ],
+  "cleanup": {
+    "mode": "on-failure",
+    "save": false,
+    "steps": [
+      { "id": "dismiss-overlay", "kind": "press", "key": "Escape" },
+      { "id": "cleanup-stop", "kind": "tap", "target": "the Stop control in the top command bar, if a preview is still running", "optional": true },
+      { "id": "cleanup-palette-renderer", "kind": "press", "key": "Cmd+P" },
+      { "id": "cleanup-filter-renderer", "kind": "input", "target": "the command palette search input", "value": "renderer.js" },
+      { "id": "cleanup-choose-renderer", "kind": "press", "key": "Enter" },
+      { "id": "cleanup-renderer-1", "kind": "press", "key": "Cmd+Z" },
+      { "id": "cleanup-renderer-2", "kind": "press", "key": "Cmd+Z" },
+      { "id": "cleanup-palette-styles", "kind": "press", "key": "Cmd+P" },
+      { "id": "cleanup-filter-styles", "kind": "input", "target": "the command palette search input", "value": "styles.css" },
+      { "id": "cleanup-choose-styles", "kind": "press", "key": "Enter" },
+      { "id": "cleanup-styles-1", "kind": "press", "key": "Cmd+Z" },
+      { "id": "cleanup-styles-2", "kind": "press", "key": "Cmd+Z" }
+    ]
+  }
+}

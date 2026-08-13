@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "palette-find-navigation",
+  "title": "Command palette navigation and in-editor find",
+  "complexity": "intermediate",
+  "dimensions": ["keyboard-shortcut", "command-palette", "editor-navigation", "find", "selection"],
+  "estimatedDurationMs": 65000,
+  "naturalLanguageTask": "Use Lynxtron Fiddle's command palette to open renderer.js, find the text 'hello-title' in that editor and verify a match is selected, close Find, then use the command palette to return to main.js and verify the main-process source is visible. Do not modify or save any file.",
+  "setup": {
+    "readyAssertion": "Lynxtron Fiddle is the foreground window, no Welcome or other modal dialog is open, and the unobstructed default Hello Lynxtron editors are visible"
+  },
+  "precondition": "Lynxtron Fiddle shows the default Hello Lynxtron source editors and no modal dialog is open",
+  "steps": [
+    { "id": "open-palette-renderer", "kind": "press", "key": "Cmd+P" },
+    { "id": "palette-settle", "kind": "wait", "durationMs": 500 },
+    {
+      "id": "palette-visible",
+      "kind": "assert",
+      "prompt": "The command palette is visibly open with an unobstructed editable search input"
+    },
+    {
+      "id": "filter-renderer",
+      "kind": "input",
+      "target": "the command palette search input",
+      "value": "renderer.js"
+    },
+    {
+      "id": "renderer-result",
+      "kind": "assert",
+      "prompt": "The command palette has a selected result for renderer.js"
+    },
+    { "id": "choose-renderer", "kind": "press", "key": "Enter" },
+    {
+      "id": "renderer-visible",
+      "kind": "assert",
+      "prompt": "The renderer.js editor is active and visibly contains the default ReactLynx source with 'Hello, Lynxtron!'"
+    },
+    { "id": "open-find", "kind": "press", "key": "Cmd+F" },
+    {
+      "id": "find-token",
+      "kind": "input",
+      "target": "the Find input for the current renderer.js editor",
+      "value": "hello-title"
+    },
+    {
+      "id": "find-match",
+      "kind": "boolean",
+      "prompt": "The Find UI reports at least one match for 'hello-title' and an occurrence in renderer.js is selected or highlighted",
+      "expect": true
+    },
+    { "id": "close-find", "kind": "press", "key": "Escape" },
+    { "id": "open-palette-main", "kind": "press", "key": "Cmd+P" },
+    {
+      "id": "main-palette-visible",
+      "kind": "assert",
+      "prompt": "The command palette is visibly open again with an unobstructed editable search input"
+    },
+    {
+      "id": "filter-main",
+      "kind": "input",
+      "target": "the command palette search input",
+      "value": "main.js"
+    },
+    { "id": "choose-main", "kind": "press", "key": "Enter" },
+    {
+      "id": "main-visible",
+      "kind": "assert",
+      "prompt": "The main.js editor is active and visibly contains the default main-process source including app.whenReady and LynxWindow"
+    }
+  ],
+  "cleanup": { "mode": "always", "save": false, "steps": [] }
+}

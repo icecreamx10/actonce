@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lynxtron Replay Benchmark"
+  short_description: "Run the fixed internal Lynxtron replay evaluation"
+  default_prompt: "Use $benchmark-lynxtron-fiddle to run the repository-internal original-versus-replay benchmark and report correctness and speedup."

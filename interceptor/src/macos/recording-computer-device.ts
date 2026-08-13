@@ -13,9 +13,32 @@ import {
   installMidsceneActionHooks,
   type MidsceneHookableInterface,
 } from "../common/midscene-action-hooks.js";
+import type { CaptureCheckpoint } from "../core/checkpoint.js";
+import type { RecorderContext } from "../core/source-interceptor.js";
+import {
+  MacOSInputInterceptor,
+  installMacOSInputSource,
+} from "../sources/macos-input/macos-input-interceptor.js";
+import {
+  MacOSAXInterceptor,
+  type MacOSAXProvider,
+} from "../sources/macos-ax/macos-ax-interceptor.js";
+import { MidsceneInterceptor } from "../sources/midscene/midscene-interceptor.js";
 
-type RecorderOptions = Pick<RecordingWriterOptions, "rootDir" | "recordingId">;
-type PrimitiveGroup = Record<string, (...args: never[]) => Promise<unknown>>;
+type RecorderOptions = Pick<RecordingWriterOptions, "rootDir" | "recordingId"> & {
+  axProvider?: MacOSAXProvider;
+};
+type DisplayInfo = Awaited<ReturnType<typeof ComputerDevice.listDisplays>>[number];
+
+export function resolveSelectedDisplayId(
+  requestedDisplayId: string | undefined,
+  displays: DisplayInfo[],
+): string | null {
+  if (requestedDisplayId !== undefined && requestedDisplayId !== "") {
+    return requestedDisplayId;
+  }
+  return displays.find((display) => display.primary)?.id ?? displays[0]?.id ?? null;
+}
 
 export type RecordedComputer = {
   agent: ComputerAgent<ComputerDevice>;
@@ -24,29 +47,46 @@ export type RecordedComputer = {
   close(): Promise<void>;
 };
 
-/**
- * Construct Midscene's normal local ComputerDevice and decorate its lowest
- * public input primitives. Midscene planning remains untouched; every concrete
- * device operation crosses this recorder boundary.
- */
+/** Compose Midscene and concrete macOS input sources into one recording session. */
 export async function agentForRecordedComputer(
   agentOptions: ComputerAgentOpt = {},
   recorderOptions: RecorderOptions = {},
 ): Promise<RecordedComputer> {
+  const { axProvider, ...writerOptions } = recorderOptions;
   const device = new ComputerDevice(agentOptions);
   const displays = await ComputerDevice.listDisplays();
+  const requestedDisplayId =
+    agentOptions.displayId === undefined || agentOptions.displayId === ""
+      ? null
+      : agentOptions.displayId;
+  const selectedDisplayId = resolveSelectedDisplayId(
+    agentOptions.displayId,
+    displays,
+  );
   const writer = await RecordingWriter.create({
-    ...recorderOptions,
+    ...writerOptions,
     platform: "macos",
-    recorder: "midscene-computer-device-adapter",
-    metadata: { hostPlatform: process.platform, displays },
+    recorder: "composable-interceptor-session",
+    metadata: {
+      hostPlatform: process.platform,
+      requestedDisplayId,
+      selectedDisplayId,
+      displaySelection:
+        requestedDisplayId === null ? "primary-default" : "explicit",
+      displays,
+    },
+  });
+  const environmentContext = writer.source({
+    type: "macos-input",
+    instanceId: "computer-environment",
   });
   try {
     await device.connect();
   } catch (error) {
     writer.markIncomplete(`computer connection failed: ${errorMessage(error)}`);
-    writer.append({
+    environmentContext.emit({
       kind: "capture.environment.failed",
+      lifecycle: "failed",
       origin: "midscene-device-adapter",
       error: { message: errorMessage(error) },
     });
@@ -55,64 +95,78 @@ export async function agentForRecordedComputer(
       `${errorMessage(error)}\nActOnce failure recording: ${writer.recordingDir}`,
     );
   }
-  const restore = installComputerRecorder(device, writer);
+
+  const checkpointContext = writer.source({
+    type: "checkpoint",
+    instanceId: "macos-checkpoint",
+  });
+  const ax = axProvider ? new MacOSAXInterceptor(axProvider) : undefined;
+  if (ax) await writer.attach(ax);
+  const captureCheckpoint = createMacOSCheckpointCapture(
+    device,
+    checkpointContext,
+    ax,
+  );
   const agent = new ComputerAgent(device, agentOptions);
-  const removeProgressListener = agent.addProgressListener((event) => {
-    writer.append({
-      kind: "midscene.progress",
-      origin: "midscene-agent-hook",
-      progress: event,
-    });
-  });
-  const removeDumpListener = agent.addDumpUpdateListener((dump, executionDump) => {
-    const artifact = writer.storeArtifact(
-      Buffer.from(dump, "utf8"),
-      "application/json",
-    );
-    writer.append({
-      kind: "midscene.execution-dump.updated",
-      origin: "midscene-agent-hook",
-      executionId: executionDump?.id ?? null,
-      artifact,
-    });
-  });
+  const actionTarget = device as ComputerDevice & MidsceneHookableInterface;
+  const observationScreenshots: Array<{
+    sequence: number;
+    artifact: import("../core/source-interceptor.js").ArtifactReference;
+  }> = [];
+  const midscene = new MidsceneInterceptor(
+    agent,
+    actionTarget,
+    captureCheckpoint,
+    {
+      peekScreenshots: () => [...observationScreenshots],
+      consumeScreenshots: () => { observationScreenshots.length = 0; },
+    },
+  );
+  const input = new MacOSInputInterceptor(
+    device,
+    captureCheckpoint,
+    () => midscene.current(),
+    (evidence) => { observationScreenshots.push(evidence); },
+  );
+  await writer.attach(midscene);
+  await writer.attach(input);
 
   return {
     agent,
     device,
     writer,
     async close() {
-      removeProgressListener();
-      removeDumpListener();
-      restore();
-      await device.destroy();
       await writer.close();
+      await device.destroy();
     },
   };
 }
 
-export function installComputerRecorder(
+export function createMacOSCheckpointCapture(
   device: ComputerDevice,
-  writer: RecordingWriter,
-): () => void {
-  const originals: Array<() => void> = [];
+  context: RecorderContext,
+  ax?: MacOSAXInterceptor,
+): CaptureCheckpoint {
+  // Bind before the input interceptor decorates screenshotBase64.
   const originalScreenshot = device.screenshotBase64.bind(device);
-
-  const captureCheckpoint = async (
-    phase: "before-action" | "after-action" | "manual-observation",
-    actionId: string | null,
-  ) => {
+  return async (phase, actionId, correlation) => {
     const captureId = randomUUID();
-    const startedMonotonicNs = writer.monotonicNs();
+    const startedMonotonicNs = context.monotonicNs();
     try {
-      const [image, viewport] = await Promise.all([
+      const [image, viewport, axSnapshot] = await Promise.all([
         originalScreenshot(),
         device.size(),
+        ax?.captureSnapshot(phase, {
+          ...correlation,
+          captureId,
+          logicalActionId: correlation?.logicalActionId ?? actionId ?? undefined,
+        }),
       ]);
       const decoded = decodeDataUrl(image);
-      const artifact = await writer.artifact(decoded.bytes, decoded.mediaType);
-      const sequence = writer.append({
+      const artifact = await context.artifact(decoded.bytes, decoded.mediaType);
+      const receipt = context.emit({
         kind: "checkpoint.captured",
+        lifecycle: "instant",
         origin: "recorder",
         captureId,
         actionId,
@@ -120,120 +174,81 @@ export function installComputerRecorder(
         evidence: {
           screenshot: artifact,
           deviceMetadata: { platform: "macos", viewport },
-          nativeUi: {
-            status: "unavailable",
-            reason: "The Midscene Computer device API exposes pixels and input primitives, but no macOS AX tree.",
-          },
+          nativeUi: axSnapshot
+            ? {
+                status: "available",
+                source: "macos-ax",
+                artifact: axSnapshot.artifact,
+              }
+            : {
+                status: "unavailable",
+                reason:
+                  "No macOS AX snapshot provider is attached to this recording session.",
+              },
         },
-        coherence: { status: "unknown", reason: "single-frame prototype capture" },
-        timing: { startedMonotonicNs, completedMonotonicNs: writer.monotonicNs() },
+        coherence: {
+          status: "unknown",
+          reason: "single-frame prototype capture",
+        },
+        timing: {
+          startedMonotonicNs,
+          completedMonotonicNs: context.monotonicNs(),
+        },
+        correlation: {
+          ...correlation,
+          captureId,
+          logicalActionId: correlation?.logicalActionId ?? actionId ?? undefined,
+        },
       });
-      return { captureId, sequence };
+      return { captureId, sequence: receipt.sequence };
     } catch (error) {
-      writer.markIncomplete(`checkpoint ${captureId} failed: ${errorMessage(error)}`);
-      writer.append({
+      context.markIncomplete(
+        `checkpoint ${captureId} failed: ${errorMessage(error)}`,
+      );
+      const receipt = context.emit({
         kind: "checkpoint.failed",
+        lifecycle: "failed",
         origin: "recorder",
         captureId,
         actionId,
         phase,
         error: { message: errorMessage(error) },
+        correlation: { ...correlation, captureId },
       });
-      throw error;
+      throw Object.assign(
+        error instanceof Error ? error : new Error(String(error)),
+        { eventSequence: receipt.sequence },
+      );
     }
   };
+}
 
-  const logicalHooks = installMidsceneActionHooks(
-    device as ComputerDevice & MidsceneHookableInterface,
-    writer,
-    captureCheckpoint,
+/** Backward-compatible installer used by low-level tests and custom integrations. */
+export function installComputerRecorder(
+  device: ComputerDevice,
+  writer: RecordingWriter,
+): () => void {
+  const checkpoint = createMacOSCheckpointCapture(
+    device,
+    writer.source({ type: "checkpoint", instanceId: "macos-checkpoint" }),
   );
-  originals.push(() => {
-    logicalHooks.restore();
-  });
-
-  const replace = (
-    group: PrimitiveGroup,
-    operation: string,
-  ) => {
-    const original = group[operation];
-    if (typeof original !== "function") return;
-    group[operation] = (async (...args: never[]) => {
-      const primitiveId = randomUUID();
-      const logical = logicalHooks.current();
-      const standaloneActionId = logical ? null : randomUUID();
-      const before = standaloneActionId
-        ? await captureCheckpoint("before-action", standaloneActionId)
-        : null;
-      writer.append({
-        kind: "device.primitive.started",
-        origin: "midscene-device-adapter",
-        primitiveId,
-        logicalActionId: logical?.actionId ?? standaloneActionId,
-        operation,
-        arguments: args,
-        beforeCaptureId: before?.captureId ?? logical?.beforeCaptureId,
-      });
-      try {
-        const result = await original(...args);
-        const after = standaloneActionId
-          ? await captureCheckpoint("after-action", standaloneActionId)
-          : null;
-        writer.append({
-          kind: "device.primitive.completed",
-          origin: "midscene-device-adapter",
-          primitiveId,
-          logicalActionId: logical?.actionId ?? standaloneActionId,
-          operation,
-          beforeCaptureId: before?.captureId ?? logical?.beforeCaptureId,
-          afterCaptureId: after?.captureId ?? null,
-          result: result ?? null,
-        });
-        return result;
-      } catch (error) {
-        writer.append({
-          kind: "device.primitive.failed",
-          origin: "midscene-device-adapter",
-          primitiveId,
-          logicalActionId: logical?.actionId ?? standaloneActionId,
-          operation,
-          beforeCaptureId: before?.captureId ?? logical?.beforeCaptureId,
-          error: { message: errorMessage(error) },
-        });
-        throw error;
-      }
-    }) as PrimitiveGroup[string];
-    originals.push(() => {
-      group[operation] = original;
-    });
-  };
-
-  const input = device.inputPrimitives;
-  for (const operation of ["tap", "doubleClick", "rightClick", "hover", "dragAndDrop"]) {
-    replace(input.pointer as unknown as PrimitiveGroup, operation);
-  }
-  for (const operation of ["typeText", "keyboardPress", "clearInput"]) {
-    replace(input.keyboard as unknown as PrimitiveGroup, operation);
-  }
-  replace(input.scroll as unknown as PrimitiveGroup, "scroll");
-
-  device.screenshotBase64 = async () => {
-    const image = await originalScreenshot();
-    const decoded = decodeDataUrl(image);
-    const artifact = await writer.artifact(decoded.bytes, decoded.mediaType);
-    writer.append({
-      kind: "observation.screenshot",
-      origin: "midscene-device-adapter",
-      artifact,
-    });
-    return image;
-  };
-  originals.push(() => {
-    device.screenshotBase64 = originalScreenshot;
-  });
-
+  const actionHooks = installMidsceneActionHooks(
+    device as ComputerDevice & MidsceneHookableInterface,
+    writer.source({ type: "midscene", instanceId: "midscene-actions" }),
+    checkpoint,
+  );
+  const restoreInput = installMacOSInputSource(
+    device,
+    writer.source({
+      type: "macos-input",
+      instanceId: "midscene-computer-device",
+    }),
+    checkpoint,
+    () => actionHooks.current(),
+  );
   return () => {
-    for (const restore of originals.reverse()) restore();
+    restoreInput();
+    actionHooks.restore();
   };
 }
 

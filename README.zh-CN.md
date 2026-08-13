@@ -4,6 +4,42 @@
 
 将 AI 驱动的 UI 任务录制一次，之后以确定性方式回放。
 
+## 发布的 Skills
+
+本仓库在 [`skills/`](skills/) 下发布两个可独立分发的 Codex Skill：
+
+- [`record-device-use`](skills/record-device-use/SKILL.md)：通过稳定的 ActOnce CLI profile 录制 Midscene macOS、Midscene iOS 或通用 WDA 运行。
+- [`compile-device-recording`](skills/compile-device-recording/SKILL.md)：阅读录制、选择有证据支持的片段，并生成确定性回放脚本。
+
+每个目录都是独立的发布包，包含自己的 `SKILL.md`、`agents/openai.yaml`、脚本和 references。仓库其余代码是这两个 Skill 使用的 recorder 实现和 benchmark fixture。
+
+## macOS 回放运行时
+
+[`@actonce/macos`](runtime/macos/README.md) 是第一个按平台独立实现的回放包。它面向开发机器，是 WebdriverIO 与 Appium Mac2 上的一层轻量 TypeScript API。CLI 负责启动 Appium、创建一个共享 Mac2 session、按顺序执行多份生成脚本并清理资源；平台生命周期和 source 组合不会下放到 Skill 或生成脚本中。
+
+```bash
+npm run macos:install
+npm run macos:doctor
+npm run macos:run -- 01-setup.js 02-action.js 03-assert.js
+```
+
+窗口规范化由回放 SDK 实现，不属于生成 Skill 的逻辑。`run` 会在创建 App session 后
+原子调用这个能力：
+
+```bash
+node runtime/macos/dist/cli.js run \
+  --app-path /path/to/Lynxtron.app \
+  --setup-window-process-name lynxtron \
+  --setup-display-id 0 \
+  --setup-window-width 1372 \
+  --setup-window-height 880 \
+  --setup-window-margin 40 \
+  replay.js
+```
+
+生成的操作和截图 checkpoint 以命令返回的窗口 frame 为坐标原点。桌面位置、其他
+显示器以及其他应用的像素不属于视觉 oracle。
+
 ## 动机
 
 Midscene 一类视觉驱动 Agent 能够操作仅靠选择器难以自动化的界面，在首次探索任务时尤其有价值。但如果每次运行都让模型重新发现同一个稳定流程，就会带来额外的延迟、成本和不确定性。
@@ -56,15 +92,16 @@ ActOnce 会保留视频和截图用于诊断，但它们只是证据，不是可
 
 该任务覆盖文本输入、选项选择、复选框、提交、异步 UI 状态以及语义结果验证。使用本地页面可以在第一次比较中排除网络和第三方 UI 波动。
 
-每个 runner 会将 JSON 结果写入 `artifacts/benchmarks/`。我们会比较：
+每个 runner 会将 JSON 结果写入 `artifacts/benchmarks/`。评测只有两个维度，
+且正确性是性能比较的前置门槛：
 
 | 指标 | 含义 |
 | --- | --- |
-| 任务成功率 | 是否观察到要求的后置状态 |
-| 总耗时 | 任务端到端运行时间 |
-| Agent 调用次数 | Agent API 调用次数；后续会在模型客户端边界采集准确的供应商用量 |
-| AI fallback 次数 | 回放期间由模型协助修复的次数 |
-| 验证失败次数 | 动作已执行但未到达预期状态的次数 |
+| 正确性 | CLI assertion 与筛选后的截图证据先通过，再由 AI 完成最终视觉审核 |
+| 条件性能 | 原始执行耗时与正确 replay 执行耗时中位数的比较 |
+
+端到端耗时、模型调用、fallback 和失败详情仍作为诊断信息保留，但不构成额外评分。
+正确性失败时，性能标记为不可比较。
 
 ## 开发环境
 
@@ -121,6 +158,7 @@ Android 模拟器、Midscene 连接 smoke test 以及固定版本 Markor APK 的
 ```bash
 npm test
 npm run typecheck
+npm run test:macos-runtime
 ```
 
 ## 近期路线图

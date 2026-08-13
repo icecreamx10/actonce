@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "diagnostic-hover",
+  "benchmarkId": "lynxtron-fiddle-js-diagnostic-hover",
+  "title": "JavaScript syntax diagnostic and hover tooltip",
+  "complexity": "basic",
+  "dimensions": ["editor-input", "language-service", "hover", "visual-assertion"],
+  "estimatedDurationMs": 45000,
+  "naturalLanguageTask": "In Lynxtron Fiddle, introduce a JavaScript syntax error in the top-left main.js editor, verify that a red wavy underline appears, hover that underline, verify that its diagnostic tooltip says 'Expression expected.', and finally restore the editor without saving.",
+  "setup": {
+    "readyAssertion": "Lynxtron Fiddle is the foreground window, no Welcome or other modal dialog covers it, and the unobstructed main.js editor visibly contains the default main-process source including app.whenReady and LynxWindow"
+  },
+  "precondition": "The foreground window is Lynxtron Fiddle, no modal dialog is open, and the unobstructed main.js editor is editable and visibly contains the default main-process source including app.whenReady and LynxWindow",
+  "steps": [
+    {
+      "id": "introduce-error",
+      "kind": "input",
+      "target": "the top-left main.js source editor, inside its editable code area",
+      "value": "const actOnceSyntaxProbe = ("
+    },
+    {
+      "id": "error-source-applied",
+      "kind": "assert",
+      "prompt": "The main.js editor now visibly contains exactly the probe text 'const actOnceSyntaxProbe = (' instead of the default source"
+    },
+    { "id": "diagnostic-settle", "kind": "wait", "durationMs": 2500 },
+    {
+      "id": "red-squiggle",
+      "kind": "boolean",
+      "prompt": "A red wavy underline is visibly marking the syntax error in main.js containing 'const actOnceSyntaxProbe = ('",
+      "expect": true
+    },
+    {
+      "id": "hover-diagnostic",
+      "kind": "hover",
+      "target": "the red wavy underline on the syntax error in main.js containing 'const actOnceSyntaxProbe = ('"
+    },
+    { "id": "tooltip-settle", "kind": "wait", "durationMs": 1200 },
+    {
+      "id": "tooltip-message",
+      "kind": "query",
+      "prompt": "{visible: boolean, message: string | null}, determine whether a diagnostic tooltip is visible over or near the hovered red syntax-error underline, and transcribe its diagnostic message when visible",
+      "expect": { "visible": true, "message": "Expression expected." }
+    }
+  ],
+  "cleanup": {
+    "mode": "always",
+    "save": false,
+    "steps": [
+      { "id": "undo-paste", "kind": "press", "key": "Cmd+Z" },
+      { "id": "undo-clear", "kind": "press", "key": "Cmd+Z" }
+    ]
+  }
+}

@@ -11,5 +11,5 @@
   "lynxtronVersion": "0.0.8",
   "lynxtronDownloadUrl": "https://github.com/lynx-family/lynxtron/releases/download/v0.0.8/lynxtron-v0.0.8-darwin-arm64.zip",
   "lynxtronArchiveSha256": "f924bcbb81ce3d1643bf1cdc1e83fbe098725791cdd4008ed14845f5c57de76d",
-  "notes": "The archive is the verified desktop runtime used by the benchmark. It includes the Scintilla native module and its runtime closure, but not the 62 MB Lynxtron application runtime, which is installed from the pinned npm package."
+  "notes": "The archive is the verified desktop runtime used by the benchmark. It includes the Scintilla native module and most of its runtime closure, but intentionally omits TypeScript and the 62 MB Lynxtron application runtime. The runner links the benchmark-lockfile TypeScript into the extracted desktop/node_modules so Node cannot resolve an incompatible repository-level compiler; the official Lynxtron host is downloaded and checksum-verified by prepare.ts."
 }

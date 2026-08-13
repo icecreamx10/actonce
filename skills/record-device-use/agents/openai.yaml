@@ -1,0 +1,4 @@
+interface:
+  display_name: "Record Device Use"
+  short_description: "Capture AI-driven device sessions as correlated traces"
+  default_prompt: "Use $record-device-use to run this device task with ActOnce recording enabled."

@@ -2,30 +2,34 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Interceptor 层是 ActOnce 面向平台的“飞行记录仪”。iOS 使用被动 WebDriverAgent
-代理，macOS 使用进程内 Midscene device 装饰器。
+Interceptor 层是 ActOnce 可组合、面向平台的“飞行记录仪”。所有 source 都通过同一个
+`RecorderSession` 写入，任何 source 都不直接拥有文件。
 
 ```text
 src/
-  common/  append-only event、artifact store、manifest、平台选择
-  ios/     透明 WDA HTTP 代理
-  macos/   Midscene Computer device adapter
+  core/     session、source interface、顺序、artifact、生命周期
+  sources/  Midscene、macOS input、macOS AX 和 WDA interceptor
+  ios/      WDA CLI 组合入口
+  macos/    Midscene Computer recording 组合入口
 ```
 
-## 选择平台
+source 契约、顺序、关联方式和支持的组合见
+[可组合 Interceptor 架构](spec/interceptors.zh-CN.md)。
+
+## CLI 录制 Profile
 
 ```bash
-# CI 中推荐显式选择
-ACTONCE_PLATFORM=ios npm run interceptor:start
-ACTONCE_PLATFORM=macos npm run interceptor:start
-
-# Auto：WDA 可连接时选 iOS，否则执行本机 macOS 只读 smoke
-npm run interceptor:start
+npm run interceptor:start -- profiles --json
+npm run interceptor:start -- record midscene-macos --entry /absolute/task.ts --display-id 0
+npm run interceptor:start -- record midscene-ios --entry /absolute/task.ts --upstream-port 8100
+npm run interceptor:start -- record ios-wda --upstream-port 8100
 ```
 
-macOS CLI 只执行一次只读截图 smoke。真实 AI 运行必须使用
-`src/macos/recording-computer-device.ts` 中的 `agentForRecordedComputer()`；桌面
-原生调用发生在 Midscene 进程内，因此无法透明拦截一个外部 Midscene 进程。
+source 组合由命名 CLI profile 负责，Skill 和 task module 不直接 attach source。
+`midscene-macos` 固定组合 `midscene + macos-input + checkpoint`；
+`midscene-ios` 固定组合 `midscene + wda + checkpoint`，并捕获截图和原生 UI tree；
+`ios-wda` 是只录协议的 proxy profile。需要其他组合时，应先在 CLI 中新增并测试
+一个命名 profile。
 
 ## iOS / WDA
 
@@ -127,7 +131,9 @@ recordings/<recording-id>/
 存放在 `artifacts/`，相同内容只写入一次。manifest 保存 schema version、recorder
 version、upstream 地址、起止时间和最终完整性状态。
 
-第一版 raw event 契约见
+公共 event envelope 见
+[`schema/event-envelope.schema.json`](schema/event-envelope.schema.json)，第一版 raw
+event 契约见
 [`schema/raw-wda-event.schema.json`](schema/raw-wda-event.schema.json)。
 完整目录契约和 checkpoint 语义见
 [`spec/recording.zh-CN.md`](spec/recording.zh-CN.md)。

@@ -4,6 +4,43 @@
 
 Record an AI-driven UI task once, then replay it deterministically.
 
+## Published skills
+
+This repository publishes two standalone Codex skills under [`skills/`](skills/):
+
+- [`record-device-use`](skills/record-device-use/SKILL.md) records Midscene macOS, Midscene iOS, or generic WDA runs through stable ActOnce CLI profiles.
+- [`compile-device-recording`](skills/compile-device-recording/SKILL.md) inspects recordings, selects evidence-backed segments, and generates deterministic replay scripts.
+
+Each directory is an independently publishable skill package with its own `SKILL.md`, `agents/openai.yaml`, scripts, and references. The remaining repository code is the recorder implementation and benchmark fixture used by those skills.
+
+## macOS replay runtime
+
+[`@actonce/macos`](runtime/macos/README.md) is the first platform-specific replay package. It is a thin TypeScript API over WebdriverIO and Appium Mac2 for developer machines. Its CLI starts Appium, opens one Mac2 session, runs any number of generated script fragments in order, and performs cleanup. Platform lifecycle and source composition stay in the runtime rather than generated Skills or scripts.
+
+```bash
+npm run macos:install
+npm run macos:doctor
+npm run macos:run -- 01-setup.js 02-action.js 03-assert.js
+```
+
+Window normalization is implemented by the replay SDK, not generated Skill
+logic. The `run` command invokes it atomically after creating the app session:
+
+```bash
+node runtime/macos/dist/cli.js run \
+  --app-path /path/to/Lynxtron.app \
+  --setup-window-process-name lynxtron \
+  --setup-display-id 0 \
+  --setup-window-width 1372 \
+  --setup-window-height 880 \
+  --setup-window-margin 40 \
+  replay.js
+```
+
+Generated actions and screenshot checkpoints use the returned window frame as
+their coordinate origin. Desktop position and pixels from other displays or
+applications are not part of the visual oracle.
+
 ## Motivation
 
 Vision-driven agents such as Midscene can operate interfaces that are difficult to automate with selectors alone. They are especially useful when a task is being explored for the first time, but asking a model to rediscover the same stable workflow on every run adds latency, cost, and nondeterminism.
@@ -56,15 +93,17 @@ The repository contains a deterministic local fixture. The task is:
 
 The task covers text entry, option selection, a checkbox, submission, asynchronous UI state, and semantic result verification. Keeping the application local removes network and third-party UI variance from the first comparison.
 
-Each runner writes JSON results under `artifacts/benchmarks/`. We will compare:
+Each runner writes JSON results under `artifacts/benchmarks/`. The benchmark has
+two dimensions, with correctness acting as a gate for performance:
 
 | Metric | Meaning |
 | --- | --- |
-| task success | The required postcondition was observed |
-| wall time | End-to-end duration of the task |
-| agent calls | Calls made to the agent API; exact provider usage will be added at the model-client boundary |
-| AI fallbacks | Model-assisted repairs during replay |
-| verification failures | Actions that ran but did not reach the expected state |
+| correctness | CLI assertions and selected screenshot evidence pass, followed by an AI visual review |
+| conditional performance | Original execution time versus the median of correct replay executions |
+
+Operational details such as end-to-end time, model calls, fallbacks, and failures
+remain diagnostics; they are not additional scores. If correctness fails, speed is
+reported as not comparable.
 
 ## Development setup
 
@@ -123,6 +162,7 @@ Run repository checks:
 ```bash
 npm test
 npm run typecheck
+npm run test:macos-runtime
 ```
 
 ## Near-term roadmap
