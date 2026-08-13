@@ -5,28 +5,28 @@
   "complexity": "advanced",
   "dimensions": ["multi-editor", "language-service", "command-palette", "state-recovery", "negative-assertion"],
   "estimatedDurationMs": 110000,
-  "naturalLanguageTask": "Create a syntax error in main.js and verify its red diagnostic underline, switch to renderer.js through the command palette and create a separate JSX syntax error there, verify both editors' errors independently, then return to each editor and undo the changes until both diagnostics disappear. Do not save.",
+  "naturalLanguageTask": "Create a syntax error in main.js and verify its red diagnostic underline, switch to renderer.js through the command palette and create a separate JSX syntax error there, verify both editors' errors independently, then return to each editor and restore its exact default fixture source until both introduced diagnostics disappear. Do not save.",
   "setup": {
     "readyAssertion": "Lynxtron Fiddle is the foreground window, no Welcome or other modal dialog is open, and the unobstructed default main.js and renderer.js editors are visible"
   },
-  "precondition": "Lynxtron Fiddle shows the unmodified default main.js and renderer.js editors with no red diagnostic underlines",
+  "precondition": "Lynxtron Fiddle shows the unmodified default main.js and renderer.js source; neither editor contains an ActOnce probe, regardless of any dependency or JSX diagnostics already present in the default renderer.js fixture",
   "steps": [
     {
       "id": "break-main",
       "kind": "input",
-      "target": "the main.js editor",
-      "value": "const actOnceMainProbe = ("
+      "target": "inside the visible first line of the top-left main.js source editor at approximately display-local (720, 230), not renderer.js or preload.js",
+      "value": "const actOnceMainProbe = @"
     },
     {
       "id": "main-error-source-applied",
       "kind": "assert",
-      "prompt": "The main.js editor now visibly contains exactly 'const actOnceMainProbe = (' instead of its default source"
+      "prompt": "The main.js editor now visibly contains exactly 'const actOnceMainProbe = @' instead of its default source"
     },
     { "id": "main-diagnostic-settle", "kind": "wait", "durationMs": 2500 },
     {
       "id": "main-error-visible",
       "kind": "boolean",
-      "prompt": "main.js visibly has a red wavy diagnostic underline on 'const actOnceMainProbe = ('",
+      "prompt": "main.js visibly has a red wavy diagnostic underline on the illegal @ token in 'const actOnceMainProbe = @'",
       "expect": true
     },
     { "id": "palette-renderer", "kind": "press", "key": "Cmd+P" },
@@ -68,13 +68,17 @@
       "value": "main.js"
     },
     { "id": "choose-main", "kind": "press", "key": "Enter" },
-    { "id": "undo-main-paste", "kind": "press", "key": "Cmd+Z" },
-    { "id": "undo-main-clear", "kind": "press", "key": "Cmd+Z" },
+    {
+      "id": "restore-main-source",
+      "kind": "input",
+      "target": "inside the visible first line of the top-left main.js source editor at approximately display-local (720, 230), not the center of the editor mosaic or the renderer.js pane",
+      "value": "// Main process — Lynxtron entry\nconst { app, LynxWindow } = require('lynxtron');\n\napp.whenReady().then(() => {\n  const win = new LynxWindow({ width: 800, height: 600 });\n  // A LynxWindow renders a compiled Lynx bundle — renderer.js is built\n  // into main.lynx.bundle by rspeedy. There is no HTML page in Lynxtron.\n  win.loadFile('main.lynx.bundle');\n});\n"
+    },
     { "id": "main-recovery-settle", "kind": "wait", "durationMs": 2500 },
     {
       "id": "main-recovered",
       "kind": "boolean",
-      "prompt": "main.js is restored to its default source and has no red diagnostic underline",
+      "prompt": "main.js is restored to its default source, contains no ActOnce probe, and has no red diagnostic underline",
       "expect": true
     },
     { "id": "palette-renderer-recovery", "kind": "press", "key": "Cmd+P" },
@@ -85,13 +89,17 @@
       "value": "renderer.js"
     },
     { "id": "choose-renderer-recovery", "kind": "press", "key": "Enter" },
-    { "id": "undo-renderer-paste", "kind": "press", "key": "Cmd+Z" },
-    { "id": "undo-renderer-clear", "kind": "press", "key": "Cmd+Z" },
+    {
+      "id": "restore-renderer-source",
+      "kind": "input",
+      "target": "inside the visible first line of the top-right renderer.js source editor at approximately display-local (1260, 230), not the center of the editor mosaic or the main.js pane",
+      "value": "// Renderer (Lynx UI) — ReactLynx entry\nimport { root } from '@lynx-js/react';\nimport './styles.css';\n\nfunction App() {\n  return (\n    <view className=\"hello\">\n      <text className=\"hello-title\">Hello, Lynxtron!</text>\n    </view>\n  );\n}\n\nroot.render(<App />);\n"
+    },
     { "id": "renderer-recovery-settle", "kind": "wait", "durationMs": 2500 },
     {
       "id": "renderer-recovered",
       "kind": "boolean",
-      "prompt": "renderer.js is restored to the default Hello Lynxtron ReactLynx source and has no red diagnostic underline",
+      "prompt": "renderer.js is restored to the exact default Hello Lynxtron ReactLynx source and no longer contains the ActOnceProbe syntax error; ignore dependency-resolution or JSX diagnostics already present in the default fixture",
       "expect": true
     }
   ],
@@ -99,17 +107,7 @@
     "mode": "on-failure",
     "save": false,
     "steps": [
-      { "id": "dismiss-overlay", "kind": "press", "key": "Escape" },
-      { "id": "cleanup-palette-main", "kind": "press", "key": "Cmd+P" },
-      { "id": "cleanup-filter-main", "kind": "input", "target": "the command palette search input", "value": "main.js" },
-      { "id": "cleanup-choose-main", "kind": "press", "key": "Enter" },
-      { "id": "cleanup-main-1", "kind": "press", "key": "Cmd+Z" },
-      { "id": "cleanup-main-2", "kind": "press", "key": "Cmd+Z" },
-      { "id": "cleanup-palette-renderer", "kind": "press", "key": "Cmd+P" },
-      { "id": "cleanup-filter-renderer", "kind": "input", "target": "the command palette search input", "value": "renderer.js" },
-      { "id": "cleanup-choose-renderer", "kind": "press", "key": "Enter" },
-      { "id": "cleanup-renderer-1", "kind": "press", "key": "Cmd+Z" },
-      { "id": "cleanup-renderer-2", "kind": "press", "key": "Cmd+Z" }
+      { "id": "dismiss-overlay", "kind": "press", "key": "Escape" }
     ]
   }
 }

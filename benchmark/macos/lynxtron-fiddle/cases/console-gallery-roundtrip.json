@@ -5,20 +5,20 @@
   "complexity": "advanced",
   "dimensions": ["view-state", "navigation", "gallery", "scroll-target", "roundtrip"],
   "estimatedDurationMs": 85000,
-  "naturalLanguageTask": "Hide the Fiddle console, open Gallery, navigate to the Electron Fiddles section and verify that fiddle cards expose source and run actions, return to the Fiddle without opening a card, restore the console, and verify the original editors and console are visible again. Do not edit or save files.",
+  "naturalLanguageTask": "Hide the Fiddle console, open Gallery, navigate to the Electron Fiddles section and verify that fiddle cards expose Open and Run actions, return to the Fiddle without opening a card, restore the console, and verify the original editors and console are visible again. Do not edit or save files.",
   "setup": {
     "readyAssertion": "Lynxtron Fiddle is the foreground window, no Welcome or other modal dialog is open, its unobstructed default source editors are visible, and the console is open"
   },
   "precondition": "The default Hello Lynxtron Fiddle is visible with its editor mosaic and console",
   "steps": [
-    { "id": "hide-console", "kind": "tap", "target": "the Console control in the top command bar" },
+    { "id": "hide-console", "kind": "press", "key": "Cmd+J" },
     {
       "id": "console-hidden",
       "kind": "boolean",
       "prompt": "The bottom console panel is hidden while the source editor mosaic remains visible",
       "expect": true
     },
-    { "id": "open-gallery", "kind": "tap", "target": "the Gallery control in the top command bar" },
+    { "id": "open-gallery", "kind": "tap", "target": "the white folder glyph inside the rightmost rounded icon in the top command bar, at approximately display-local (542, 146), immediately right of the square terminal icon near (515, 146); this is Gallery, so do not click Run, Search, or Terminal" },
     {
       "id": "gallery-visible",
       "kind": "assert",
@@ -37,16 +37,16 @@
     {
       "id": "fiddle-cards-query",
       "kind": "query",
-      "prompt": "{sectionVisible: boolean, hasSourceAction: boolean, hasRunAction: boolean}, inspect the Electron Fiddles section and report whether its cards and both Source and Run actions are visible",
-      "expect": { "sectionVisible": true, "hasSourceAction": true, "hasRunAction": true }
+      "prompt": "{sectionVisible: boolean, hasOpenAction: boolean, hasRunAction: boolean}, inspect the Electron Fiddles section and report whether its cards and both Open and Run actions are visible",
+      "expect": { "sectionVisible": true, "hasOpenAction": true, "hasRunAction": true }
     },
-    { "id": "return-to-fiddle", "kind": "tap", "target": "the Back to the Fiddle control in Gallery" },
+    { "id": "return-to-fiddle", "kind": "tap", "target": "the active white folder glyph inside the rightmost rounded icon in the top command bar, at approximately display-local (542, 146), immediately right of the terminal icon near (515, 146); clicking it returns to the source editor mosaic" },
     {
       "id": "editors-restored",
       "kind": "assert",
       "prompt": "The Gallery is closed and the original Hello Lynxtron source editor mosaic is visible again"
     },
-    { "id": "show-console", "kind": "tap", "target": "the Console control in the top command bar" },
+    { "id": "show-console", "kind": "press", "key": "Cmd+J" },
     {
       "id": "console-restored",
       "kind": "boolean",

@@ -11,7 +11,7 @@
 | `palette-find-navigation` | intermediate | 命令面板 → 切换编辑器 → 查找 → 选中 → 返回 |
 | `dual-editor-diagnostic-recovery` | advanced | 破坏两个编辑器 → 独立验证 → 分别恢复 |
 | `console-gallery-roundtrip` | advanced | 切换 Console → Gallery 导航 → 检查卡片 → 恢复视图 |
-| `edit-run-preview-stop-restore` | deep | 编辑 JS/CSS → 运行 → 跨窗口验证 → 检查 Console → 停止 → 恢复 |
+| `edit-run-preview-stop-restore` | deep | 编辑主进程/包配置 → 运行原生预览 → 检查 Console → 停止 → 恢复 |
 
 ## 复现
 

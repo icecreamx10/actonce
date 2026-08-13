@@ -202,6 +202,14 @@ try {
   recorded = await agentForRecordedComputer(
     {
       displayId,
+      // Midscene's default macOS path pastes through the clipboard and restores
+      // it after 100 ms. Lynxtron's command palette consumes paste events
+      // asynchronously, so the restore can win the race and leave the search
+      // field empty. Per-character libnut input avoids that race without going
+      // through the user's active macOS input method (AppleScript typing can be
+      // transformed by a Chinese IME).
+      keyboardDriver: "libnut",
+      keyboardTypeDelay: 75,
       aiActionContext:
         `You are executing the '${testCase.title}' benchmark in the visible Lynxtron Fiddle desktop app. Follow each requested interaction literally, stay inside Lynxtron and its preview windows, and never save files.`,
     },
@@ -221,6 +229,14 @@ try {
     complexity: testCase.complexity,
     dimensions: testCase.dimensions,
     naturalLanguageTask: testCase.naturalLanguageTask,
+  });
+  windowSetup = await setupMacWindow({
+    pid: appProcess.pid!,
+    displayId: parseDisplayId(displayId),
+    width: 1372,
+    height: 880,
+    margin: 40,
+    placement: "center",
   });
   executionStartedNs = process.hrtime.bigint();
   await executePrecondition(agent);

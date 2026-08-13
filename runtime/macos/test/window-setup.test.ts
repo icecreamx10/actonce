@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   centeredWindowFrame,
   isMacAccessibilityPermissionError,
+  sameWindowFrame,
 } from "../src/window-setup.js";
 
 describe("centeredWindowFrame", () => {
@@ -30,6 +31,15 @@ describe("centeredWindowFrame", () => {
       700,
       40,
     )).toThrow(/does not fit/);
+  });
+});
+
+describe("sameWindowFrame", () => {
+  it("requires both placement and size to settle", () => {
+    const expected = { x: 178, y: 118, width: 1372, height: 880 };
+    expect(sameWindowFrame(expected, expected)).toBe(true);
+    expect(sameWindowFrame({ ...expected, width: 1200 }, expected)).toBe(false);
+    expect(sameWindowFrame({ ...expected, x: 0 }, expected)).toBe(false);
   });
 });
 

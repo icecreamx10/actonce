@@ -1,72 +1,76 @@
 {
   "schemaVersion": 1,
   "id": "edit-run-preview-stop-restore",
-  "title": "Edit, run preview, inspect output, stop, and restore",
+  "title": "Edit, run native preview, inspect output, stop, and restore",
   "complexity": "deep",
   "dimensions": ["multi-editor", "command-palette", "build-run", "multi-window", "console-output", "lifecycle", "state-recovery"],
   "estimatedDurationMs": 180000,
-  "naturalLanguageTask": "Change renderer.js so the Fiddle renders the unique text 'ActOnce Deep Chain Ready', change styles.css to give that view a dark blue background and white title, run the Fiddle, verify the launched preview shows the unique text and styling, return to the Fiddle and verify the console reports a successful run, stop the preview, then undo both files back to their original contents without saving.",
+  "naturalLanguageTask": "Change package.json so productName is 'ActOnce Deep Chain Ready' and add an actOncePreview backgroundColor of '#000080'. Change main.js so it reads both values from package.json and launches a native LynxWindow using that title and background without loading a renderer bundle. Run the Fiddle, verify the launched native preview has the unique title and dark blue background, return to the Fiddle and verify the console reports a successful run, stop the preview, then restore both files to their exact original fixture contents without saving.",
   "setup": {
     "readyAssertion": "Lynxtron Fiddle is the foreground window, no Welcome or other modal dialog is open, its unobstructed default source editors and console are visible, and no preview process is running"
   },
-  "precondition": "The default Hello Lynxtron Fiddle is unmodified, renderer.js and styles.css are available through the command palette, and the Run control is enabled",
+  "precondition": "The visible Hello Lynxtron fixture has its default source, main.js and package.json are listed in Editors, neither file has a circular dirty dot, and the green Run control is enabled; pencil and trash icons beside the selected file are rename/delete actions, not dirty indicators",
   "steps": [
-    { "id": "palette-renderer", "kind": "press", "key": "Cmd+P" },
-    { "id": "filter-renderer", "kind": "input", "target": "the command palette search input", "value": "renderer.js" },
+    { "id": "palette-package", "kind": "press", "key": "Cmd+P" },
+    { "id": "filter-package", "kind": "input", "target": "the command palette search input", "value": "package.json" },
     {
-      "id": "renderer-palette-filtered",
+      "id": "package-palette-filtered",
       "kind": "assert",
-      "prompt": "The command palette search contains renderer.js and its renderer.js result is selected"
+      "prompt": "The command palette search contains package.json and its package.json result is selected"
     },
-    { "id": "choose-renderer", "kind": "press", "key": "Enter" },
+    { "id": "choose-package", "kind": "press", "key": "Enter" },
     {
-      "id": "edit-renderer",
+      "id": "edit-package",
       "kind": "input",
-      "target": "the renderer.js source editor",
-      "value": "import { root } from '@lynx-js/react';\nimport './styles.css';\n\nfunction App() {\n  return (\n    <view className=\"hello\">\n      <text className=\"hello-title\">ActOnce Deep Chain Ready</text>\n    </view>\n  );\n}\n\nroot.render(<App />);\n"
+      "target": "the package.json source editor",
+      "value": "{\n  \"name\": \"my-lynxtron-fiddle\",\n  \"productName\": \"ActOnce Deep Chain Ready\",\n  \"version\": \"1.0.0\",\n  \"main\": \"main.js\",\n  \"actOncePreview\": {\n    \"backgroundColor\": \"#000080\"\n  },\n  \"dependencies\": {}\n}\n"
     },
     {
-      "id": "renderer-edit-applied",
+      "id": "package-edit-applied",
       "kind": "assert",
-      "prompt": "The renderer.js editor visibly contains the unique text 'ActOnce Deep Chain Ready' and the replacement ReactLynx source"
+      "prompt": "The visible package.json source contains productName 'ActOnce Deep Chain Ready' and actOncePreview backgroundColor '#000080'"
     },
-    { "id": "palette-styles", "kind": "press", "key": "Cmd+P" },
-    { "id": "filter-styles", "kind": "input", "target": "the command palette search input", "value": "styles.css" },
+    { "id": "palette-main", "kind": "press", "key": "Cmd+P" },
+    { "id": "filter-main", "kind": "input", "target": "the command palette search input", "value": "main.js" },
     {
-      "id": "styles-palette-filtered",
+      "id": "main-palette-filtered",
       "kind": "assert",
-      "prompt": "The command palette search contains styles.css and its styles.css result is selected"
+      "prompt": "The command palette search contains main.js and its main.js result is selected"
     },
-    { "id": "choose-styles", "kind": "press", "key": "Enter" },
+    { "id": "choose-main", "kind": "press", "key": "Enter" },
     {
-      "id": "edit-styles",
+      "id": "edit-main",
       "kind": "input",
-      "target": "the styles.css source editor",
-      "value": ".hello {\n  padding: 32px;\n  background-color: #123b63;\n}\n\n.hello-title {\n  color: white;\n  font-size: 30px;\n}\n"
+      "target": "inside the visible first line of the top-left main.js source editor at approximately display-local (720, 230), not renderer.js or preload.js",
+      "value": "const { app, LynxWindow } = require('lynxtron');\nconst config = require('./package.json');\n\nlet previewWindow;\napp.whenReady().then(() => {\n  previewWindow = new LynxWindow({\n    width: 640,\n    height: 420,\n    title: config.productName,\n    backgroundColor: config.actOncePreview.backgroundColor,\n  });\n});\n"
     },
     {
-      "id": "styles-edit-applied",
+      "id": "main-edit-applied",
       "kind": "assert",
-      "prompt": "The styles.css editor visibly contains background-color #123b63, white title text, and font-size 30px"
+      "prompt": "The visible main.js source reads package.json and creates a LynxWindow using config.productName and config.actOncePreview.backgroundColor, with no loadFile call"
     },
     {
       "id": "dirty-state",
       "kind": "assert",
-      "prompt": "Lynxtron Fiddle indicates there are unsaved edits and styles.css contains the dark blue background and white title rules"
+      "prompt": "Circular dirty dots are visible beside both main.js and package.json in the Editors list, and the edited sources visibly contain the ActOnce title and #000080 configuration; the file-row circles are the unsaved-edit indicators"
     },
     { "id": "run", "kind": "tap", "target": "the Run control in the top command bar" },
-    { "id": "run-settle", "kind": "wait", "durationMs": 15000 },
+    { "id": "run-settle", "kind": "wait", "durationMs": 5000 },
     {
       "id": "preview-visible",
       "kind": "query",
-      "prompt": "{visible: boolean, text: string | null, darkBlueBackground: boolean, whiteTitle: boolean}, inspect the newly launched Fiddle preview window and report its unique title text and requested visual styling",
-      "expect": { "visible": true, "text": "ActOnce Deep Chain Ready", "darkBlueBackground": true, "whiteTitle": true }
+      "prompt": "{visible: boolean, title: string | null, darkBlueBackground: boolean}, inspect the newly launched native preview window and report its title and whether its content area is uniformly dark blue",
+      "expect": { "visible": true, "title": "ActOnce Deep Chain Ready", "darkBlueBackground": true }
     },
-    { "id": "return-to-fiddle-window", "kind": "press", "key": "Cmd+`" },
+    {
+      "id": "return-to-fiddle-window",
+      "kind": "tap",
+      "target": "the visible title bar of the parent Lynxtron Fiddle window outside the smaller dark-blue preview window"
+    },
     {
       "id": "run-output",
       "kind": "boolean",
-      "prompt": "The parent Lynxtron Fiddle window is visible and its console contains a successful Run line with a process id or workspace path",
+      "prompt": "The parent Lynxtron Fiddle window is visible, the Console header has a green running status chip showing 'pid <number> · <seconds>s', and the Console body shows the launched Lynxtron command plus its workspace cwd. Ignore the known non-fatal 'LynxViewStateObserver not found in registry' diagnostic because the preview window was already verified visible and running",
       "expect": true
     },
     { "id": "stop-preview", "kind": "tap", "target": "the Stop control in the top command bar" },
@@ -77,38 +81,35 @@
       "prompt": "The top command bar shows Run rather than Stop and the console reports that the preview process stopped or exited",
       "expect": true
     },
-    { "id": "palette-renderer-restore", "kind": "press", "key": "Cmd+P" },
-    { "id": "filter-renderer-restore", "kind": "input", "target": "the command palette search input", "value": "renderer.js" },
-    { "id": "choose-renderer-restore", "kind": "press", "key": "Enter" },
-    { "id": "undo-renderer-paste", "kind": "press", "key": "Cmd+Z" },
-    { "id": "undo-renderer-clear", "kind": "press", "key": "Cmd+Z" },
-    { "id": "palette-styles-restore", "kind": "press", "key": "Cmd+P" },
-    { "id": "filter-styles-restore", "kind": "input", "target": "the command palette search input", "value": "styles.css" },
-    { "id": "choose-styles-restore", "kind": "press", "key": "Enter" },
-    { "id": "undo-styles-paste", "kind": "press", "key": "Cmd+Z" },
-    { "id": "undo-styles-clear", "kind": "press", "key": "Cmd+Z" },
+    { "id": "palette-package-restore", "kind": "press", "key": "Cmd+P" },
+    { "id": "filter-package-restore", "kind": "input", "target": "the command palette search input", "value": "package.json" },
+    { "id": "choose-package-restore", "kind": "press", "key": "Enter" },
+    {
+      "id": "restore-package-source",
+      "kind": "input",
+      "target": "inside the visible first line of the active package.json source editor, not the center of the editor mosaic",
+      "value": "{\n  \"name\": \"my-lynxtron-fiddle\",\n  \"productName\": \"My Lynxtron Fiddle\",\n  \"version\": \"1.0.0\",\n  \"main\": \"main.js\",\n  \"dependencies\": {}\n}\n"
+    },
+    { "id": "palette-main-restore", "kind": "press", "key": "Cmd+P" },
+    { "id": "filter-main-restore", "kind": "input", "target": "the command palette search input", "value": "main.js" },
+    { "id": "choose-main-restore", "kind": "press", "key": "Enter" },
+    {
+      "id": "restore-main-source",
+      "kind": "input",
+      "target": "inside the visible first line of the top-left main.js source editor at approximately display-local (720, 230), not the center of the editor mosaic",
+      "value": "// Main process — Lynxtron entry\nconst { app, LynxWindow } = require('lynxtron');\n\napp.whenReady().then(() => {\n  const win = new LynxWindow({ width: 800, height: 600 });\n  // A LynxWindow renders a compiled Lynx bundle — renderer.js is built\n  // into main.lynx.bundle by rspeedy. There is no HTML page in Lynxtron.\n  win.loadFile('main.lynx.bundle');\n});\n"
+    },
     {
       "id": "source-restored",
       "kind": "assert",
-      "prompt": "renderer.js and styles.css are restored to the default Hello Lynxtron contents and the unsaved-edits indicator is gone"
+      "prompt": "main.js and package.json are restored to the exact default Hello Lynxtron contents and neither file has a circular dirty dot"
     }
   ],
   "cleanup": {
     "mode": "on-failure",
     "save": false,
     "steps": [
-      { "id": "dismiss-overlay", "kind": "press", "key": "Escape" },
-      { "id": "cleanup-stop", "kind": "tap", "target": "the Stop control in the top command bar, if a preview is still running", "optional": true },
-      { "id": "cleanup-palette-renderer", "kind": "press", "key": "Cmd+P" },
-      { "id": "cleanup-filter-renderer", "kind": "input", "target": "the command palette search input", "value": "renderer.js" },
-      { "id": "cleanup-choose-renderer", "kind": "press", "key": "Enter" },
-      { "id": "cleanup-renderer-1", "kind": "press", "key": "Cmd+Z" },
-      { "id": "cleanup-renderer-2", "kind": "press", "key": "Cmd+Z" },
-      { "id": "cleanup-palette-styles", "kind": "press", "key": "Cmd+P" },
-      { "id": "cleanup-filter-styles", "kind": "input", "target": "the command palette search input", "value": "styles.css" },
-      { "id": "cleanup-choose-styles", "kind": "press", "key": "Enter" },
-      { "id": "cleanup-styles-1", "kind": "press", "key": "Cmd+Z" },
-      { "id": "cleanup-styles-2", "kind": "press", "key": "Cmd+Z" }
+      { "id": "dismiss-overlay", "kind": "press", "key": "Escape" }
     ]
   }
 }

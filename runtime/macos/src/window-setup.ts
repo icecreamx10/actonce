@@ -152,17 +152,7 @@ async function placeWindowWhenReady(
   let lastError: unknown;
   do {
     try {
-      const { stdout } = await runFile("/usr/bin/osascript", [
-        "-e", `tell application "System Events" to tell first process whose unix id is ${pid}`,
-        "-e", "if (count of windows) is 0 then error \"target window is not ready\"",
-        "-e", `set size of window 1 to {${frame.width}, ${frame.height}}`,
-        "-e", `set position of window 1 to {${frame.x}, ${frame.y}}`,
-        "-e", 'perform action "AXRaise" of window 1',
-        "-e", "set frontmost to true",
-        "-e", "return (position of window 1) & (size of window 1)",
-        "-e", "end tell",
-      ]);
-      return stdout;
+      return await placeWindowOnce(pid, frame);
     } catch (error) {
       throwIfAccessibilityDenied(error);
       lastError = error;
@@ -215,15 +205,37 @@ function throwIfAccessibilityDenied(error: unknown): void {
 async function placeWindowOnce(pid: number, frame: MacWindowFrame): Promise<string> {
   const { stdout } = await runFile("/usr/bin/osascript", [
     "-e", `tell application "System Events" to tell first process whose unix id is ${pid}`,
-    "-e", "if (count of windows) is 0 then error \"target window is not ready\"",
-    "-e", `set size of window 1 to {${frame.width}, ${frame.height}}`,
-    "-e", `set position of window 1 to {${frame.x}, ${frame.y}}`,
-    "-e", 'perform action "AXRaise" of window 1',
+    "-e", "set targetWindow to missing value",
+    "-e", "repeat with candidateWindow in windows",
+    "-e", "try",
+    "-e", 'if (subrole of candidateWindow as text) is "AXStandardWindow" then',
+    "-e", "set targetWindow to candidateWindow",
+    "-e", "exit repeat",
+    "-e", "end if",
+    "-e", "end try",
+    "-e", "end repeat",
+    "-e", "if targetWindow is missing value then error \"target standard window is not ready\"",
+    "-e", `set size of targetWindow to {${frame.width}, ${frame.height}}`,
+    "-e", `set position of targetWindow to {${frame.x}, ${frame.y}}`,
+    "-e", 'perform action "AXRaise" of targetWindow',
     "-e", "set frontmost to true",
-    "-e", "return (position of window 1) & (size of window 1)",
+    "-e", "return (position of targetWindow) & (size of targetWindow)",
     "-e", "end tell",
   ]);
+  const actual = parseWindowFrame(stdout);
+  if (!sameWindowFrame(actual, frame)) {
+    throw new Error(
+      `Window has not settled at ${JSON.stringify(frame)}; observed ${JSON.stringify(actual)}`,
+    );
+  }
   return stdout;
+}
+
+export function sameWindowFrame(actual: MacWindowFrame, expected: MacWindowFrame): boolean {
+  return actual.x === expected.x
+    && actual.y === expected.y
+    && actual.width === expected.width
+    && actual.height === expected.height;
 }
 
 function parseWindowFrame(stdout: string): MacWindowFrame {

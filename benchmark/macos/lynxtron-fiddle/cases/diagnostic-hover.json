@@ -16,24 +16,24 @@
       "id": "introduce-error",
       "kind": "input",
       "target": "the top-left main.js source editor, inside its editable code area",
-      "value": "const actOnceSyntaxProbe = ("
+      "value": "const actOnceSyntaxProbe = ;"
     },
     {
       "id": "error-source-applied",
       "kind": "assert",
-      "prompt": "The main.js editor now visibly contains exactly the probe text 'const actOnceSyntaxProbe = (' instead of the default source"
+      "prompt": "The main.js editor now visibly contains exactly the probe text 'const actOnceSyntaxProbe = ;' instead of the default source"
     },
     { "id": "diagnostic-settle", "kind": "wait", "durationMs": 2500 },
     {
       "id": "red-squiggle",
       "kind": "boolean",
-      "prompt": "A red wavy underline is visibly marking the syntax error in main.js containing 'const actOnceSyntaxProbe = ('",
+      "prompt": "A red wavy underline is visibly marking the missing expression immediately before the semicolon in main.js containing 'const actOnceSyntaxProbe = ;'",
       "expect": true
     },
     {
       "id": "hover-diagnostic",
       "kind": "hover",
-      "target": "the red wavy underline on the syntax error in main.js containing 'const actOnceSyntaxProbe = ('"
+      "target": "the red wavy underline immediately before the semicolon in the main.js line 'const actOnceSyntaxProbe = ;'"
     },
     { "id": "tooltip-settle", "kind": "wait", "durationMs": 1200 },
     {

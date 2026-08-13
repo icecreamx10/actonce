@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { access, chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -39,6 +39,7 @@ const executable = join(hostRoot, "Lynxtron.app/Contents/MacOS/lynxtron");
 
 try {
   await access(executable, constants.X_OK);
+  await linkPackageRuntime(hostRoot);
   console.log(`Lynxtron ${provenance.lynxtronVersion} is ready at ${hostRoot}`);
   process.exit(0);
 } catch {
@@ -68,7 +69,18 @@ try {
   await rm(archivePath, { force: true });
 }
 await chmod(executable, 0o755);
+await linkPackageRuntime(hostRoot);
 console.log(`Lynxtron ${provenance.lynxtronVersion} is ready at ${hostRoot}`);
+
+async function linkPackageRuntime(hostRoot: string): Promise<void> {
+  const packageApp = join(
+    benchmarkDir,
+    "node_modules/@lynx-js/lynxtron/dist/darwin/arm64/lynxtron.app",
+  );
+  await rm(packageApp, { recursive: true, force: true });
+  await mkdir(dirname(packageApp), { recursive: true });
+  await symlink(join(hostRoot, "Lynxtron.app"), packageApp, "dir");
+}
 
 function exec(command: string, args: string[], cwd: string): Promise<void> {
   return new Promise((resolveExec, rejectExec) => {

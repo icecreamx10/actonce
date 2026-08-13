@@ -12,7 +12,7 @@ runner does not embed a second copy of them.
 | `palette-find-navigation` | intermediate | command palette → editor switch → Find → selection → return |
 | `dual-editor-diagnostic-recovery` | advanced | break two editors → verify independently → recover both |
 | `console-gallery-roundtrip` | advanced | toggle console → Gallery navigation → inspect cards → restore view |
-| `edit-run-preview-stop-restore` | deep | edit JS/CSS → run → inspect another window → verify console → stop → restore |
+| `edit-run-preview-stop-restore` | deep | edit main/package config → run native preview → verify console → stop → restore |
 
 ## Reproduce
 

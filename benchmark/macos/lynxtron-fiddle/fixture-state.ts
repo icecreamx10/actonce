@@ -49,6 +49,7 @@ export async function resetBenchmarkFixture(outputDirectory: string): Promise<Re
   await mkdir(temporaryDirectory, { recursive: true });
   await extractArchive(archive, fixtureRoot);
   await linkPinnedTypeScript(desktopBundle);
+  await linkPinnedPackage(desktopBundle, "@lynx-js/lynxtron");
   await patchConfigPath(desktopBundle);
   await writeFreshConfig(configPath);
 
@@ -65,9 +66,14 @@ async function extractArchive(archive: string, destination: string): Promise<voi
 }
 
 async function linkPinnedTypeScript(desktopBundle: string): Promise<void> {
-  const source = join(benchmarkDir, "node_modules/typescript");
-  const target = join(desktopBundle, "node_modules/typescript");
+  await linkPinnedPackage(desktopBundle, "typescript");
+}
+
+async function linkPinnedPackage(desktopBundle: string, packageName: string): Promise<void> {
+  const source = join(benchmarkDir, "node_modules", packageName);
+  const target = join(desktopBundle, "node_modules", packageName);
   await rm(target, { recursive: true, force: true });
+  await mkdir(dirname(target), { recursive: true });
   await symlink(source, target, "dir");
 }
 
