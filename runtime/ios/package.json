@@ -1,6 +1,6 @@
 {
   "name": "@byted-lynx/actonce-ios",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Deterministic iOS replay runtime for ActOnce-generated scripts.",
   "type": "module",
   "license": "Apache-2.0",
@@ -27,7 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@byted-lynx/actonce-replay": "^0.0.0",
+    "@byted-lynx/actonce-replay": "^0.1.0",
     "@midscene/ios": "1.10.10",
     "sharp": "0.35.3"
   },
