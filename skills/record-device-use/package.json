@@ -1,6 +1,6 @@
 {
   "name": "@byted-lynx/actonce-skill-record-device-use",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ActOnce agent skill for recording AI-driven device sessions.",
   "license": "Apache-2.0",
   "publishConfig": { "registry": "http://bnpm.byted.org" },

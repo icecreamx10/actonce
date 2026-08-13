@@ -97,7 +97,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@byted-lynx/actonce-midscene-adapter": "^0.1.0",
+    "@byted-lynx/actonce-midscene-adapter": "^0.2.0",
     "dotenv": "^17.2.3",
     "playwright": "1.62.1"
   },

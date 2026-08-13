@@ -1,6 +1,6 @@
 {
   "name": "@byted-lynx/actonce-android",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Deterministic Android replay runtime for ActOnce-generated scripts.",
   "type": "module",
   "license": "Apache-2.0",
@@ -32,7 +32,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@byted-lynx/actonce-replay": "^0.1.0",
+    "@byted-lynx/actonce-replay": "^0.2.0",
     "appium-uiautomator2-server": "10.6.1",
     "fast-xml-parser": "5.3.8",
     "sharp": "0.35.3"

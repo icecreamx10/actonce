@@ -1,6 +1,6 @@
 {
   "name": "@byted-lynx/actonce-recorder",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ActOnce recording CLI and correlated device event interceptors.",
   "type": "module",
   "license": "Apache-2.0",
@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@byted-lynx/actonce-midscene-adapter": "^0.1.0"
+    "@byted-lynx/actonce-midscene-adapter": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

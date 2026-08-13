@@ -1,6 +1,6 @@
 {
   "name": "@byted-lynx/actonce-midscene-fallback",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Bounded Midscene fallback adapter for ActOnce replay flows.",
   "type": "module",
   "license": "Apache-2.0",
@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@byted-lynx/actonce-replay": "^0.1.0"
+    "@byted-lynx/actonce-replay": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
