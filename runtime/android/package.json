@@ -1,0 +1,44 @@
+{
+  "name": "@byted-lynx/actonce-android",
+  "version": "0.1.0",
+  "description": "Deterministic Android replay runtime for ActOnce-generated scripts.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "registry": "http://bnpm.byted.org"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0",
+    "npm": ">=10"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "actonce-android": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepack": "npm run clean && npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@byted-lynx/actonce-replay": "^0.1.0",
+    "@midscene/android": "1.10.10",
+    "sharp": "0.35.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

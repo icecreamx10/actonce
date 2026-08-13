@@ -1,0 +1,21 @@
+{
+  "name": "Sauce Labs My Demo App Android",
+  "version": "2.2.0",
+  "build": 25,
+  "packageName": "com.saucelabs.mydemoapp.android",
+  "activity": ".view.activities.SplashActivity",
+  "apk": "https://github.com/saucelabs/my-demo-app-android/releases/download/2.2.0/mda-2.2.0-25.apk",
+  "sha256": "318ef64bdcaff18e576d962ab1f557e0a2683b9b5210a6bb6b25cb0caeef62b4",
+  "oracle": {
+    "screen": "Checkout shipping address",
+    "fields": [
+      "Rebecca Winter",
+      "Mandorley 112",
+      "Truro",
+      "Cornwall",
+      "89750",
+      "United Kingdom"
+    ],
+    "cartBadge": "3"
+  }
+}

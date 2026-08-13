@@ -13,4 +13,6 @@ Import platform APIs without loading another platform at runtime:
 ```ts
 import { ReplayFlow } from "@byted-lynx/actonce/replay";
 import { replayMacPrimitive } from "@byted-lynx/actonce/macos";
+import { replayIOSPrimitive } from "@byted-lynx/actonce/ios";
+import { replayAndroidPrimitive } from "@byted-lynx/actonce/android";
 ```

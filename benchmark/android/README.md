@@ -22,9 +22,21 @@ npm run benchmark:android:smoke
 
 Use `npm run android:start:headed` when visually debugging the emulator. `npm run android:start:foreground` keeps the owner shell alive, which is useful in process-isolated CI environments. Run `npm run android:stop` when finished.
 
-## Layer 2: real-world APK benchmark
+## Layer 2: deterministic checkout benchmark
 
-The first external APK is [Markor](https://github.com/gsantner/markor), pinned to version 2.16.1. Markor is open source, works offline, requires no account, ships as a universal APK, and exposes realistic document creation and editing workflows. The installer downloads the APK from the official GitHub release and verifies its SHA-256 digest before installation.
+The primary fixture is Sauce Labs My Demo App Android 2.2.0 build 25. Its official release APK and SHA-256 are pinned in [`my-demo-app/fixture.json`](my-demo-app/fixture.json). The case selects a black backpack, sets quantity 3, verifies the `$ 89.97` cart, uses the built-in demo account, and stops on the prefilled shipping-address screen.
+
+```bash
+npm run android:install:demo-app
+npm run benchmark:android:record-demo-app
+npm run benchmark:android:replay-demo-app
+```
+
+Every command resets app data before the measured task. The original runs through the fixed `midscene-android` recorder profile; replay uses the mechanically recorded logical coordinates, Android UI-tree checkpoints, a final screenshot, and no fallback by default. The first end-to-end smoke completed in about 127 seconds for the AI original and 18 seconds for deterministic replay; these are development measurements, not yet a formal two-run score.
+
+## Alternative document fixture
+
+[Markor](https://github.com/gsantner/markor), pinned to version 2.16.1, remains an alternative document-editing fixture. It is open source, works offline, and requires no account.
 
 ```bash
 npm run android:install:markor
@@ -51,8 +63,10 @@ npm run benchmark:android:markor
 - AVD device profile: Pixel 6
 - AVD name: `actonce_api35_google_apis`
 - default emulator serial: `emulator-5554`
-- userdata partition: 512 MB (sufficient for the benchmark APK and friendly to CI disks)
+- shared user-level SDK: `~/Library/Android/sdk` when present; otherwise repository-local `.cache/android-sdk`
+- shared user-level AVD directory: `~/.android/avd`
 - animations: disabled after boot
 - Markor: 2.16.1, SHA-256 `e88cdcced7aa3dca25e6b9c7a9bdcfad3e3988ee545be951f42bf9441b5e46bf`
+- My Demo App: 2.2.0 build 25, SHA-256 `318ef64bdcaff18e576d962ab1f557e0a2683b9b5210a6bb6b25cb0caeef62b4`
 
-The SDK, AVD, APK, runtime log, and repository-local JDK are stored under `.cache/` and are not committed.
+APK caches, runtime logs, recordings, and repository-local fallbacks are not committed. The standard user-level SDK/AVD locations let Lynx, ActOnce, and other repositories share one emulator installation.

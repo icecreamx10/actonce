@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@midscene/computer": "1.10.10",
+    "@midscene/android": "1.10.10",
     "@midscene/ios": "1.10.10"
   },
   "devDependencies": {

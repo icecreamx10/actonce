@@ -5,9 +5,15 @@ set -euo pipefail
 ACTONCE_ANDROID_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ACTONCE_ROOT="$(cd "${ACTONCE_ANDROID_SCRIPT_DIR}/../.." && pwd)"
 
-export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ACTONCE_ROOT}/.cache/android-sdk}"
+ACTONCE_GLOBAL_ANDROID_SDK="${HOME}/Library/Android/sdk"
+if [[ -x "${ACTONCE_GLOBAL_ANDROID_SDK}/platform-tools/adb" ]]; then
+  ACTONCE_DEFAULT_ANDROID_SDK="${ACTONCE_GLOBAL_ANDROID_SDK}"
+else
+  ACTONCE_DEFAULT_ANDROID_SDK="${ACTONCE_ROOT}/.cache/android-sdk"
+fi
+export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-${ACTONCE_DEFAULT_ANDROID_SDK}}}"
 export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT}}"
-export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-${ACTONCE_ROOT}/.cache/android-avd}"
+export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-${HOME}/.android/avd}"
 
 ACTONCE_JAVA_HOME="${ACTONCE_JAVA_HOME:-${ACTONCE_ROOT}/.cache/jdk/Contents/Home}"
 if [[ -x "${ACTONCE_JAVA_HOME}/bin/java" ]]; then

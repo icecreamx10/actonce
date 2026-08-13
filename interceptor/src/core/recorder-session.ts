@@ -10,7 +10,7 @@ import type {
   SourceEvent,
 } from "./source-interceptor.js";
 
-export type RecordingPlatform = "ios" | "macos";
+export type RecordingPlatform = "android" | "ios" | "macos";
 
 export type RecorderSessionOptions = {
   platform: RecordingPlatform;

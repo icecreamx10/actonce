@@ -10,7 +10,7 @@ When the live UI still matches the recording, replay stays deterministic. When i
 
 > The recording is evidence. The compiled, state-aware replay is the executable artifact.
 
-> **Platform status:** macOS has a three-case desktop suite, and iOS now has its first formal two-original/two-replay checkout benchmark. Android remains foundational, and Windows support is planned.
+> **Platform status:** macOS has a three-case desktop suite, iOS has its first formal checkout benchmark, and Android now has an end-to-end recorded checkout smoke plus deterministic replay. Windows support is planned.
 
 ## Current result
 
@@ -28,6 +28,8 @@ All live screenshot checkpoints passed, the fixtures were restored without savin
 The first formal iOS checkout benchmark also passed: Midscene original median
 `220.246 s`, deterministic replay median `10.499 s`, `20.98×` speedup, with two
 of two replays correct and no fallback. See the [iOS benchmark guide](benchmark/ios/README.md).
+
+Android now records the matching My Demo App checkout through a fixed `midscene-android` profile and mechanically compiles nine normalized tap primitives. The first development smoke completed in about `127 s` for the AI original and `18 s` for checkpoint-gated replay, with the final shipping-address oracle correct and fallback disabled. Formal scoring still requires a second independently reset original and replay. See the [Android benchmark guide](benchmark/android/README.md).
 
 ## How it works
 
@@ -61,6 +63,7 @@ ActOnce deliberately separates four concerns:
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
 | [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos`, the deterministic macOS replay SDK and CLI |
 | [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios`, fixed WDA primitives, source/visual checkpoints, and replay runner |
+| [`runtime/android/`](runtime/android/README.md) | `@byted-lynx/actonce-android`, fixed Android primitives, UI-tree/screenshot checkpoints, and replay runner |
 | [`runtime/common/`](runtime/common/README.md) | Shared checkpoint-gated replay flow |
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | Optional bounded Midscene recovery adapter |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.md) | Pinned desktop fixture, natural-language cases, runners, evidence, and evaluator |
@@ -86,6 +89,7 @@ The installer copies each complete Skill directory into `${CODEX_HOME}/skills` w
 import { ReplayFlow } from "@byted-lynx/actonce/replay";
 import { replayMacPrimitive } from "@byted-lynx/actonce/macos";
 import { replayIOSPrimitive } from "@byted-lynx/actonce/ios";
+import { replayAndroidPrimitive } from "@byted-lynx/actonce/android";
 ```
 
 Every `@byted-lynx/actonce-*` component belongs to one Changesets fixed group, so the umbrella package, recorder, runtimes, and Skills always publish with the same version. Individual component packages remain installable for narrower environments.
@@ -126,7 +130,13 @@ npm run interceptor:profiles
 npm run interceptor:start -- record midscene-macos \
   --entry /absolute/path/to/task.ts \
   --display-id 0
+
+npm run interceptor:start -- record midscene-android \
+  --entry /absolute/path/to/task.ts \
+  --serial emulator-5554
 ```
+
+Android follows the same global environment contract used by Lynx CI: `$ANDROID_HOME` supplies `adb` and `emulator`, while `emulator -list-avds` discovers a shared user-level AVD. On macOS the conventional locations are `~/Library/Android/sdk` and `~/.android/avd`; ActOnce uses them automatically and falls back to repository-local SDK bootstrap only when the global SDK is absent.
 
 The resulting recording uses a primary manifest and `events.ndjson`, with content-addressed screenshots, AX trees, WDA payloads, and source artifacts beside it. Semantic Midscene Assert, Boolean, and Query outcomes are first-class observation events with their evidence provenance.
 
@@ -169,6 +179,6 @@ Fallback latency, checkpoint polling, recovery, and cleanup remain inside replay
 
 ## Status
 
-ActOnce is an active prototype focused on developer-machine workflows. macOS has a formal multi-case suite; iOS has its first formal benchmark-validated original-to-replay comparison covering product selection, cart state, demo login, and checkout address verification. Android remains at the capture/environment foundation stage.
+ActOnce is an active prototype focused on developer-machine workflows. macOS has a formal multi-case suite; iOS has its first formal benchmark-validated original-to-replay comparison; Android now has a complete recorder, compiler, runtime, pinned complex fixture, and a passing end-to-end smoke awaiting its second formal sample.
 
-The next engineering focus is reducing screenshot capture overhead further, generalizing compilation beyond the current benchmark cases, and implementing platform-native runtimes independently for iOS, Android, and Windows rather than forcing a premature cross-platform action API.
+The next engineering focus is reducing checkpoint capture overhead further, generalizing compilation beyond the current benchmark cases, and adding Windows independently rather than forcing a premature cross-platform action API.

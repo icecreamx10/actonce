@@ -10,7 +10,7 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 
 > 录制是证据；编译后、能够感知状态的 replay 才是可执行产物。
 
-> **平台状态：** macOS 已有三个 case 的桌面 suite；iOS 也完成了第一条正式的两次 original 对两次 replay checkout benchmark。Android 仍处于基础建设阶段，Windows 仍在规划中。
+> **平台状态：** macOS 已有三个 case 的桌面 suite；iOS 已有第一条正式 checkout benchmark；Android 也已跑通录制型 checkout smoke 与确定性 replay。Windows 仍在规划中。
 
 ## 当前结果
 
@@ -28,6 +28,8 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 第一条正式 iOS checkout benchmark 也已通过：Midscene original 中位数
 `220.246 秒`，确定性 replay 中位数 `10.499 秒`，加速 `20.98×`；两次 replay
 均正确且没有 fallback。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
+
+Android 现在通过固定 `midscene-android` profile 录制同构的 My Demo App checkout，并机械编译出 9 个归一化 tap primitive。第一次开发 smoke 中，AI original 约 `127 秒`，checkpoint replay 约 `18 秒`，最终配送地址 oracle 正确且 fallback 禁用。正式评分还需要第二次独立重置的 original 与 replay。详情见 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
 
 ## 工作原理
 
@@ -61,6 +63,7 @@ ActOnce 刻意拆分四类职责：
 | [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
 | [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos` 确定性回放 SDK 与 CLI |
 | [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios` 固定 WDA primitive、source/visual checkpoint 与 replay runner |
+| [`runtime/android/`](runtime/android/README.zh-CN.md) | `@byted-lynx/actonce-android` 固定 Android primitive、UI-tree/截图 checkpoint 与 replay runner |
 | [`runtime/common/`](runtime/common/README.md) | 共享的 checkpoint 回放流程 |
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | 可选的受限 Midscene 恢复适配器 |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.zh-CN.md) | 固定桌面 fixture、自然语言 case、runner、证据与 evaluator |
@@ -86,6 +89,7 @@ Skill 安装命令在设置了 `CODEX_HOME` 时复制到 `${CODEX_HOME}/skills`�
 import { ReplayFlow } from "@byted-lynx/actonce/replay";
 import { replayMacPrimitive } from "@byted-lynx/actonce/macos";
 import { replayIOSPrimitive } from "@byted-lynx/actonce/ios";
+import { replayAndroidPrimitive } from "@byted-lynx/actonce/android";
 ```
 
 所有 `@byted-lynx/actonce-*` 组件都属于同一个 Changesets fixed group，因此总包、录制 CLI、平台 runtime 和 Skills 始终使用同一发布版本；有精简环境需求时仍可单独安装组件包。
@@ -126,7 +130,13 @@ npm run interceptor:profiles
 npm run interceptor:start -- record midscene-macos \
   --entry /absolute/path/to/task.ts \
   --display-id 0
+
+npm run interceptor:start -- record midscene-android \
+  --entry /absolute/path/to/task.ts \
+  --serial emulator-5554
 ```
+
+Android 遵循 Lynx CI 相同的全局环境契约：`$ANDROID_HOME` 提供 `adb` 与 `emulator`，`emulator -list-avds` 从用户级目录发现共享 AVD。macOS 的标准位置是 `~/Library/Android/sdk` 与 `~/.android/avd`；ActOnce 会自动优先复用它们，仅在全局 SDK 不存在时回退到仓库本地 bootstrap。
 
 录制产物由主 manifest、`events.ndjson` 与旁路的内容寻址附件组成，包括截图、AX tree、WDA payload 和 source artifact。Midscene Assert、Boolean、Query 的结果会成为一级 semantic observation 事件，并保留证据来源。
 
@@ -169,6 +179,6 @@ Fallback 延迟、checkpoint 轮询、恢复和 cleanup 都计入 replay 时间�
 
 ## 当前状态
 
-ActOnce 是一个面向开发机器工作流的活跃原型。macOS 已有正式的多 case suite；iOS 也完成了第一条经过 benchmark 验证的 original 到 replay 对比，覆盖商品选择、购物车状态、demo 登录和 checkout 地址校验。Android 仍处于 capture/环境基础阶段。
+ActOnce 是一个面向开发机器工作流的活跃原型。macOS 已有正式多 case suite；iOS 已有第一条经过 benchmark 验证的 original 到 replay 对比；Android 也已有完整 recorder、compiler、runtime、固定复杂 fixture 与通过的端到端 smoke，正在补第二个正式样本。
 
-接下来的工程重点是继续降低截图开销、把编译能力推广到当前 benchmark 之外，并为 iOS、Android、Windows 分别实现原生 runtime，而不是过早强行统一跨平台 action API。
+接下来的工程重点是继续降低 checkpoint 开销、把编译能力推广到当前 benchmark 之外，并独立加入 Windows，而不是过早强行统一跨平台 action API。

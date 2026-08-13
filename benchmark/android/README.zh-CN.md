@@ -22,9 +22,21 @@ npm run benchmark:android:smoke
 
 需要观察模拟器界面时使用 `npm run android:start:headed`。`npm run android:start:foreground` 会让所属 shell 保持运行，适合具有进程隔离的 CI 环境。完成后运行 `npm run android:stop`。
 
-## 第二层：真实 APK Benchmark
+## 第二层：确定性 Checkout Benchmark
 
-第一个外部 APK 选择 [Markor](https://github.com/gsantner/markor)，并固定为 2.16.1 版本。Markor 开源、支持完全离线运行、不需要账号、提供通用 APK，同时具备真实的文档创建和编辑流程。安装脚本只从官方 GitHub Release 下载 APK，并在安装前验证 SHA-256 摘要。
+主 fixture 是 Sauce Labs My Demo App Android 2.2.0 build 25，官方 Release APK 与 SHA-256 固定在 [`my-demo-app/fixture.json`](my-demo-app/fixture.json)。case 会选择黑色背包、把数量设为 3、验证 `$ 89.97` 购物车、使用内置 demo 账号，并停在预填的配送地址页面。
+
+```bash
+npm run android:install:demo-app
+npm run benchmark:android:record-demo-app
+npm run benchmark:android:replay-demo-app
+```
+
+每次执行前都会清空 App 数据。original 走固定 `midscene-android` recorder profile；replay 使用机械录制的逻辑坐标、Android UI-tree checkpoint、最终截图，并默认禁用 fallback。第一次端到端 smoke 中，AI original 约 127 秒，确定性 replay 约 18 秒；这是开发测量，还不是正式的两次评分。
+
+## 备选文档 Fixture
+
+[Markor](https://github.com/gsantner/markor) 固定为 2.16.1，继续作为备选的文档编辑 fixture。它开源、可离线运行且无需账号。
 
 ```bash
 npm run android:install:markor
@@ -51,8 +63,10 @@ npm run benchmark:android:markor
 - AVD 设备配置：Pixel 6
 - AVD 名称：`actonce_api35_google_apis`
 - 默认 emulator serial：`emulator-5554`
-- userdata 分区：512 MB，足够 benchmark APK 使用并适合 CI 磁盘
+- 存在时优先复用用户级 SDK：`~/Library/Android/sdk`；否则使用仓库 `.cache/android-sdk`
+- 共享用户级 AVD 目录：`~/.android/avd`
 - 动画：开机后关闭
 - Markor：2.16.1，SHA-256 `e88cdcced7aa3dca25e6b9c7a9bdcfad3e3988ee545be951f42bf9441b5e46bf`
+- My Demo App：2.2.0 build 25，SHA-256 `318ef64bdcaff18e576d962ab1f557e0a2683b9b5210a6bb6b25cb0caeef62b4`
 
-SDK、AVD、APK、运行日志以及仓库本地 JDK 都保存在 `.cache/` 下，不会提交到 Git。
+APK cache、运行日志、录制和仓库本地 fallback 都不会提交。标准用户级 SDK/AVD 位置让 Lynx、ActOnce 与其他仓库共用同一套 emulator。

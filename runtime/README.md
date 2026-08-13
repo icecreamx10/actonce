@@ -7,6 +7,8 @@ ActOnce keeps replay orchestration separate from platform control:
 - `macos/` publishes `@byted-lynx/actonce-macos`: Mac2/AX execution and checkpoint evidence.
 - `ios/` publishes `@byted-lynx/actonce-ios`: fixed WDA actions, accessibility-source and
   screenshot checkpoints, and shared-session replay execution.
+- `android/` publishes `@byted-lynx/actonce-android`: fixed Android actions, UI-tree and
+  screenshot checkpoints, mechanical compilation, and shared-device replay execution.
 - `midscene-fallback/` publishes `@byted-lynx/actonce-midscene-fallback`: an optional adapter
   around an existing, recorder-attached Midscene Agent.
 

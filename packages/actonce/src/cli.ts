@@ -11,6 +11,7 @@ const command = args.shift();
 if (command === "record") await forward("actonce-record", args);
 else if (command === "macos") await forward("actonce-macos", args);
 else if (command === "ios") await forward("actonce-ios", args);
+else if (command === "android") await forward("actonce-android", args);
 else if (command === "skill" && args.shift() === "install") await installSkill(args);
 else usage(command ? 2 : 0);
 
@@ -44,6 +45,7 @@ Usage:
   actonce record <profiles|record> [...args]
   actonce macos <command> [...args]
   actonce ios <command> [...args]
+  actonce android <command> [...args]
   actonce skill install <record-device-use|compile-device-recording> [--target <dir>]`);
   process.exit(code);
 }
