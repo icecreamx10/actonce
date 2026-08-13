@@ -3,8 +3,9 @@
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 This is the first real-device-style ActOnce path. It uses a dedicated iOS
-Simulator, Appium's WebDriverAgent (WDA), and Midscene's iOS adapter. No test APK
-or third-party app download is required.
+Simulator, Appium's WebDriverAgent (WDA), and Midscene's iOS adapter. The cheap
+Settings gate needs no external app; the qualitative checkout case uses a pinned
+public Simulator fixture.
 
 ## Why iOS first
 
@@ -85,11 +86,38 @@ with live WDA source checks. Two development smoke executions passed with no
 checkpoint timeout or AI fallback. This is not yet the formal two-original versus
 two-replay performance score used by the macOS suite.
 
-The next qualitative benchmark will use the built-in Reminders app: create a
-fixed reminder, set its priority, return to the list, reopen it, and verify the
-result. `com.apple.reminders` is present in the pinned simulator runtime, so it
-requires no external app source. Settings remains the cheaper connection gate
-before that task.
+## Complex checkout fixture
+
+The first qualitative iOS case uses Sauce Labs My Demo App `2.2.2`, a public app
+built for UI automation. ActOnce does not redistribute the third-party binary.
+The fixture CLI downloads the official Simulator release into `.cache/`, verifies
+its pinned SHA-256, validates its bundle id/version, and installs it only on the
+dedicated ActOnce Simulator. The upstream public repository does not declare an
+OSI license, so this is an external test fixture rather than a vendored
+open-source dependency.
+
+Prepare or reset it, then run the no-model environment gate:
+
+```bash
+npm run ios:prepare:demo-app
+npm run benchmark:ios:demo-app:smoke
+```
+
+The smoke follows Catalog → product details → quantity 3 → Cart → Checkout →
+built-in demo login → prefilled shipping address. Seven WDA source checkpoints
+advance as soon as the expected state appears; the case stops before payment.
+The validated local run passed in 11.7 seconds and wrote its final screenshot and
+structured oracle to `.cache/ios-runtime/my-demo-app-smoke/`.
+
+Record the same qualitative goal with Midscene:
+
+```bash
+npm run benchmark:ios:record-demo-app
+```
+
+That command always performs the fixture reset first. It is the intended input
+for the next compile/replay correctness and performance benchmark; it is not yet
+a published formal score.
 
 Stop WDA when finished:
 
