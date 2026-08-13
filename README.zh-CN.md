@@ -10,6 +10,8 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 
 > 录制是证据；编译后、能够感知状态的 replay 才是可执行产物。
 
+> **平台状态：** 目前只有 macOS 工作流完成了端到端验证，包括录制 Midscene 执行、编译、基于实时 checkpoint 的回放，以及正确性与性能 benchmark。iOS 和 Android 目录目前只是 capture、模拟器与集成基础，尚未成为完整或经过 benchmark 验证的 replay 平台；Windows 仍在规划中。
+
 ## 当前结果
 
 默认 macOS benchmark suite 包含三个真实的 Lynxtron Fiddle 工作流。最新一轮开发快照使用原生窗口区域截图，所有 replay 均正确完成且没有调用 AI fallback：
@@ -50,7 +52,7 @@ ActOnce 刻意拆分四类职责：
 
 | 路径 | 用途 |
 | --- | --- |
-| [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布 Skill：录制受支持的 macOS 与 iOS computer-use session |
+| [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill；macOS 路径已经验证，iOS 仍处于基础建设阶段 |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | 发布 Skill：选择有证据支持的片段并生成 replay 脚本 |
 | [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
 | [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos` 确定性回放 SDK 与 CLI |
@@ -142,6 +144,6 @@ Fallback 延迟、checkpoint 轮询、恢复和 cleanup 都计入 replay 时间�
 
 ## 当前状态
 
-ActOnce 是一个面向开发机器工作流的活跃原型。仓库目前已经包含 recorder 架构、可发布的录制与编译 Skills、checkpoint/fallback runtime、macOS SDK、Android/iOS capture 基础，以及可复现的 Midscene 对 replay benchmark。
+ActOnce 是一个面向开发机器工作流的活跃原型。**macOS 是目前唯一真正跑通并经过 benchmark 验证的端到端录制到 replay 平台。** 仓库也包含 Android/iOS capture 基础，但它们还没有完成同等的 replay 与正确性 benchmark。
 
 接下来的工程重点是继续降低截图开销、把编译能力推广到当前 benchmark 之外，并为 iOS、Android、Windows 分别实现原生 runtime，而不是过早强行统一跨平台 action API。

@@ -10,6 +10,8 @@ When the live UI still matches the recording, replay stays deterministic. When i
 
 > The recording is evidence. The compiled, state-aware replay is the executable artifact.
 
+> **Platform status:** Only the macOS workflow has been validated end to end so far: recording a Midscene run, compiling it, replaying it with live checkpoints, and benchmarking correctness and speed. The iOS and Android directories currently contain capture, simulator, and integration foundations; they are not yet completed or benchmark-validated replay platforms. Windows support is planned.
+
 ## Current result
 
 The default macOS benchmark suite runs three real Lynxtron Fiddle workflows. The latest one-pass development snapshot uses native window-region capture and completed every replay correctly with no AI fallback:
@@ -50,7 +52,7 @@ ActOnce deliberately separates four concerns:
 
 | Path | Purpose |
 | --- | --- |
-| [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published Skill for recording supported macOS and iOS computer-use sessions |
+| [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published recording Skill; its macOS path is validated, while iOS support remains foundational |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
 | [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos`, the deterministic macOS replay SDK and CLI |
@@ -142,6 +144,6 @@ Fallback latency, checkpoint polling, recovery, and cleanup remain inside replay
 
 ## Status
 
-ActOnce is an active prototype focused on developer-machine workflows. The repository currently includes the recorder architecture, published recording and compilation Skills, a checkpoint/fallback runtime, a macOS SDK, Android/iOS capture foundations, and a reproducible Midscene-versus-replay benchmark.
+ActOnce is an active prototype focused on developer-machine workflows. **macOS is currently the only platform with a working, benchmark-validated end-to-end recording-to-replay path.** The repository also includes Android/iOS capture foundations, but those platforms have not yet completed the same replay and correctness benchmark.
 
 The next engineering focus is reducing screenshot capture overhead further, generalizing compilation beyond the current benchmark cases, and implementing platform-native runtimes independently for iOS, Android, and Windows rather than forcing a premature cross-platform action API.
