@@ -16,6 +16,11 @@ Compose `replayAndroidPrimitive` calls with `flow.segment`. Guard state transiti
 
 The Android checkpoint driver reuses a matched postcondition as the immediately adjacent precondition while no primitive has run. Every primitive invalidates that observation before acting, so do not add fixed sleeps or duplicate source reads between segments.
 
+Treat the benchmark fixture reset and public task/oracle as contracts. Generate a new
+replay from the selected recording; do not copy an existing case-specific replay.
+Guard cleanup/retry primitives individually and skip remaining calls once the final
+recorded state matches.
+
 ## Verification
 
 ```bash

@@ -50,6 +50,11 @@ cite its recorded screenshot and use a visual evaluator for that semantic result
 even when a WDA checkpoint is also available nearby. WDA checkpoints may still
 guard action boundaries independently.
 
+Treat the benchmark fixture reset and public task/oracle as contracts. Generate a new
+replay from the selected recording; do not copy an existing case-specific replay.
+Guard cleanup/retry primitives individually and skip remaining calls once the final
+recorded state matches.
+
 ## Verification
 
 Start the dedicated environment outside the scored replay interval:
