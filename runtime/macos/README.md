@@ -1,4 +1,4 @@
-# @actonce/macos
+# @byted-lynx/actonce-macos
 
 Deterministic macOS replay runtime for scripts compiled from ActOnce recordings.
 It is a thin TypeScript API over WebdriverIO and Appium Mac2, with one shared
@@ -10,7 +10,7 @@ Requirements are macOS 11.3+, Xcode 13+, Node.js 20.19+/22.12+/24+, and
 Accessibility permission for Xcode Helper.
 
 ```bash
-npm install @actonce/macos
+npm install @byted-lynx/actonce-macos
 npx actonce-macos doctor
 ```
 
@@ -22,7 +22,7 @@ display edges, raises it, and verifies the final geometry. Its result contains
 the final frame for window-relative actions and visual checkpoints:
 
 ```ts
-import { setupMacWindow } from "@actonce/macos";
+import { setupMacWindow } from "@byted-lynx/actonce-macos";
 
 const windowSetup = await setupMacWindow({
   processName: "lynxtron",
@@ -40,7 +40,7 @@ fails immediately with that exact diagnosis when permission is missing.
 ## Generated script contract
 
 ```ts
-import type { MacReplayScript } from "@actonce/macos";
+import type { MacReplayScript } from "@byted-lynx/actonce-macos";
 
 export const config = {
   bundleId: "com.example.app",
@@ -91,7 +91,7 @@ through the native macOS screenshot path instead of sending a full-display
 Retina PNG through WDA:
 
 ```ts
-import { captureMacRegionScreenshot } from "@actonce/macos";
+import { captureMacRegionScreenshot } from "@byted-lynx/actonce-macos";
 
 await captureMacRegionScreenshot("checkpoint.png", windowSetup.frame, {
   timeoutMs: 2_000,

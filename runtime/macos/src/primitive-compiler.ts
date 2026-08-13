@@ -73,7 +73,7 @@ export function compileMacPrimitives(
     : null);
   const header = [
     "/**",
-    " * Generated mechanically by @actonce/macos; do not inline primitive implementations.",
+    " * Generated mechanically by @byted-lynx/actonce-macos; do not inline primitive implementations.",
     ...(provenance.recordingId ? [` * Recording: ${provenance.recordingId}`] : []),
     ...(range ? [` * Sequence range: ${range.from}..${range.to}`] : []),
     " */",
@@ -87,7 +87,7 @@ export function compileMacPrimitives(
   ]);
   const source = [
     ...header,
-    'import { replayMacPrimitive } from "@actonce/macos";',
+    'import { replayMacPrimitive } from "@byted-lynx/actonce-macos";',
     "",
     "export default async function replayRecordedPrimitives({ mac }) {",
     ...body,

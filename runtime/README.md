@@ -2,10 +2,12 @@
 
 ActOnce keeps replay orchestration separate from platform control:
 
-- `common/` publishes `@actonce/replay`: checkpoint-gated segments, structured
+- `common/` publishes `@byted-lynx/actonce-replay`: checkpoint-gated segments, structured
   events, idempotency policy, bounded fallback, and resume semantics.
-- `macos/` publishes `@actonce/macos`: Mac2/AX execution and checkpoint evidence.
-- `midscene-fallback/` publishes `@actonce/midscene-fallback`: an optional adapter
+- `macos/` publishes `@byted-lynx/actonce-macos`: Mac2/AX execution and checkpoint evidence.
+- `ios/` publishes `@byted-lynx/actonce-ios`: fixed WDA actions, accessibility-source and
+  screenshot checkpoints, and shared-session replay execution.
+- `midscene-fallback/` publishes `@byted-lynx/actonce-midscene-fallback`: an optional adapter
   around an existing, recorder-attached Midscene Agent.
 
 Platform runtimes capture and compare native evidence. The common runtime decides

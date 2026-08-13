@@ -9,7 +9,7 @@
 7. 默认输出在没有恢复需求时使用 deterministic 模式。benchmark 可以评测 deterministic 或 hybrid replay；fallback 不是正确性失败，其模型耗时、动作和恢复验证必须全部计入 replay 时间。
 8. hybrid fallback 只能修复当前 segment，必须限制应用范围、禁止动作、action 数量、超时和重试次数；AI 完成后由 runtime 重新捕获并验证同一个 checkpoint，通过后才能继续确定性脚本。
 9. 为 segment 标注 `safe`、`observe-before-retry` 或 `never-retry`；`never-retry` 的 postcondition 不允许 AI 再次执行动作。
-10. macOS 先用 `actonce-macos compile-primitives <segment.json> --output <script.js>` 把完成的原始操作机械映射为 `replayMacPrimitive` 调用，再组合一个或多个 `@actonce/macos` 脚本片段；Appium、Mac2、fallback plugin 和 session 生命周期由 CLI 统一管理，不写进片段。
+10. macOS 先用 `actonce-macos compile-primitives <segment.json> --output <script.js>` 把完成的原始操作机械映射为 `replayMacPrimitive` 调用，再组合一个或多个 `@byted-lynx/actonce-macos` 脚本片段；Appium、Mac2、fallback plugin 和 session 生命周期由 CLI 统一管理，不写进片段。
 11. 生成包含 setup、guarded segment、同步、assertion、cleanup 和来源注释的脚本，并在旁边输出 assertion decision record，记录每条 assertion 的原始证据模态、artifact、选中的 evaluator，以及被拒绝的 evaluator 与原因；有独立复用价值的固定流程可以拆成多份。
 12. 先从选中的原始事件区间建立 replay oracle：列出动作顺序、每个有独立证据的 observation 值、等价 checkpoint 边界，以及 cleanup/最终状态。对比的是这些边界上的语义结果，不要求事件数量、时间戳或截图文件逐字节一致。
 13. 用 `actonce-macos run <片段...>` 执行完整 case。每次都先重置 fixture，并采集新的 checkpoint/assertion 证据；进程退出成功不等于 replay 正确，所有 oracle observation 和最终状态都必须按原始证据模态对得上。

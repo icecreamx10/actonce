@@ -1,5 +1,5 @@
 import type { Browser } from "webdriverio";
-import type { ReplayFlow } from "@actonce/replay";
+import type { ReplayFlow } from "@byted-lynx/actonce-replay";
 import type { MacCheckpointActual, MacCheckpointExpectation } from "./checkpoint.js";
 
 export type MacLocator =

@@ -1,9 +1,10 @@
 {
-  "name": "@actonce/macos",
-  "version": "0.1.0",
+  "name": "@byted-lynx/actonce-macos",
+  "version": "0.0.0",
   "description": "Deterministic macOS replay runtime for ActOnce-generated scripts.",
   "type": "module",
   "license": "Apache-2.0",
+  "publishConfig": { "registry": "http://bnpm.byted.org" },
   "engines": {
     "node": "^20.19.0 || ^22.12.0 || >=24.0.0",
     "npm": ">=10"
@@ -30,7 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@actonce/replay": "file:../common",
+    "@byted-lynx/actonce-replay": "^0.0.0",
     "appium": "3.6.0",
     "appium-mac2-driver": "4.2.0",
     "sharp": "0.35.3",

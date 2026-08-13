@@ -1,0 +1,25 @@
+{
+  "name": "@byted-lynx/actonce-recorder",
+  "version": "0.0.0",
+  "description": "ActOnce recording CLI and correlated device event interceptors.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "publishConfig": { "registry": "http://bnpm.byted.org" },
+  "engines": { "node": "^20.19.0 || ^22.12.0 || >=24.0.0" },
+  "bin": { "actonce-record": "./dist/cli.js" },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepack": "npm run clean && npm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@midscene/computer": "1.10.10",
+    "@midscene/ios": "1.10.10"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "7.0.2"
+  }
+}

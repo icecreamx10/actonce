@@ -4,7 +4,21 @@
   "private": true,
   "type": "module",
   "description": "Record AI device actions once, replay them deterministically.",
+  "workspaces": [
+    "packages/*",
+    "interceptor",
+    "runtime/common",
+    "runtime/macos",
+    "runtime/ios",
+    "runtime/midscene-fallback",
+    "skills/record-device-use",
+    "skills/compile-device-recording"
+  ],
   "scripts": {
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
+    "build:packages": "npm run build -w @byted-lynx/actonce-replay && npm run build -w @byted-lynx/actonce-recorder && npm run build -w @byted-lynx/actonce-macos && npm run build -w @byted-lynx/actonce-ios && npm run build -w @byted-lynx/actonce-midscene-fallback && npm run build -w @byted-lynx/actonce",
     "android:bootstrap": "bash scripts/android/bootstrap-sdk.sh",
     "android:start": "bash scripts/android/start-emulator.sh",
     "android:start:foreground": "bash scripts/android/start-emulator.sh --foreground",
@@ -17,6 +31,12 @@
     "ios:wda": "bash scripts/ios/start-wda.sh",
     "ios:wda:stop": "bash scripts/ios/stop-wda.sh",
     "ios:wda:smoke": "tsx benchmark/ios/wda-smoke.ts",
+    "ios:install": "npm --prefix runtime/ios install",
+    "ios:build": "npm --prefix runtime/ios run build",
+    "ios:doctor": "npm --prefix runtime/ios run build && node runtime/ios/dist/cli.js doctor",
+    "ios:compile-primitives": "npm --prefix runtime/ios run build && node runtime/ios/dist/cli.js compile-primitives",
+    "ios:source": "npm --prefix runtime/ios run build && node runtime/ios/dist/cli.js source",
+    "ios:run": "npm --prefix runtime/ios run build && node runtime/ios/dist/cli.js run",
     "interceptor:start": "tsx interceptor/src/cli.ts",
     "interceptor:profiles": "tsx interceptor/src/cli.ts profiles",
     "interceptor:ios": "tsx interceptor/src/ios/wda-proxy.ts",
@@ -37,6 +57,8 @@
     "benchmark:android:midscene": "bash scripts/android/run-midscene-benchmark.sh",
     "benchmark:android:smoke": "bash scripts/android/run-midscene-smoke.sh",
     "benchmark:ios:smoke": "tsx benchmark/ios/midscene-settings-smoke.ts",
+    "benchmark:ios:record-settings": "tsx interceptor/src/cli.ts record midscene-ios --entry benchmark/ios/settings-about-task.ts",
+    "benchmark:ios:replay-settings": "tsx benchmark/ios/settings-about-replay.ts",
     "benchmark:midscene": "tsx benchmark/midscene-baseline.ts",
     "benchmark:macos:lynxtron:prepare": "tsx benchmark/macos/lynxtron-fiddle/prepare.ts",
     "benchmark:macos:lynxtron": "tsx benchmark/macos/lynxtron-fiddle/cli.ts run --mode original --case diagnostic-hover",
@@ -47,6 +69,7 @@
     "model:verify": "npx @midscene/cli@1.10.10 model verify",
     "test": "vitest run",
     "test:macos-runtime": "npm --prefix runtime/macos test",
+    "test:ios-runtime": "npm --prefix runtime/ios test",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -61,6 +84,7 @@
     "playwright": "1.62.1"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.0",
     "@types/node": "^24.0.0",
     "appium-webdriveragent": "^16.1.6",
     "tsx": "4.23.12",

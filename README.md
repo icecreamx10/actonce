@@ -10,7 +10,7 @@ When the live UI still matches the recording, replay stays deterministic. When i
 
 > The recording is evidence. The compiled, state-aware replay is the executable artifact.
 
-> **Platform status:** Only the macOS workflow has been validated end to end so far: recording a Midscene run, compiling it, replaying it with live checkpoints, and benchmarking correctness and speed. The iOS and Android directories currently contain capture, simulator, and integration foundations; they are not yet completed or benchmark-validated replay platforms. Windows support is planned.
+> **Platform status:** macOS is the only platform with a formal original-versus-replay correctness and speed benchmark. iOS now has a validated Settings smoke path from recorded Midscene/WDA evidence through mechanical primitive compilation and deterministic checkpoint replay, but it does not yet have the full scored benchmark suite. Android remains foundational, and Windows support is planned.
 
 ## Current result
 
@@ -55,7 +55,8 @@ ActOnce deliberately separates four concerns:
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published recording Skill; its macOS path is validated, while iOS support remains foundational |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
-| [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos`, the deterministic macOS replay SDK and CLI |
+| [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos`, the deterministic macOS replay SDK and CLI |
+| [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios`, fixed WDA primitives, source/visual checkpoints, and replay runner |
 | [`runtime/common/`](runtime/common/README.md) | Shared checkpoint-gated replay flow |
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | Optional bounded Midscene recovery adapter |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.md) | Pinned desktop fixture, natural-language cases, runners, evidence, and evaluator |
@@ -66,6 +67,26 @@ ActOnce deliberately separates four concerns:
 ## Quick start
 
 Requirements: Node.js 22 or newer and macOS permissions appropriate to the platform workflow you run.
+
+Install the complete synchronized distribution from BNPM:
+
+```bash
+npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
+npx actonce skill install record-device-use
+npx actonce skill install compile-device-recording
+```
+
+The installer copies each complete Skill directory into `${CODEX_HOME}/skills` when `CODEX_HOME` is set, otherwise `~/.codex/skills`. Use `--target <directory>` for another agent. APIs are exposed through platform subpaths:
+
+```ts
+import { ReplayFlow } from "@byted-lynx/actonce/replay";
+import { replayMacPrimitive } from "@byted-lynx/actonce/macos";
+import { replayIOSPrimitive } from "@byted-lynx/actonce/ios";
+```
+
+Every `@byted-lynx/actonce-*` component belongs to one Changesets fixed group, so the umbrella package, recorder, runtimes, and Skills always publish with the same version. Individual component packages remain installable for narrower environments.
+
+For repository development:
 
 ```bash
 npm install
@@ -109,14 +130,14 @@ The compilation Skill then selects useful spans, lowers recorded input through f
 
 ## macOS replay runtime
 
-[`@actonce/macos`](runtime/macos/README.md) is the first complete platform runtime. It wraps Appium Mac2/WebDriverIO for application control and fixed input primitives, normalizes the target window onto a selected display, and provides native window-region screenshots for fast visual checkpoints.
+[`@byted-lynx/actonce-macos`](runtime/macos/README.md) is the first complete platform runtime. It wraps Appium Mac2/WebDriverIO for application control and fixed input primitives, normalizes the target window onto a selected display, and provides native window-region screenshots for fast visual checkpoints.
 
 ```ts
 import {
   captureMacRegionScreenshot,
   replayMacPrimitive,
   setupMacWindow,
-} from "@actonce/macos";
+} from "@byted-lynx/actonce-macos";
 
 const setup = await setupMacWindow({
   processName: "Example",
@@ -144,6 +165,6 @@ Fallback latency, checkpoint polling, recovery, and cleanup remain inside replay
 
 ## Status
 
-ActOnce is an active prototype focused on developer-machine workflows. **macOS is currently the only platform with a working, benchmark-validated end-to-end recording-to-replay path.** The repository also includes Android/iOS capture foundations, but those platforms have not yet completed the same replay and correctness benchmark.
+ActOnce is an active prototype focused on developer-machine workflows. **macOS is currently the only platform with a formal benchmark-validated original-to-replay comparison.** iOS has a working recorded Settings smoke loop with real WDA evidence, mechanical action lowering, live checkpoints, deterministic replay, cleanup, and no fallback; formal iOS scoring is still pending. Android remains at the capture/environment foundation stage.
 
 The next engineering focus is reducing screenshot capture overhead further, generalizing compilation beyond the current benchmark cases, and implementing platform-native runtimes independently for iOS, Android, and Windows rather than forcing a premature cross-platform action API.

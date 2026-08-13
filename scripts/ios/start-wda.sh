@@ -44,7 +44,12 @@ echo "Starting WebDriverAgent for ${ACTONCE_IOS_DEVICE_NAME} (${ACTONCE_IOS_UDID
 WDA_PID=$!
 echo "${WDA_PID}" >"${PID_PATH}"
 
-DEADLINE=$((SECONDS + 120))
+WDA_STARTUP_TIMEOUT_SECONDS="${ACTONCE_WDA_STARTUP_TIMEOUT_SECONDS:-300}"
+if ! [[ "${WDA_STARTUP_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ACTONCE_WDA_STARTUP_TIMEOUT_SECONDS must be a positive integer." >&2
+  exit 1
+fi
+DEADLINE=$((SECONDS + WDA_STARTUP_TIMEOUT_SECONDS))
 WDA_READY=false
 while (( SECONDS < DEADLINE )); do
   if curl --silent --fail --max-time 2 \

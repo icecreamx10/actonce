@@ -3,8 +3,10 @@
 Always discover profiles from the installed CLI:
 
 ```bash
-npm run interceptor:start -- profiles --json
+actonce-record profiles --json
 ```
+
+Inside an ActOnce checkout, `npm run interceptor:start -- profiles --json` is equivalent.
 
 The current public contracts are:
 
@@ -32,7 +34,7 @@ Do not construct a second Midscene agent or device. Do not import recorder inter
 ## Midscene macOS
 
 ```bash
-npm run interceptor:start -- record midscene-macos \
+actonce-record record midscene-macos \
   --entry /absolute/path/to/task.ts \
   --display-id 0 \
   --recording-id task-name-001
@@ -43,7 +45,7 @@ npm run interceptor:start -- record midscene-macos \
 Start WebDriverAgent on its upstream port, then run:
 
 ```bash
-npm run interceptor:start -- record midscene-ios \
+actonce-record record midscene-ios \
   --entry /absolute/path/to/task.ts \
   --upstream-host 127.0.0.1 \
   --upstream-port 8100 \
@@ -56,7 +58,7 @@ The profile constructs Midscene against the proxy. The task module must not over
 ## Generic iOS WDA
 
 ```bash
-npm run interceptor:start -- record ios-wda \
+actonce-record record ios-wda \
   --upstream-port 8100 \
   --listen-port 8200 \
   --recording-id task-name-001

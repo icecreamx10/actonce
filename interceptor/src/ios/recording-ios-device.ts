@@ -97,18 +97,27 @@ export async function agentForRecordedIOS(
     type: "checkpoint",
     instanceId: "ios-checkpoint",
   });
+  const observationScreenshots: Array<{
+    sequence: number;
+    artifact: import("../core/source-interceptor.js").ArtifactReference;
+  }> = [];
   const captureCheckpoint = createIOSCheckpointCapture(
     device,
     checkpointContext,
     (correlation) => {
       transportCorrelation = correlation;
     },
+    (evidence) => { observationScreenshots.push(evidence); },
   );
   const agent = new IOSAgent(device, agentOptions);
   midscene = new MidsceneInterceptor(
     agent,
     device as IOSDevice & MidsceneHookableInterface,
     captureCheckpoint,
+    {
+      peekScreenshots: () => [...observationScreenshots],
+      consumeScreenshots: () => { observationScreenshots.length = 0; },
+    },
   );
   await writer.attach(midscene);
 
@@ -136,6 +145,10 @@ export function createIOSCheckpointCapture(
   device: IOSDevice,
   context: RecorderContext,
   setTransportCorrelation: (correlation: EventCorrelation | undefined) => void,
+  onScreenshot?: (evidence: {
+    sequence: number;
+    artifact: import("../core/source-interceptor.js").ArtifactReference;
+  }) => void,
 ): CaptureCheckpoint {
   return async (phase, actionId, correlation) => {
     const captureId = randomUUID();
@@ -150,7 +163,7 @@ export function createIOSCheckpointCapture(
       const [image, viewport, nativeUi] = await Promise.all([
         device.screenshotBase64(),
         device.size(),
-        device.getElementsNodeTree(),
+        captureWdaSource(device),
       ]);
       const decoded = decodeDataUrl(image);
       const screenshot = await context.artifact(decoded.bytes, decoded.mediaType);
@@ -184,6 +197,7 @@ export function createIOSCheckpointCapture(
         },
         correlation: checkpointCorrelation,
       });
+      onScreenshot?.({ sequence: receipt.sequence, artifact: screenshot });
       return { captureId, sequence: receipt.sequence };
     } catch (error) {
       context.markIncomplete(
@@ -207,6 +221,14 @@ export function createIOSCheckpointCapture(
       setTransportCorrelation(undefined);
     }
   };
+}
+
+async function captureWdaSource(device: IOSDevice): Promise<unknown> {
+  const response = await device.runWdaRequest<unknown>("GET", "/source");
+  if (response && typeof response === "object" && "value" in response) {
+    return (response as { value: unknown }).value;
+  }
+  return response;
 }
 
 function errorMessage(error: unknown): string {

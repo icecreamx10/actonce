@@ -1,6 +1,6 @@
 # 录制工作流
 
-1. 执行 `npm run interceptor:start -- profiles --json` 获取 CLI 支持的固定 profile。
+1. 执行 `actonce-record profiles --json` 获取 CLI 支持的固定 profile；在源码仓库内可使用等价的 `npm run interceptor:start -- profiles --json`。
 2. Midscene macOS 使用 `midscene-macos`；Midscene iOS 使用 `midscene-ios`；外部 WDA client 使用 `ios-wda`。
 3. Midscene profile 的 task module 只接收 CLI 创建好的 `agent` 和 `device`，不得自行创建 recorder 或拼装 source。
 4. 正常执行原任务，不要为了日志额外增加 AI 操作。

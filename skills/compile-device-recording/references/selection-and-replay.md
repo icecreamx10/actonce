@@ -35,8 +35,8 @@ When two actions share state, either include the setup action or make its result
 | Recorded source | Preferred replay target | Fallback |
 |---|---|---|
 | WDA endpoint | WDA/Appium command with accessibility selector | normalized coordinates with device guards |
-| macOS AX | `@actonce/macos` accessibility/id/name/predicate/class-chain locator | guarded `mac.driver` Mac2 call |
-| macOS input | `@actonce/macos` element or input primitive | guarded coordinate input |
+| macOS AX | `@byted-lynx/actonce-macos` accessibility/id/name/predicate/class-chain locator | guarded `mac.driver` Mac2 call |
+| macOS input | `@byted-lynx/actonce-macos` element or input primitive | guarded coordinate input |
 | Midscene logical action | test name/comment plus compiled primitives | bounded segment-local AI recovery in explicitly hybrid runs |
 
 Map observations independently from actions:
@@ -114,4 +114,5 @@ an AI fallback to repeat a `never-retry` postcondition action.
 
 Use bounded polling for asynchronous UI changes. Keep short input-settle delays only when required by the recorded driver behavior.
 
-For macOS fragments and shared-session execution, read [macos-runtime.md](macos-runtime.md).
+For platform fragments and shared-session execution, read [macos-runtime.md](macos-runtime.md)
+or [ios-runtime.md](ios-runtime.md).

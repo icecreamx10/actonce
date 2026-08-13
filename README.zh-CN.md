@@ -10,7 +10,7 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 
 > 录制是证据；编译后、能够感知状态的 replay 才是可执行产物。
 
-> **平台状态：** 目前只有 macOS 工作流完成了端到端验证，包括录制 Midscene 执行、编译、基于实时 checkpoint 的回放，以及正确性与性能 benchmark。iOS 和 Android 目录目前只是 capture、模拟器与集成基础，尚未成为完整或经过 benchmark 验证的 replay 平台；Windows 仍在规划中。
+> **平台状态：** macOS 是目前唯一完成正式 original 对 replay 正确性与性能 benchmark 的平台。iOS 已跑通 Settings smoke：从 Midscene/WDA 录制证据，经机械 primitive 编译，到确定性的 checkpoint replay；但尚未建立完整的正式评分 suite。Android 仍处于基础建设阶段，Windows 仍在规划中。
 
 ## 当前结果
 
@@ -55,7 +55,8 @@ ActOnce 刻意拆分四类职责：
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill；macOS 路径已经验证，iOS 仍处于基础建设阶段 |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | 发布 Skill：选择有证据支持的片段并生成 replay 脚本 |
 | [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
-| [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos` 确定性回放 SDK 与 CLI |
+| [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos` 确定性回放 SDK 与 CLI |
+| [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios` 固定 WDA primitive、source/visual checkpoint 与 replay runner |
 | [`runtime/common/`](runtime/common/README.md) | 共享的 checkpoint 回放流程 |
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | 可选的受限 Midscene 恢复适配器 |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.zh-CN.md) | 固定桌面 fixture、自然语言 case、runner、证据与 evaluator |
@@ -66,6 +67,26 @@ ActOnce 刻意拆分四类职责：
 ## 快速开始
 
 基础要求是 Node.js 22 或更高版本，以及对应平台工作流所需的 macOS 权限。
+
+从 BNPM 安装完整且版本同步的发行包：
+
+```bash
+npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
+npx actonce skill install record-device-use
+npx actonce skill install compile-device-recording
+```
+
+Skill 安装命令在设置了 `CODEX_HOME` 时复制到 `${CODEX_HOME}/skills`，否则复制到 `~/.codex/skills`；其他 Agent 可通过 `--target <目录>` 指定安装位置。API 使用平台子路径导入：
+
+```ts
+import { ReplayFlow } from "@byted-lynx/actonce/replay";
+import { replayMacPrimitive } from "@byted-lynx/actonce/macos";
+import { replayIOSPrimitive } from "@byted-lynx/actonce/ios";
+```
+
+所有 `@byted-lynx/actonce-*` 组件都属于同一个 Changesets fixed group，因此总包、录制 CLI、平台 runtime 和 Skills 始终使用同一发布版本；有精简环境需求时仍可单独安装组件包。
+
+在源码仓库中开发：
 
 ```bash
 npm install
@@ -109,14 +130,14 @@ npm run interceptor:start -- record midscene-macos \
 
 ## macOS 回放 Runtime
 
-[`@actonce/macos`](runtime/macos/README.md) 是第一个完整的平台 runtime。它使用 Appium Mac2/WebDriverIO 控制应用和执行固定输入 primitive，将目标窗口规范化到指定显示器，并通过原生窗口区域截图快速验证视觉 checkpoint。
+[`@byted-lynx/actonce-macos`](runtime/macos/README.md) 是第一个完整的平台 runtime。它使用 Appium Mac2/WebDriverIO 控制应用和执行固定输入 primitive，将目标窗口规范化到指定显示器，并通过原生窗口区域截图快速验证视觉 checkpoint。
 
 ```ts
 import {
   captureMacRegionScreenshot,
   replayMacPrimitive,
   setupMacWindow,
-} from "@actonce/macos";
+} from "@byted-lynx/actonce-macos";
 
 const setup = await setupMacWindow({
   processName: "Example",
@@ -144,6 +165,6 @@ Fallback 延迟、checkpoint 轮询、恢复和 cleanup 都计入 replay 时间�
 
 ## 当前状态
 
-ActOnce 是一个面向开发机器工作流的活跃原型。**macOS 是目前唯一真正跑通并经过 benchmark 验证的端到端录制到 replay 平台。** 仓库也包含 Android/iOS capture 基础，但它们还没有完成同等的 replay 与正确性 benchmark。
+ActOnce 是一个面向开发机器工作流的活跃原型。**macOS 是目前唯一完成正式 original 到 replay 对比 benchmark 的平台。** iOS 已通过真实 WDA 证据跑通 Settings 录制、机械 action lowering、实时 checkpoint、确定性 replay 和 cleanup，且 fallback 为 0；正式 iOS 评分仍待完成。Android 仍处于 capture/环境基础阶段。
 
 接下来的工程重点是继续降低截图开销、把编译能力推广到当前 benchmark 之外，并为 iOS、Android、Windows 分别实现原生 runtime，而不是过早强行统一跨平台 action API。

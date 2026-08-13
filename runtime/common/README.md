@@ -1,4 +1,4 @@
-# @actonce/replay
+# @byted-lynx/actonce-replay
 
 Checkpoint-gated replay orchestration shared by ActOnce platform runtimes.
 The package does not control a device and does not depend on an AI provider.

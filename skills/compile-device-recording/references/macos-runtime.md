@@ -1,6 +1,6 @@
 # macOS replay target
 
-Generate macOS replay fragments for `@actonce/macos`. The runtime is a thin WebdriverIO/Appium Mac2 wrapper for developer machines. Its CLI owns Appium startup, the Mac2 session, and cleanup, and runs every supplied fragment in one session.
+Generate macOS replay fragments for `@byted-lynx/actonce-macos`. The runtime is a thin WebdriverIO/Appium Mac2 wrapper for developer machines. Its CLI owns Appium startup, the Mac2 session, and cleanup, and runs every supplied fragment in one session.
 
 ## Deterministic primitive lowering
 
@@ -27,7 +27,7 @@ generated scripts.
 Emit JavaScript after TypeScript compilation, or author `.mjs` directly:
 
 ```ts
-import type { MacReplayScript } from "@actonce/macos";
+import type { MacReplayScript } from "@byted-lynx/actonce-macos";
 
 export const config = {
   bundleId: "com.example.app",
@@ -52,7 +52,7 @@ checkpoints into a guarded segment. The deterministic action is trusted only aft
 the live post-checkpoint matches:
 
 ```ts
-import { replayMacPrimitive } from "@actonce/macos";
+import { replayMacPrimitive } from "@byted-lynx/actonce-macos";
 
 const replay: MacReplayScript = async ({ mac, flow }) => {
   await flow.segment({
@@ -107,7 +107,7 @@ Midscene Agent on the recorded macOS device adapter so AI actions append to the 
 ActOnce timeline, then return a `MidsceneFallbackDriver` and recorder cleanup:
 
 ```ts
-import { MidsceneFallbackDriver } from "@actonce/midscene-fallback";
+import { MidsceneFallbackDriver } from "@byted-lynx/actonce-midscene-fallback";
 
 export async function createFallback() {
   const recorded = await createRecordedComputerAgent();

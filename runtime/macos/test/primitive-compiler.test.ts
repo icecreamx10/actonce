@@ -14,7 +14,7 @@ describe("compileMacPrimitives", () => {
 
     expect(result.primitiveCount).toBe(2);
     expect(result.omittedNestedCount).toBe(1);
-    expect(result.source).toContain('import { replayMacPrimitive } from "@actonce/macos"');
+    expect(result.source).toContain('import { replayMacPrimitive } from "@byted-lynx/actonce-macos"');
     expect(result.source).toContain('"operation": "typeText"');
     expect(result.source).toContain('"operation": "keyboardPress"');
     expect(result.source).not.toContain('"operation": "tap"');
