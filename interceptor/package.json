@@ -1,6 +1,6 @@
 {
   "name": "@byted-lynx/actonce-recorder",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "ActOnce recording CLI and correlated device event interceptors.",
   "type": "module",
   "license": "Apache-2.0",
