@@ -7,14 +7,17 @@ type Event = {
   operation?: string; normalizedArguments?: Record<string, unknown>;
 };
 export type CompileIOSPrimitivesResult = {
-  source: string; primitiveCount: number; sequenceRange: { from: number; to: number } | null;
+  source: string; primitiveCount: number; omittedWaitCount: number;
+  sequenceRange: { from: number; to: number } | null;
 };
 
 export function compileIOSPrimitives(
   events: Event[],
   provenance: { recordingId?: string; sequenceRange?: { from: number; to: number } } = {},
 ): CompileIOSPrimitivesResult {
-  const actions = events.filter((event) => event.kind === "logical.action.completed").map((event) => {
+  const completed = events.filter((event) => event.kind === "logical.action.completed");
+  const omittedWaitCount = completed.filter((event) => event.operation === "Sleep").length;
+  const actions = completed.filter((event) => event.operation !== "Sleep").map((event) => {
     if (!event.actionId || !Number.isInteger(event.sequence)) throw new Error("A completed iOS action is missing actionId or sequence");
     return { sequence: event.sequence!, primitive: lower(event) };
   });
@@ -32,6 +35,7 @@ export function compileIOSPrimitives(
       "export default async function replayRecordedPrimitives({ ios }) {", ...lines, "}", "",
     ].join("\n"),
     primitiveCount: actions.length,
+    omittedWaitCount,
     sequenceRange: range,
   };
 }

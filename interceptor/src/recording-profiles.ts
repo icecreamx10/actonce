@@ -81,6 +81,9 @@ export async function runRecordingProfile(
         recordingDir: recorded.writer.recordingDir,
         args: options.taskArgs ?? [],
       });
+    } catch (error) {
+      recorded.writer.markIncomplete(`Recording task failed: ${errorMessage(error)}`);
+      throw error;
     } finally {
       await recorded.close();
       console.log(`Recording: ${recorded.writer.recordingDir}`);
@@ -110,6 +113,9 @@ export async function runRecordingProfile(
         recordingDir: recorded.writer.recordingDir,
         args: options.taskArgs ?? [],
       });
+    } catch (error) {
+      recorded.writer.markIncomplete(`Recording task failed: ${errorMessage(error)}`);
+      throw error;
     } finally {
       await recorded.close();
       console.log(`Recording: ${recorded.writer.recordingDir}`);
@@ -118,6 +124,10 @@ export async function runRecordingProfile(
   }
 
   await runIOSWdaProxy(options);
+}
+
+function errorMessage(value: unknown): string {
+  return value instanceof Error ? value.message : String(value);
 }
 
 export async function runIOSWdaProxy(

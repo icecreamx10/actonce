@@ -10,7 +10,7 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 
 > 录制是证据；编译后、能够感知状态的 replay 才是可执行产物。
 
-> **平台状态：** macOS 是目前唯一完成正式 original 对 replay 正确性与性能 benchmark 的平台。iOS 已跑通 Settings 的录制回放闭环，并用 7 个实时 WDA checkpoint 验证了固定版本的复杂 checkout fixture；但尚未建立完整的正式评分 suite。Android 仍处于基础建设阶段，Windows 仍在规划中。
+> **平台状态：** macOS 已有三个 case 的桌面 suite；iOS 也完成了第一条正式的两次 original 对两次 replay checkout benchmark。Android 仍处于基础建设阶段，Windows 仍在规划中。
 
 ## 当前结果
 
@@ -24,6 +24,10 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 | **Suite 合计** | **185.49 秒** | **19.18 秒** | **9.67×** |
 
 所有实时截图 checkpoint 均通过，fixture 最终在未保存的情况下恢复，fallback 为 0。这里的 replay 数据是一轮优化快照；正式评分要求两次独立重置的 original 和两次独立重置的 replay，并以正确性作为硬门槛。固定协议见 [Lynxtron benchmark 指南](benchmark/macos/lynxtron-fiddle/README.zh-CN.md)。
+
+第一条正式 iOS checkout benchmark 也已通过：Midscene original 中位数
+`220.246 秒`，确定性 replay 中位数 `10.499 秒`，加速 `20.98×`；两次 replay
+均正确且没有 fallback。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
 
 ## 工作原理
 
@@ -165,6 +169,6 @@ Fallback 延迟、checkpoint 轮询、恢复和 cleanup 都计入 replay 时间�
 
 ## 当前状态
 
-ActOnce 是一个面向开发机器工作流的活跃原型。**macOS 是目前唯一完成正式 original 到 replay 对比 benchmark 的平台。** iOS 已跑通 Settings 录制回放闭环，并接入了覆盖商品选择、购物车状态、demo 登录和 checkout 地址校验的固定复杂测试 App；正式 iOS 评分仍待完成。Android 仍处于 capture/环境基础阶段。
+ActOnce 是一个面向开发机器工作流的活跃原型。macOS 已有正式的多 case suite；iOS 也完成了第一条经过 benchmark 验证的 original 到 replay 对比，覆盖商品选择、购物车状态、demo 登录和 checkout 地址校验。Android 仍处于 capture/环境基础阶段。
 
 接下来的工程重点是继续降低截图开销、把编译能力推广到当前 benchmark 之外，并为 iOS、Android、Windows 分别实现原生 runtime，而不是过早强行统一跨平台 action API。

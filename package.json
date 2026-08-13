@@ -65,6 +65,7 @@
     "benchmark:ios:replay-settings": "tsx benchmark/ios/settings-about-replay.ts",
     "benchmark:ios:demo-app:smoke": "npm run ios:reset:demo-app && tsx benchmark/ios/my-demo-app/fixture-smoke.ts",
     "benchmark:ios:record-demo-app": "npm run ios:reset:demo-app && tsx interceptor/src/cli.ts record midscene-ios --entry benchmark/ios/my-demo-app/checkout-task.ts",
+    "benchmark:ios:replay-demo-app": "npm run ios:reset:demo-app && tsx benchmark/ios/my-demo-app/checkout-replay.ts",
     "benchmark:midscene": "tsx benchmark/midscene-baseline.ts",
     "benchmark:macos:lynxtron:prepare": "tsx benchmark/macos/lynxtron-fiddle/prepare.ts",
     "benchmark:macos:lynxtron": "tsx benchmark/macos/lynxtron-fiddle/cli.ts run --mode original --case diagnostic-hover",

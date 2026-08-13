@@ -115,9 +115,25 @@ Record the same qualitative goal with Midscene:
 npm run benchmark:ios:record-demo-app
 ```
 
-That command always performs the fixture reset first. It is the intended input
-for the next compile/replay correctness and performance benchmark; it is not yet
-a published formal score.
+That command always performs the fixture reset first.
+
+The first two-original/two-replay benchmark passed its correctness gate. Both
+replays reached the expected prefilled shipping address, retained a cart badge of
+3, and stopped before payment, with zero fallback and zero checkpoint timeout.
+
+| Measurement | Result |
+| --- | ---: |
+| Midscene original durations | 271.392 s, 169.100 s |
+| Deterministic replay durations | 9.983 s, 11.015 s |
+| Original median | 220.246 s |
+| Replay median | 10.499 s |
+| Speedup | 20.98× |
+| Time reduction | 95.23% |
+
+The compiler mechanically lowered 11 taps and omitted one recorded `Sleep`;
+live checkpoint settling replaces that fixed wait. Failed development attempts
+caused by ambiguous fixture styling or model timeout were preserved but excluded
+before the formal pair was selected.
 
 Stop WDA when finished:
 

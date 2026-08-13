@@ -102,8 +102,24 @@ oracle 写入 `.cache/ios-runtime/my-demo-app-smoke/`。
 npm run benchmark:ios:record-demo-app
 ```
 
-该命令始终先重置 fixture。这条 recording 将作为下一步 compile/replay 正确性与
-性能 benchmark 的输入，目前还不是正式发布的评分结果。
+该命令始终先重置 fixture。
+
+第一轮两次 original 对两次 replay 的 benchmark 已通过正确性门禁。两次 replay
+都到达预期的预填 shipping address，购物车 badge 保持为 3，并停在 payment 之前；
+fallback 和 checkpoint timeout 都为 0。
+
+| 指标 | 结果 |
+| --- | ---: |
+| Midscene original 耗时 | 271.392 秒、169.100 秒 |
+| 确定性 replay 耗时 | 9.983 秒、11.015 秒 |
+| Original 中位数 | 220.246 秒 |
+| Replay 中位数 | 10.499 秒 |
+| 加速比 | 20.98× |
+| 时间降低 | 95.23% |
+
+compiler 机械降低了 11 个 tap，并省略了一个 recording 中的 `Sleep`；固定等待由
+实时 checkpoint settle 代替。因 fixture 样式歧义或模型 timeout 造成的开发失败
+尝试均被保留，但在选择正式的两组样本前已经排除。
 
 结束后停止 WDA：
 
