@@ -10,7 +10,7 @@ When the live UI still matches the recording, replay stays deterministic. When i
 
 > The recording is evidence. The compiled, state-aware replay is the executable artifact.
 
-> **Platform status:** macOS is the only platform with a formal original-versus-replay correctness and speed benchmark. iOS now has a validated Settings smoke path from recorded Midscene/WDA evidence through mechanical primitive compilation and deterministic checkpoint replay, but it does not yet have the full scored benchmark suite. Android remains foundational, and Windows support is planned.
+> **Platform status:** macOS has a three-case desktop suite, and iOS now has its first formal two-original/two-replay checkout benchmark. Android remains foundational, and Windows support is planned.
 
 ## Current result
 
@@ -24,6 +24,10 @@ The default macOS benchmark suite runs three real Lynxtron Fiddle workflows. The
 | **Suite total** | **185.49 s** | **19.18 s** | **9.67×** |
 
 All live screenshot checkpoints passed, the fixtures were restored without saving, and fallback count was zero. These replay values are a one-run optimization snapshot; formal scoring uses two independently reset originals and two independently reset replays, with correctness as a hard gate. See the [Lynxtron benchmark guide](benchmark/macos/lynxtron-fiddle/README.md) for the fixed protocol.
+
+The first formal iOS checkout benchmark also passed: Midscene original median
+`220.246 s`, deterministic replay median `10.499 s`, `20.98×` speedup, with two
+of two replays correct and no fallback. See the [iOS benchmark guide](benchmark/ios/README.md).
 
 ## How it works
 
@@ -165,6 +169,6 @@ Fallback latency, checkpoint polling, recovery, and cleanup remain inside replay
 
 ## Status
 
-ActOnce is an active prototype focused on developer-machine workflows. **macOS is currently the only platform with a formal benchmark-validated original-to-replay comparison.** iOS has a working recorded Settings smoke loop with real WDA evidence, mechanical action lowering, live checkpoints, deterministic replay, cleanup, and no fallback; formal iOS scoring is still pending. Android remains at the capture/environment foundation stage.
+ActOnce is an active prototype focused on developer-machine workflows. macOS has a formal multi-case suite; iOS has its first formal benchmark-validated original-to-replay comparison covering product selection, cart state, demo login, and checkout address verification. Android remains at the capture/environment foundation stage.
 
 The next engineering focus is reducing screenshot capture overhead further, generalizing compilation beyond the current benchmark cases, and implementing platform-native runtimes independently for iOS, Android, and Windows rather than forcing a premature cross-platform action API.

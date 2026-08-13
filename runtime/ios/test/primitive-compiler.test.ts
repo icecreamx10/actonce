@@ -12,4 +12,13 @@ describe("compileIOSPrimitives", () => {
   it("rejects unsupported actions instead of inventing an implementation", () => {
     expect(() => compileIOSPrimitives([{ kind: "logical.action.completed", actionId: "x", operation: "Unknown", sequence: 3 }])).toThrow("Unsupported recorded iOS action");
   });
+  it("omits recorded Sleep actions so checkpoint settling controls replay timing", () => {
+    const result = compileIOSPrimitives([
+      { kind: "logical.action.completed", actionId: "wait", operation: "Sleep", sequence: 10 },
+      { kind: "logical.action.completed", actionId: "tap", operation: "Tap", sequence: 20, normalizedArguments: { locate: { center: [10, 20] } } },
+    ]);
+    expect(result.primitiveCount).toBe(1);
+    expect(result.omittedWaitCount).toBe(1);
+    expect(result.source).not.toContain('"operation": "Sleep"');
+  });
 });

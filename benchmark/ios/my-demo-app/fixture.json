@@ -1,0 +1,13 @@
+{
+  "name": "Sauce Labs My Demo App",
+  "version": "2.2.2",
+  "sourceRepository": "https://github.com/saucelabs/my-demo-app-ios",
+  "releasePage": "https://github.com/saucelabs/my-demo-app-ios/releases/tag/2.2.2",
+  "artifactUrl": "https://github.com/saucelabs/my-demo-app-ios/releases/download/2.2.2/SauceLabs-Demo-App.Simulator.zip",
+  "sha256": "96b08d5ac74dd817d95fbd8332ae9385bb076af38d56d13d8465345cb1797139",
+  "archiveAppPath": "Payload/My Demo App.app",
+  "bundleId": "com.saucelabs.mydemo.app.ios",
+  "minimumSimulatorVersion": "16.6",
+  "distribution": "The third-party binary is downloaded into the ignored local cache and is not redistributed by ActOnce.",
+  "licenseNote": "The upstream repository does not declare an OSI license. Treat this as a public external test fixture, not a vendored open-source dependency."
+}

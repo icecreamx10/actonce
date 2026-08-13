@@ -3,7 +3,8 @@
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 这是 ActOnce 第一条接近真实设备的运行链路：使用专用 iOS Simulator、Appium
-WebDriverAgent（WDA）和 Midscene iOS adapter，不需要下载测试 APK 或第三方 App。
+WebDriverAgent（WDA）和 Midscene iOS adapter。廉价的 Settings 门禁无需外部 App；
+定性的 checkout case 使用固定版本的公开 Simulator fixture。
 
 ## 为什么先做 iOS
 
@@ -75,9 +76,50 @@ source checkpoint，以及全部被拦截的 WDA exchange。compiler 从 normali
 信息和 cleanup 状态。两次开发 smoke 均通过，没有 checkpoint timeout 或 AI fallback。
 这还不是 macOS suite 所采用的两次 original 对两次 replay 正式性能评分。
 
-下一条定性 benchmark 将使用系统内置 Reminders App：创建一个固定 reminder、
-设置优先级、返回列表、重新打开并验证结果。固定的 Simulator runtime 已包含
-`com.apple.reminders`，不需要外部 App 源。Settings 会保留为更便宜的连接门禁。
+## 复杂 checkout fixture
+
+第一条定性 iOS case 使用 Sauce Labs My Demo App `2.2.2`，这是一个面向 UI
+自动化的公开 App。ActOnce 不分发第三方二进制；fixture CLI 只会把官方 Simulator
+release 下载到 `.cache/`，校验固定 SHA-256、bundle id 和版本，然后安装到 ActOnce
+专用 Simulator。上游公开仓库没有声明 OSI license，因此这里将其视为外部测试
+fixture，而不是 vendored 的开源依赖。
+
+准备或重置 fixture，再执行完全不调用模型的环境门禁：
+
+```bash
+npm run ios:prepare:demo-app
+npm run benchmark:ios:demo-app:smoke
+```
+
+smoke 会依次完成 Catalog → 商品详情 → 数量 3 → Cart → Checkout → 内置 demo
+用户登录 → 预填 shipping address。7 个 WDA source checkpoint 会在预期状态出现后
+立即继续，流程停在 payment 之前。已验证的本地运行耗时 11.7 秒，最终截图和结构化
+oracle 写入 `.cache/ios-runtime/my-demo-app-smoke/`。
+
+使用 Midscene 录制相同的定性目标：
+
+```bash
+npm run benchmark:ios:record-demo-app
+```
+
+该命令始终先重置 fixture。
+
+第一轮两次 original 对两次 replay 的 benchmark 已通过正确性门禁。两次 replay
+都到达预期的预填 shipping address，购物车 badge 保持为 3，并停在 payment 之前；
+fallback 和 checkpoint timeout 都为 0。
+
+| 指标 | 结果 |
+| --- | ---: |
+| Midscene original 耗时 | 271.392 秒、169.100 秒 |
+| 确定性 replay 耗时 | 9.983 秒、11.015 秒 |
+| Original 中位数 | 220.246 秒 |
+| Replay 中位数 | 10.499 秒 |
+| 加速比 | 20.98× |
+| 时间降低 | 95.23% |
+
+compiler 机械降低了 11 个 tap，并省略了一个 recording 中的 `Sleep`；固定等待由
+实时 checkpoint settle 代替。因 fixture 样式歧义或模型 timeout 造成的开发失败
+尝试均被保留，但在选择正式的两组样本前已经排除。
 
 结束后停止 WDA：
 
