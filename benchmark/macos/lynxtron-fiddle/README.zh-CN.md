@@ -91,9 +91,10 @@ frame；这段 setup 不依赖 AI 视觉断言。进入计时任务后，case pr
 assertion 并筛选截图证据，随后 AI 只审核这份精简证据；两轮都通过后才能计算加速比。
 replay 可以使用有界 fallback；fallback 本身不会让正确结果失去性能对比资格。
 
-replay 的视觉 assertion 只从所选 display 截图中裁剪窗口相对区域。App 在桌面上的
-位置和无关窗口不会进入正确性 oracle；setup 返回的 frame 只负责把录制时的窗口相对
-区域与操作点转换到当前 display。
+replay 的视觉 assertion 通过 macOS 原生截图路径直接捕获规范化后的窗口区域，再从中
+裁剪每个 checkpoint 所需的更小区域，不再通过 WDA 传输完整的 Retina display PNG。
+App 在桌面上的位置和无关窗口不会进入正确性 oracle；setup 返回的 frame 负责把录制时
+的窗口相对操作点转换到当前 display。
 
 ```bash
 npm run benchmark:macos:lynxtron:cli -- evidence \

@@ -1,177 +1,147 @@
 # ActOnce
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-将 AI 驱动的 UI 任务录制一次，之后以确定性方式回放。
+**让 AI 探索一次界面，把成功路径回放成快速、确定性的程序。**
 
-## 发布的 Skills
+Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现同一个稳定流程。ActOnce 录制一次成功的 AI 操作，保留真实动作与证据，再把可复用片段编译成由 checkpoint 驱动的回放代码。
 
-本仓库在 [`skills/`](skills/) 下发布两个可独立分发的 Codex Skill：
+当实时 UI 仍与录制一致时，回放完全确定性执行；当状态偏离时，运行时会安全停止，或只针对出错片段调用受限的 AI fallback。
 
-- [`record-device-use`](skills/record-device-use/SKILL.md)：通过稳定的 ActOnce CLI profile 录制 Midscene macOS、Midscene iOS 或通用 WDA 运行。
-- [`compile-device-recording`](skills/compile-device-recording/SKILL.md)：阅读录制、选择有证据支持的片段，并生成确定性回放脚本。
+> 录制是证据；编译后、能够感知状态的 replay 才是可执行产物。
 
-每个目录都是独立的发布包，包含自己的 `SKILL.md`、`agents/openai.yaml`、脚本和 references。仓库其余代码是这两个 Skill 使用的 recorder 实现和 benchmark fixture。
+## 当前结果
 
-## macOS 回放运行时
+默认 macOS benchmark suite 包含三个真实的 Lynxtron Fiddle 工作流。最新一轮开发快照使用原生窗口区域截图，所有 replay 均正确完成且没有调用 AI fallback：
 
-[`@actonce/macos`](runtime/macos/README.md) 是第一个按平台独立实现的回放包。它面向开发机器，是 WebdriverIO 与 Appium Mac2 上的一层轻量 TypeScript API。CLI 负责启动 Appium、创建一个共享 Mac2 session、按顺序执行多份生成脚本并清理资源；平台生命周期和 source 组合不会下放到 Skill 或生成脚本中。
+| 工作流 | Midscene original 中位数 | 最新 replay | 加速比 |
+| --- | ---: | ---: | ---: |
+| 语法诊断与 hover tooltip | 52.90 秒 | 5.53 秒 | 9.56× |
+| 编辑 → 撤销 → 重做 → 恢复 | 57.30 秒 | 5.03 秒 | 11.39× |
+| Console → Gallery → 编辑器往返 | 75.30 秒 | 8.62 秒 | 8.73× |
+| **Suite 合计** | **185.49 秒** | **19.18 秒** | **9.67×** |
 
-```bash
-npm run macos:install
-npm run macos:doctor
-npm run macos:run -- 01-setup.js 02-action.js 03-assert.js
+所有实时截图 checkpoint 均通过，fixture 最终在未保存的情况下恢复，fallback 为 0。这里的 replay 数据是一轮优化快照；正式评分要求两次独立重置的 original 和两次独立重置的 replay，并以正确性作为硬门槛。固定协议见 [Lynxtron benchmark 指南](benchmark/macos/lynxtron-fiddle/README.zh-CN.md)。
+
+## 工作原理
+
+```text
+AI 示教
+  ↓
+append-only 录制
+  动作 · 时间 · 截图 · AX/WDA · 语义观察
+  ↓
+基于证据的编译
+  选择稳定片段 · 保留观察模态 · 降低为固定 primitive
+  ↓
+checkpoint 驱动回放
+  观察 → 动作 → 等待稳定 → 验证 → 下一步
+                              ↘ 允许时使用受限 AI fallback
 ```
 
-窗口规范化由回放 SDK 实现，不属于生成 Skill 的逻辑。`run` 会在创建 App session 后
-原子调用这个能力：
+ActOnce 刻意拆分四类职责：
 
-```bash
-node runtime/macos/dist/cli.js run \
-  --app-path /path/to/Lynxtron.app \
-  --setup-window-process-name lynxtron \
-  --setup-display-id 0 \
-  --setup-window-width 1372 \
-  --setup-window-height 880 \
-  --setup-window-margin 40 \
-  replay.js
-```
+- **Interceptor**：多个独立 source 把原始事件写入同一条有序 session log。
+- **发布 Skills**：指导 Agent 使用受支持的组合完成录制，并编译有价值的片段。
+- **平台 Runtime**：向生成脚本提供固定、可测试的动作与 checkpoint API。
+- **Benchmark**：先验证正确性，再将 replay 执行时间与原始 AI 运行比较。
 
-生成的操作和截图 checkpoint 以命令返回的窗口 frame 为坐标原点。桌面位置、其他
-显示器以及其他应用的像素不属于视觉 oracle。
+## 仓库结构
 
-## 动机
-
-Midscene 一类视觉驱动 Agent 能够操作仅靠选择器难以自动化的界面，在首次探索任务时尤其有价值。但如果每次运行都让模型重新发现同一个稳定流程，就会带来额外的延迟、成本和不确定性。
-
-ActOnce 将一次成功的 AI 运行视为可以编译的示教过程。示教期间，它记录真实执行的设备动作、动作目标以及每一步前后的 UI 状态。后续运行使用确定性回放引擎，仅在录制流程与当前 UI 不再匹配时向 AI 求助。
-
-我们的核心假设是：
-
-> 对于稳定的定性 UI 任务，可以保留 AI 操作者的界面适应能力，同时让重复运行接近传统自动化的速度、成本和可复现性。
-
-## 基本方法
-
-一个 ActOnce 流程包含三个阶段：
-
-1. **示教（Demonstrate）**：AI Agent 通过经过插桩的设备适配器完成任务。
-2. **编译（Compile）**：ActOnce 将动作、多种目标定位信息、前置条件、后置条件以及脱敏后的数据绑定保存为可读流程。
-3. **回放（Replay）**：运行时以确定性方式解析目标、执行动作并验证结果状态。受限的 AI fallback 可以修复失败步骤，并提出带版本的 locator 补丁。
-
-目标定位计划按照以下顺序进行：
-
-1. resource ID、accessibility label 等稳定的结构化标识；
-2. 文本和局部 UI 结构；
-3. 相对于稳定容器的位置；
-4. 局部视觉匹配；
-5. 归一化坐标；
-6. 最后使用受限的 AI 重新定位。
-
-ActOnce 会保留视频和截图用于诊断，但它们只是证据，不是可执行表示。真正的执行产物是状态感知的流程：等待前置状态、解析目标、执行动作、等待 UI 稳定并验证后置状态。
-
-## 初始目标
-
-第一个里程碑会刻意控制范围：以 Midscene 作为 AI baseline，在一个确定性的浏览器任务上验证核心假设。
-
-达到以下标准时，视为里程碑成功：
-
-- Midscene 能完成本地 benchmark 任务并生成结果报告；
-- 一次成功运行能够被表示成 ActOnce flow；
-- 该 flow 能够在不调用模型的情况下连续完成 20 次干净回放；
-- 回放中位耗时至少比 Midscene baseline 快 5 倍；
-- 当后置条件被故意改变时，回放能够报告失败，而不是静默通过；
-- 小范围 locator 变化能够通过一次受限的 AI fallback 恢复，并保存为可审查的补丁。
-
-这个里程碑暂不处理跨 App 移动端导航、任意工作流发现、验证码以及破坏性动作的无人值守执行。
-
-## Benchmark 001：创建测试工单
-
-仓库内提供了一个确定性的本地测试页面。任务是：
-
-> 创建一个标题为“Payment button fails on checkout”的高优先级工单，包含诊断信息，提交后验证工单 `T-1001` 已创建。
-
-该任务覆盖文本输入、选项选择、复选框、提交、异步 UI 状态以及语义结果验证。使用本地页面可以在第一次比较中排除网络和第三方 UI 波动。
-
-每个 runner 会将 JSON 结果写入 `artifacts/benchmarks/`。评测只有两个维度，
-且正确性是性能比较的前置门槛：
-
-| 指标 | 含义 |
+| 路径 | 用途 |
 | --- | --- |
-| 正确性 | CLI assertion 与筛选后的截图证据先通过，再由 AI 完成最终视觉审核 |
-| 条件性能 | 原始执行耗时与正确 replay 执行耗时中位数的比较 |
+| [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布 Skill：录制受支持的 macOS 与 iOS computer-use session |
+| [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | 发布 Skill：选择有证据支持的片段并生成 replay 脚本 |
+| [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
+| [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos` 确定性回放 SDK 与 CLI |
+| [`runtime/common/`](runtime/common/README.md) | 共享的 checkpoint 回放流程 |
+| [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | 可选的受限 Midscene 恢复适配器 |
+| [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.zh-CN.md) | 固定桌面 fixture、自然语言 case、runner、证据与 evaluator |
+| [`benchmark/android/`](benchmark/android/README.zh-CN.md) | Android 模拟器与 Markor benchmark 环境 |
+| [`benchmark/ios/`](benchmark/ios/README.zh-CN.md) | iOS Simulator、WDA 与 Midscene smoke 环境 |
+| [`.agents/skills/benchmark-lynxtron-fiddle`](.agents/skills/benchmark-lynxtron-fiddle/SKILL.md) | 仓库内部 benchmark 流程，不作为 Skill 发布 |
 
-端到端耗时、模型调用、fallback 和失败详情仍作为诊断信息保留，但不构成额外评分。
-正确性失败时，性能标记为不可比较。
+## 快速开始
 
-## 开发环境
-
-环境要求：
-
-- Node.js 22 或更高版本；
-- 通过 Playwright 安装的 Chromium 浏览器；
-- 运行 AI baseline 所需的 Midscene 兼容多模态模型。
-
-安装依赖和 Chromium：
+基础要求是 Node.js 22 或更高版本，以及对应平台工作流所需的 macOS 权限。
 
 ```bash
 npm install
-npx playwright install chromium
+npm test
+npm run typecheck
 ```
 
-第一个 baseline 使用 Gemini 免费层。先在
-[Google AI Studio](https://aistudio.google.com/apikey) 创建 API Key，再根据仓库模板创建本地配置：
+准备固定版本的 Lynxtron fixture，并运行默认 original suite：
+
+```bash
+npm run benchmark:macos:lynxtron:prepare
+npm run benchmark:macos:lynxtron:suite
+```
+
+桌面 benchmark 会控制鼠标、键盘、剪贴板、应用、窗口和显示器；运行期间请勿同时操作机器。
+
+Midscene original 需要兼容的多模态模型。复制仓库模板，并确保真实密钥只保存在本地：
 
 ```bash
 cp .env.example .env
-# 编辑 .env，替换 MIDSCENE_MODEL_API_KEY。
+# 编辑 .env，然后验证当前 provider。
 npm run model:verify
 ```
 
-模板使用 Midscene 推荐用于 Gemini UI 定位的 `gemini-3.5-flash`。免费层额度可能变化，
-且 Google 可能使用免费层输入改进产品，因此 benchmark 截图中不能包含敏感数据。
-真实 `.env` 文件已被 Git 忽略。
+不要提交 API Key，也不要录制包含敏感信息的 UI。`.env`、recording、生成的 fixture 和 benchmark artifact 均已被 Git 忽略。
 
-只启动确定性测试页面：
+## 录制与编译
 
-```bash
-npm run benchmark:fixture
-```
-
-然后访问 <http://127.0.0.1:4173>。
-
-运行 Midscene baseline：
+稳定的平台组合固化在 CLI 中，而不是由 Skill 临时拼装。录制 Skill 只需选择支持的 profile；启用的 interceptor 会把各自事件写入同一条有序 session。
 
 ```bash
-npm run benchmark:midscene
+npm run interceptor:profiles
+npm run interceptor:start -- record midscene-macos \
+  --entry /absolute/path/to/task.ts \
+  --display-id 0
 ```
 
-Android 模拟器、Midscene 连接 smoke test 以及固定版本 Markor APK 的 benchmark 设置请参阅 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
+录制产物由主 manifest、`events.ndjson` 与旁路的内容寻址附件组成，包括截图、AX tree、WDA payload 和 source artifact。Midscene Assert、Boolean、Query 的结果会成为一级 semantic observation 事件，并保留证据来源。
 
-专用 iOS Simulator、WebDriverAgent 和 Midscene iOS smoke task 的设置请参阅 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
+编译 Skill 随后选择可复用片段，通过固定 runtime primitive 降低输入，根据片段中真实存在的证据规划 observation，并在 replay 前验证每项 assertion decision。
 
-可复现的 macOS Lynxtron Fiddle 诊断 hover 用例（包含固定版本的 app fixture、自然语言 testcase、runner 与产物契约）请参阅 [Lynxtron Fiddle benchmark 指南](benchmark/macos/lynxtron-fiddle/README.zh-CN.md)。
+## macOS 回放 Runtime
 
-被动、append-only 的 WDA capture boundary 见 [Interceptor 设计](interceptor/README.zh-CN.md)。
+[`@actonce/macos`](runtime/macos/README.md) 是第一个完整的平台 runtime。它使用 Appium Mac2/WebDriverIO 控制应用和执行固定输入 primitive，将目标窗口规范化到指定显示器，并通过原生窗口区域截图快速验证视觉 checkpoint。
 
-运行仓库检查：
+```ts
+import {
+  captureMacRegionScreenshot,
+  replayMacPrimitive,
+  setupMacWindow,
+} from "@actonce/macos";
 
-```bash
-npm test
-npm run typecheck
-npm run test:macos-runtime
+const setup = await setupMacWindow({
+  processName: "Example",
+  displayId: 0,
+  width: 1200,
+  height: 800,
+  margin: 40,
+});
+
+await captureMacRegionScreenshot("checkpoint.png", setup.frame, {
+  timeoutMs: 2_000,
+});
 ```
 
-## 近期路线图
+窗口区域截图不再通过 WDA 传输完整 Retina 屏幕 PNG。生成动作和视觉区域共享经过验证的 window frame，因此其他显示器、其他应用和桌面位置都不会进入 oracle。
 
-1. 稳定 benchmark 契约并采集 Midscene baseline 数据。
-2. 定义带版本的 ActOnce flow schema。
-3. 对 action adapter 插桩并编译第一条成功轨迹。
-4. 实现确定性的 Web 回放和后置条件检查。
-5. 加入受限的 AI 重新定位及可审查的修复补丁。
-6. 在 Android ADB/UIAutomator adapter 后复用同一套协议。
+## 评测契约
 
-## 项目状态
+ActOnce 只报告两个 benchmark 维度：
 
-ActOnce 目前处于早期实验阶段。仓库当前建立了项目动机、benchmark 契约和 Midscene baseline；recorder 与 replay engine 是下一个实现里程碑。
+1. **正确性**：结构化 assertion 和筛选后的截图证据先通过，再由 AI 审查 evidence bundle。
+2. **条件性能**：只有正确性通过后，才比较 original 中位耗时与 replay 中位耗时。
 
-当前 Midscene 依赖树包含上游传递依赖触发的 `npm audit` 风险。在这些依赖问题解决前，benchmark 仅用于本地测试，不应接收不可信输入。
+Fallback 延迟、checkpoint 轮询、恢复和 cleanup 都计入 replay 时间。Fallback 次数和控制器启动总耗时只是诊断信息，不是额外分数。速度再快的错误 replay 也不可比较。
+
+## 当前状态
+
+ActOnce 是一个面向开发机器工作流的活跃原型。仓库目前已经包含 recorder 架构、可发布的录制与编译 Skills、checkpoint/fallback runtime、macOS SDK、Android/iOS capture 基础，以及可复现的 Midscene 对 replay benchmark。
+
+接下来的工程重点是继续降低截图开销、把编译能力推广到当前 benchmark 之外，并为 iOS、Android、Windows 分别实现原生 runtime，而不是过早强行统一跨平台 action API。

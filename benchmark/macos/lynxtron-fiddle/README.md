@@ -99,10 +99,12 @@ checks structured assertions and selects screenshot evidence, then an AI reviews
 that evidence bundle. A speedup is calculated only when both checks pass. Replay may
 use bounded fallback; fallback does not disqualify a correct run.
 
-Replay visual assertions crop window-relative regions from the selected display
-screenshot. The app's desktop position and unrelated windows are therefore absent
-from the correctness oracle; the setup frame is used only to translate recorded
-window-relative regions and action points into the live display.
+Replay visual assertions capture the normalized window region directly through the
+native macOS screenshot path, then crop the smaller region required by each
+checkpoint. They do not route a full-display Retina PNG through WDA. The app's
+desktop position and unrelated windows are therefore absent from the correctness
+oracle; the setup frame translates recorded window-relative action points into the
+live display.
 
 ```bash
 npm run benchmark:macos:lynxtron:cli -- evidence \

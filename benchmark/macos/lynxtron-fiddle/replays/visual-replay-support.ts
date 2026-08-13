@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import sharp from "sharp";
 import {
   MacSession,
+  captureMacRegionScreenshot,
   setupMacWindow,
   snapshotProcessIds,
 } from "../../../../runtime/macos/src/index.js";
@@ -72,16 +73,22 @@ export async function launchVisualReplay(outputDir: string) {
     checkpointTimeoutCount: 0,
     visualEvaluationCount: 0,
     visualEvaluationDurationMs: 0,
+    screenshotCaptureCount: 0,
+    screenshotCaptureDurationMs: 0,
+    screenshotBackend: "native-region",
   };
 
   async function capture(name: string): Promise<string> {
     const path = join(screenshotsDir, name);
-    await mac.screenshot(path);
+    const started = process.hrtime.bigint();
+    await captureMacRegionScreenshot(path, liveWindow, { timeoutMs: 2_000 });
+    metrics.screenshotCaptureCount += 1;
+    metrics.screenshotCaptureDurationMs += elapsed(started);
     const reference = `screenshots/${name}`;
     if (!screenshots.includes(reference)) screenshots.push(reference);
     const metadata = await sharp(path).metadata();
-    if (metadata.width !== DISPLAY.width * DISPLAY.dpr || metadata.height !== DISPLAY.height * DISPLAY.dpr) {
-      throw new Error(`Display guard failed: screenshot is ${metadata.width}x${metadata.height}`);
+    if (metadata.width !== liveWindow.width * DISPLAY.dpr || metadata.height !== liveWindow.height * DISPLAY.dpr) {
+      throw new Error(`Window capture guard failed: screenshot is ${metadata.width}x${metadata.height}`);
     }
     return path;
   }
@@ -95,7 +102,7 @@ export async function launchVisualReplay(outputDir: string) {
     const started = process.hrtime.bigint();
     const [expected, actual] = await Promise.all([
       sharp(referencePath).extract(windowRegion(RECORDED_WINDOW, region)).greyscale().raw().toBuffer(),
-      sharp(actualPath).extract(windowRegion(liveWindow, region)).greyscale().raw().toBuffer(),
+      sharp(actualPath).extract(region).greyscale().raw().toBuffer(),
     ]);
     if (expected.length !== actual.length || expected.length === 0) return false;
     let differing = 0;

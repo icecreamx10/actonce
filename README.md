@@ -1,181 +1,147 @@
 # ActOnce
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-Record an AI-driven UI task once, then replay it deterministically.
+**Let AI explore a UI once. Replay the successful path as a fast, deterministic program.**
 
-## Published skills
+Computer-use agents are excellent at discovering how to complete unfamiliar UI tasks. They are much less efficient when asked to rediscover the same stable workflow on every run. ActOnce records one successful AI-driven execution, preserves its actions and evidence, and compiles repeatable segments into checkpoint-gated replay code.
 
-This repository publishes two standalone Codex skills under [`skills/`](skills/):
+When the live UI still matches the recording, replay stays deterministic. When it diverges, the runtime can stop safely or invoke a bounded AI fallback for only the affected segment.
 
-- [`record-device-use`](skills/record-device-use/SKILL.md) records Midscene macOS, Midscene iOS, or generic WDA runs through stable ActOnce CLI profiles.
-- [`compile-device-recording`](skills/compile-device-recording/SKILL.md) inspects recordings, selects evidence-backed segments, and generates deterministic replay scripts.
+> The recording is evidence. The compiled, state-aware replay is the executable artifact.
 
-Each directory is an independently publishable skill package with its own `SKILL.md`, `agents/openai.yaml`, scripts, and references. The remaining repository code is the recorder implementation and benchmark fixture used by those skills.
+## Current result
 
-## macOS replay runtime
+The default macOS benchmark suite runs three real Lynxtron Fiddle workflows. The latest one-pass development snapshot uses native window-region capture and completed every replay correctly with no AI fallback:
 
-[`@actonce/macos`](runtime/macos/README.md) is the first platform-specific replay package. It is a thin TypeScript API over WebdriverIO and Appium Mac2 for developer machines. Its CLI starts Appium, opens one Mac2 session, runs any number of generated script fragments in order, and performs cleanup. Platform lifecycle and source composition stay in the runtime rather than generated Skills or scripts.
+| Workflow | Midscene original median | Latest replay | Speedup |
+| --- | ---: | ---: | ---: |
+| Syntax diagnostic + hover tooltip | 52.90 s | 5.53 s | 9.56× |
+| Editor edit → undo → redo → restore | 57.30 s | 5.03 s | 11.39× |
+| Console → Gallery → editors roundtrip | 75.30 s | 8.62 s | 8.73× |
+| **Suite total** | **185.49 s** | **19.18 s** | **9.67×** |
 
-```bash
-npm run macos:install
-npm run macos:doctor
-npm run macos:run -- 01-setup.js 02-action.js 03-assert.js
+All live screenshot checkpoints passed, the fixtures were restored without saving, and fallback count was zero. These replay values are a one-run optimization snapshot; formal scoring uses two independently reset originals and two independently reset replays, with correctness as a hard gate. See the [Lynxtron benchmark guide](benchmark/macos/lynxtron-fiddle/README.md) for the fixed protocol.
+
+## How it works
+
+```text
+AI demonstration
+      ↓
+append-only recording
+  actions · timing · screenshots · AX/WDA · semantic observations
+      ↓
+evidence-aware compilation
+  select stable spans · preserve observation modality · lower primitives
+      ↓
+checkpoint-gated replay
+  observe → act → settle → verify → continue
+                         ↘ bounded AI fallback when allowed
 ```
 
-Window normalization is implemented by the replay SDK, not generated Skill
-logic. The `run` command invokes it atomically after creating the app session:
+ActOnce deliberately separates four concerns:
 
-```bash
-node runtime/macos/dist/cli.js run \
-  --app-path /path/to/Lynxtron.app \
-  --setup-window-process-name lynxtron \
-  --setup-display-id 0 \
-  --setup-window-width 1372 \
-  --setup-window-height 880 \
-  --setup-window-margin 40 \
-  replay.js
-```
+- **Interceptors** capture raw events from independent sources into one ordered session log.
+- **Published Skills** tell an agent how to record a supported computer-use run and compile useful spans.
+- **Platform runtimes** expose fixed, testable action and checkpoint APIs to generated scripts.
+- **Benchmarks** compare correctness first, then execution time against the original AI run.
 
-Generated actions and screenshot checkpoints use the returned window frame as
-their coordinate origin. Desktop position and pixels from other displays or
-applications are not part of the visual oracle.
+## Repository map
 
-## Motivation
-
-Vision-driven agents such as Midscene can operate interfaces that are difficult to automate with selectors alone. They are especially useful when a task is being explored for the first time, but asking a model to rediscover the same stable workflow on every run adds latency, cost, and nondeterminism.
-
-ActOnce treats a successful AI run as a demonstration that can be compiled. During the demonstration it records the executed device actions, their intended targets, and the UI state before and after each step. Later runs use a deterministic replay engine and ask an AI for help only when the recorded flow no longer matches the current UI.
-
-The core hypothesis is:
-
-> Stable qualitative UI tasks can retain the reach of an AI operator while making repeated runs approach the speed, cost, and reproducibility of conventional automation.
-
-## Basic method
-
-An ActOnce flow has three phases:
-
-1. **Demonstrate** — an AI agent completes the task through an instrumented device adapter.
-2. **Compile** — ActOnce stores actions, multiple target locators, preconditions, postconditions, and redacted data bindings as a readable flow.
-3. **Replay** — the runtime resolves targets deterministically, performs each action, and verifies the resulting state. A bounded AI fallback can repair a failed step and propose a versioned locator patch.
-
-The intended target-resolution order is:
-
-1. stable structural identifiers, such as resource ID or accessibility label;
-2. text and local UI structure;
-3. position relative to a stable container;
-4. local visual matching;
-5. normalized coordinates;
-6. AI relocation as a bounded fallback.
-
-ActOnce records videos and screenshots for diagnosis, but they are evidence rather than the executable representation. The executable artifact is a state-aware flow: wait for a precondition, resolve a target, perform an action, wait for the UI to settle, and verify a postcondition.
-
-## Initial goal
-
-The first milestone is deliberately narrow: prove the hypothesis on one deterministic browser task with Midscene as the AI baseline.
-
-The milestone is successful when:
-
-- Midscene can complete the local benchmark task and produce a result report;
-- one successful run can be represented as an ActOnce flow;
-- the flow can pass 20 consecutive clean replays without a model call;
-- median replay time is at least 5x faster than the Midscene baseline;
-- replay detects an intentionally changed postcondition instead of silently passing;
-- a small locator change can be recovered by one bounded AI fallback and saved as a reviewable patch.
-
-This milestone does **not** attempt cross-app mobile navigation, arbitrary workflow discovery, CAPTCHA handling, or unattended execution of destructive actions.
-
-## Benchmark 001: create a test ticket
-
-The repository contains a deterministic local fixture. The task is:
-
-> Create a high-priority ticket titled “Payment button fails on checkout”, include diagnostics, submit it, and verify that ticket `T-1001` was created.
-
-The task covers text entry, option selection, a checkbox, submission, asynchronous UI state, and semantic result verification. Keeping the application local removes network and third-party UI variance from the first comparison.
-
-Each runner writes JSON results under `artifacts/benchmarks/`. The benchmark has
-two dimensions, with correctness acting as a gate for performance:
-
-| Metric | Meaning |
+| Path | Purpose |
 | --- | --- |
-| correctness | CLI assertions and selected screenshot evidence pass, followed by an AI visual review |
-| conditional performance | Original execution time versus the median of correct replay executions |
+| [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published Skill for recording supported macOS and iOS computer-use sessions |
+| [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
+| [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
+| [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos`, the deterministic macOS replay SDK and CLI |
+| [`runtime/common/`](runtime/common/README.md) | Shared checkpoint-gated replay flow |
+| [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | Optional bounded Midscene recovery adapter |
+| [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.md) | Pinned desktop fixture, natural-language cases, runners, evidence, and evaluator |
+| [`benchmark/android/`](benchmark/android/README.md) | Android emulator and Markor benchmark setup |
+| [`benchmark/ios/`](benchmark/ios/README.md) | iOS Simulator, WDA, and Midscene smoke setup |
+| [`.agents/skills/benchmark-lynxtron-fiddle`](.agents/skills/benchmark-lynxtron-fiddle/SKILL.md) | Repository-internal benchmark procedure; not a published Skill |
 
-Operational details such as end-to-end time, model calls, fallbacks, and failures
-remain diagnostics; they are not additional scores. If correctness fails, speed is
-reported as not comparable.
+## Quick start
 
-## Development setup
-
-Requirements:
-
-- Node.js 22 or newer
-- a Chromium browser installed through Playwright
-- a Midscene-compatible multimodal model for the AI baseline
-
-Install dependencies and Chromium:
+Requirements: Node.js 22 or newer and macOS permissions appropriate to the platform workflow you run.
 
 ```bash
 npm install
-npx playwright install chromium
+npm test
+npm run typecheck
 ```
 
-For the first baseline, use the Gemini free tier. Create an API key in
-[Google AI Studio](https://aistudio.google.com/apikey), then create the local
-configuration from the tracked template:
+Prepare the pinned Lynxtron fixture and run its default original suite:
+
+```bash
+npm run benchmark:macos:lynxtron:prepare
+npm run benchmark:macos:lynxtron:suite
+```
+
+Desktop benchmark commands control the mouse, keyboard, clipboard, applications, windows, and displays. Do not use the machine concurrently while they run.
+
+Midscene originals require a compatible multimodal model. Copy the tracked template and keep the real key local:
 
 ```bash
 cp .env.example .env
-# Edit .env and replace MIDSCENE_MODEL_API_KEY.
+# Edit .env, then verify the configured provider.
 npm run model:verify
 ```
 
-The template uses `gemini-3.5-flash`, which Midscene recommends for Gemini UI
-localization. Free-tier limits can change, and Google may use free-tier inputs
-to improve its products, so benchmark screenshots must not contain sensitive
-data. The real `.env` file is ignored by Git.
+Never commit API keys or record sensitive UI content. `.env`, recordings, generated fixtures, and benchmark artifacts are ignored by Git.
 
-Start only the deterministic fixture:
+## Recording and compilation
 
-```bash
-npm run benchmark:fixture
-```
-
-Then open <http://127.0.0.1:4173>.
-
-Run the Midscene baseline:
+Stable platform combinations are encoded in the CLI rather than improvised inside a Skill. The recording Skill selects a supported profile; every enabled interceptor contributes events to the same ordered session.
 
 ```bash
-npm run benchmark:midscene
+npm run interceptor:profiles
+npm run interceptor:start -- record midscene-macos \
+  --entry /absolute/path/to/task.ts \
+  --display-id 0
 ```
 
-For the Android emulator, Midscene connection smoke test, and pinned Markor APK benchmark setup, see [the Android benchmark guide](benchmark/android/README.md).
+The resulting recording uses a primary manifest and `events.ndjson`, with content-addressed screenshots, AX trees, WDA payloads, and source artifacts beside it. Semantic Midscene Assert, Boolean, and Query outcomes are first-class observation events with their evidence provenance.
 
-For the dedicated iOS Simulator, WebDriverAgent, and Midscene iOS smoke task, see [the iOS benchmark guide](benchmark/ios/README.md).
+The compilation Skill then selects useful spans, lowers recorded input through fixed runtime primitives, plans observations from evidence actually present in the range, and validates every assertion decision before replay.
 
-For the reproducible macOS Lynxtron Fiddle diagnostic-hover case—including the pinned app fixture, natural-language testcase, runner, and output contract—see [the Lynxtron Fiddle benchmark guide](benchmark/macos/lynxtron-fiddle/README.md).
+## macOS replay runtime
 
-The passive, append-only WDA capture boundary is specified in [the interceptor design](interceptor/README.md).
+[`@actonce/macos`](runtime/macos/README.md) is the first complete platform runtime. It wraps Appium Mac2/WebDriverIO for application control and fixed input primitives, normalizes the target window onto a selected display, and provides native window-region screenshots for fast visual checkpoints.
 
-Run repository checks:
+```ts
+import {
+  captureMacRegionScreenshot,
+  replayMacPrimitive,
+  setupMacWindow,
+} from "@actonce/macos";
 
-```bash
-npm test
-npm run typecheck
-npm run test:macos-runtime
+const setup = await setupMacWindow({
+  processName: "Example",
+  displayId: 0,
+  width: 1200,
+  height: 800,
+  margin: 40,
+});
+
+await captureMacRegionScreenshot("checkpoint.png", setup.frame, {
+  timeoutMs: 2_000,
+});
 ```
 
-## Near-term roadmap
+Window-relative screenshots avoid routing full-display Retina PNGs through WDA. Generated actions and visual regions share the verified window frame, so unrelated displays, applications, and desktop position are not part of the oracle.
 
-1. Stabilize the benchmark contract and collect Midscene baseline results.
-2. Define the versioned ActOnce flow schema.
-3. Instrument the action adapter and compile the first successful trace.
-4. Implement deterministic web replay and postcondition checks.
-5. Add bounded AI relocation and reviewable repair patches.
-6. Reuse the protocol behind an Android ADB/UIAutomator adapter.
+## Evaluation contract
+
+ActOnce reports two benchmark dimensions:
+
+1. **Correctness** — structured assertions and selected screenshot evidence pass, followed by AI review of the evidence bundle.
+2. **Conditional performance** — only after correctness passes, compare the median original duration with the median replay duration.
+
+Fallback latency, checkpoint polling, recovery, and cleanup remain inside replay time. Fallback count and end-to-end controller startup are diagnostics, not extra scores. A fast but incorrect replay is never comparable.
 
 ## Status
 
-ActOnce is an early experiment. The current repository establishes the motivation, benchmark contract, and Midscene baseline; the recorder and replay engine are the next implementation milestone.
+ActOnce is an active prototype focused on developer-machine workflows. The repository currently includes the recorder architecture, published recording and compilation Skills, a checkpoint/fallback runtime, a macOS SDK, Android/iOS capture foundations, and a reproducible Midscene-versus-replay benchmark.
 
-The current Midscene dependency tree contains upstream `npm audit` findings. The benchmark is local-only and must not be exposed to untrusted input while those transitive dependencies remain unresolved.
+The next engineering focus is reducing screenshot capture overhead further, generalizing compilation beyond the current benchmark cases, and implementing platform-native runtimes independently for iOS, Android, and Windows rather than forcing a premature cross-platform action API.

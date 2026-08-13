@@ -7,6 +7,7 @@ import { join, resolve } from "node:path";
 import sharp from "sharp";
 import {
   MacSession,
+  captureMacRegionScreenshot,
   replayMacPrimitive,
   setupMacWindow,
   snapshotProcessIds,
@@ -90,6 +91,8 @@ let visualEvaluationCount = 0;
 let checkpointPollCount = 0;
 let checkpointWaitDurationMs = 0;
 let checkpointTimeoutCount = 0;
+let screenshotCaptureCount = 0;
+let screenshotCaptureDurationMs = 0;
 
 const preexistingLynxtronPids = await snapshotProcessIds("lynxtron", ["extension-host.js"]);
 const mac = await MacSession.connect({
@@ -250,6 +253,7 @@ const result = {
     checkpointPollCount, checkpointWaitDurationMs, checkpointTimeoutCount,
     visualEvaluator: "recorded-screenshot-region-comparison",
     visualEvaluationCount, visualEvaluationDurationMs,
+    screenshotBackend: "native-region", screenshotCaptureCount, screenshotCaptureDurationMs,
   },
   assertionDecision: "assertion-decision.json",
   artifacts: { screenshots, assertionDecision: "assertion-decision.json" },
@@ -288,7 +292,10 @@ async function restoreEditor(): Promise<void> {
 
 async function capture(name: string): Promise<string> {
   const path = join(screenshotsDir, name);
-  await mac.screenshot(path);
+  const started = process.hrtime.bigint();
+  await captureMacRegionScreenshot(path, liveWindow, { timeoutMs: 2_000 });
+  screenshotCaptureCount += 1;
+  screenshotCaptureDurationMs += elapsed(started);
   if (!screenshots.includes(`screenshots/${name}`)) screenshots.push(`screenshots/${name}`);
   await assertDisplayGeometry(path);
   return path;
@@ -330,10 +337,9 @@ async function matchesRecordedCheckpoint(
 ): Promise<boolean> {
   const started = process.hrtime.bigint();
   const referenceRegion = windowRelativeRegion(RECORDED_WINDOW, region);
-  const actualRegion = windowRelativeRegion(liveWindow, region);
   const [expected, actual] = await Promise.all([
     sharp(referencePath).extract(referenceRegion).greyscale().raw().toBuffer(),
-    sharp(actualPath).extract(actualRegion).greyscale().raw().toBuffer(),
+    sharp(actualPath).extract(region).greyscale().raw().toBuffer(),
   ]);
   if (expected.length !== actual.length || expected.length === 0) return false;
   let differing = 0;
@@ -347,7 +353,7 @@ async function matchesRecordedCheckpoint(
 
 async function assertDisplayGeometry(path: string): Promise<void> {
   const metadata = await sharp(path).metadata();
-  if (metadata.width !== DISPLAY.width * DISPLAY.dpr || metadata.height !== DISPLAY.height * DISPLAY.dpr) {
+  if (metadata.width !== liveWindow.width * DISPLAY.dpr || metadata.height !== liveWindow.height * DISPLAY.dpr) {
     throw new Error(`Recorded coordinate guard failed: screenshot is ${metadata.width}x${metadata.height}`);
   }
 }

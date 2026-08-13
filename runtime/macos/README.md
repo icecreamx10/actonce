@@ -86,6 +86,22 @@ chain, and finally XPath. The runtime also exposes guarded coordinate
 page source, screenshots,
 bounded waits, and application activation/termination.
 
+For frequent visual checkpoints, capture only the normalized window region
+through the native macOS screenshot path instead of sending a full-display
+Retina PNG through WDA:
+
+```ts
+import { captureMacRegionScreenshot } from "@actonce/macos";
+
+await captureMacRegionScreenshot("checkpoint.png", windowSetup.frame, {
+  timeoutMs: 2_000,
+});
+```
+
+`captureMacRegionScreenshot()` uses logical macOS coordinates, writes a Retina
+PNG, and applies a hard timeout to the capture process. `mac.screenshot()` remains
+available when a WDA full-display screenshot is explicitly required.
+
 ## Fixed primitive lowering
 
 Do not let generated code invent WebDriver implementations for recorded input.
