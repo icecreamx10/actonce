@@ -8,6 +8,7 @@ type SuiteManifest = {
   id: string;
   title: string;
   cases: string[];
+  defaultCases?: string[];
 };
 
 const benchmarkDir = dirname(fileURLToPath(import.meta.url));
@@ -16,7 +17,9 @@ const suite = JSON.parse(
   await readFile(join(benchmarkDir, "suite.json"), "utf8"),
 ) as SuiteManifest;
 const requestedCases = parseCaseArgs(process.argv.slice(2));
-const caseIds = requestedCases.length ? requestedCases : suite.cases;
+const caseIds = requestedCases.length
+  ? requestedCases
+  : suite.defaultCases ?? suite.cases;
 for (const id of caseIds) {
   if (!suite.cases.includes(id)) throw new Error(`Unknown suite case: ${id}`);
 }

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "editor-undo-redo-roundtrip",
+  "title": "Visible editor undo and redo state round trip",
+  "complexity": "intermediate",
+  "dimensions": ["editor-input", "undo-redo", "dirty-state", "state-recovery", "visual-assertion"],
+  "estimatedDurationMs": 65000,
+  "naturalLanguageTask": "Replace the already visible main.js editor with a valid uniquely marked ActOnce source, verify the edit and dirty state, undo back to the exact default source, redo the edit, then undo once more to restore the exact original fixture without saving or opening Quick Open.",
+  "setup": {
+    "readyAssertion": "Lynxtron Fiddle is the foreground window, no Welcome or other modal dialog covers it, and the unobstructed main.js editor visibly contains the default main-process source including app.whenReady and LynxWindow"
+  },
+  "precondition": "The foreground Lynxtron Fiddle has no modal dialog open, the default multi-editor mosaic is visible, its top-left main.js editor shows the exact default Hello Lynxtron source, and no unsaved-state dot is shown beside main.js; another editor may currently be active",
+  "steps": [
+    {
+      "id": "apply-probe-source",
+      "kind": "input",
+      "target": "the top-left main.js source editor, inside its editable code area",
+      "value": "// ActOnce undo redo probe\nconst { app, LynxWindow } = require('lynxtron');\n\napp.whenReady().then(() => {\n  const win = new LynxWindow({\n    width: 640,\n    height: 480,\n    title: 'ActOnce Undo Redo Probe',\n  });\n});\n"
+    },
+    {
+      "id": "probe-source-applied",
+      "kind": "assert",
+      "prompt": "The visible main.js editor contains the unique comment 'ActOnce undo redo probe' and the title 'ActOnce Undo Redo Probe', with a small unsaved-state dot shown beside main.js; its color may vary with focus or theme"
+    },
+    { "id": "undo-paste-first", "kind": "press", "key": "Cmd+Z" },
+    { "id": "undo-clear-first", "kind": "press", "key": "Cmd+Z" },
+    {
+      "id": "first-restore",
+      "kind": "assert",
+      "prompt": "The visible main.js editor is restored to the exact default Hello Lynxtron source containing the original comments, app.whenReady, LynxWindow width 800 and height 600, and win.loadFile('main.lynx.bundle'); the ActOnce probe text and any unsaved-state dot beside main.js are absent"
+    },
+    { "id": "redo-clear", "kind": "press", "key": "Cmd+Shift+Z" },
+    { "id": "redo-paste", "kind": "press", "key": "Cmd+Shift+Z" },
+    {
+      "id": "redo-source-visible",
+      "kind": "assert",
+      "prompt": "Redo restored the visible uniquely marked main.js source with both 'ActOnce undo redo probe' and 'ActOnce Undo Redo Probe', and a small unsaved-state dot is again shown beside main.js; its color may vary with focus or theme"
+    },
+    { "id": "final-undo-paste", "kind": "press", "key": "Cmd+Z" },
+    { "id": "final-undo-clear", "kind": "press", "key": "Cmd+Z" },
+    {
+      "id": "final-source-restored",
+      "kind": "assert",
+      "prompt": "main.js is finally restored to the exact default Hello Lynxtron source with app.whenReady, LynxWindow width 800 and height 600, and win.loadFile('main.lynx.bundle'); no ActOnce probe text or unsaved-state dot beside main.js remains"
+    }
+  ],
+  "cleanup": {
+    "mode": "on-failure",
+    "save": false,
+    "steps": [
+      { "id": "dismiss-overlay", "kind": "press", "key": "Escape" },
+      { "id": "recovery-undo-paste", "kind": "press", "key": "Cmd+Z", "optional": true },
+      { "id": "recovery-undo-clear", "kind": "press", "key": "Cmd+Z", "optional": true }
+    ]
+  }
+}

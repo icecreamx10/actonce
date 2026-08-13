@@ -19,18 +19,18 @@ observation cannot be replaced with AX/DOM lookup unless the selected original r
 contains relevant native evidence for the same fact. Require an assertion decision
 record and reject results whose implementation contradicts it.
 
-Run five independent replays from the fixture's reset state. One incorrect run fails the correctness dimension. Do not discard failed runs as outliers.
+Run exactly two independent originals and two independent formal replays from reset fixture state. All four runs must satisfy the oracle and restore the editor. One incorrect run fails correctness; do not discard measured failures as outliers. Development replays used while repairing a compilation are preserved but are not formal measurements.
 
 ## Conditional performance
 
-Compute performance only if the original run passes and all five replay runs pass correctness with valid positive `executionDurationMs` values.
+Compute performance only if both originals and both formal replays pass correctness with valid positive `executionDurationMs` values.
 
 Use:
 
-- original time: the successful original run's `executionDurationMs`;
-- replay time: median of the five replay `executionDurationMs` values;
-- speedup: `original time / replay median`;
-- reduction percent: `(1 - replay median / original time) * 100`.
+- original time: median of the two original `executionDurationMs` values;
+- replay time: median of the two replay `executionDurationMs` values;
+- speedup: `original median / replay median`;
+- reduction percent: `(1 - replay median / original median) * 100`.
 
 Do not impose a hidden speed threshold. Report the measured advantage or regression. If correctness is false, speedup is `null` and performance is not comparable.
 

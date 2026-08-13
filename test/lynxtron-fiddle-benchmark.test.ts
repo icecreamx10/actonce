@@ -24,6 +24,8 @@ const benchmarkLock = JSON.parse(
 const suite = JSON.parse(readFileSync(join(benchmarkDir, "suite.json"), "utf8")) as {
   schemaVersion: number;
   cases: string[];
+  defaultCases: string[];
+  excludedFromDefault: Array<{ cases: string[]; reason: string }>;
 };
 const cliSource = readFileSync(join(benchmarkDir, "cli.ts"), "utf8");
 const fixtureStateSource = readFileSync(join(benchmarkDir, "fixture-state.ts"), "utf8");
@@ -48,16 +50,28 @@ const testCases = suite.cases.map((id) =>
 describe("Lynxtron Fiddle benchmark fixture", () => {
   it("defines a layered suite with unique, non-saving cases", () => {
     expect(suite.schemaVersion).toBe(1);
-    expect(suite.cases).toHaveLength(5);
+    expect(suite.cases).toHaveLength(6);
     expect(new Set(suite.cases).size).toBe(suite.cases.length);
     expect(testCases.map((testCase) => testCase.id)).toEqual(suite.cases);
     expect(testCases.map((testCase) => testCase.complexity)).toEqual([
       "basic",
       "intermediate",
+      "intermediate",
       "advanced",
       "advanced",
       "deep",
     ]);
+    expect(suite.defaultCases).toEqual([
+      "diagnostic-hover",
+      "editor-undo-redo-roundtrip",
+      "console-gallery-roundtrip",
+    ]);
+    expect(suite.excludedFromDefault.flatMap((entry) => entry.cases)).toEqual([
+      "palette-find-navigation",
+      "dual-editor-diagnostic-recovery",
+      "edit-run-preview-stop-restore",
+    ]);
+    expect(suite.excludedFromDefault[0].reason).toMatch(/Cmd\+V/);
 
     for (const testCase of testCases) {
       expect(testCase.schemaVersion).toBe(1);
@@ -83,7 +97,7 @@ describe("Lynxtron Fiddle benchmark fixture", () => {
       testCases
         .flatMap((testCase) => testCase.steps)
         .filter((step) => step.id.includes("applied") || step.id.includes("filtered")),
-    ).toHaveLength(8);
+    ).toHaveLength(9);
     const deepest = testCases.at(-1)!;
     expect(deepest.steps.length).toBeGreaterThanOrEqual(20);
     expect(deepest.dimensions).toContain("multi-window");

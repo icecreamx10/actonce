@@ -52,7 +52,7 @@ export type LynxtronAiReview = {
 export type LynxtronEvaluation = {
   schemaVersion: 1;
   benchmark: string;
-  originalRunId: string;
+  originalRunIds: string[];
   replayRunIds: string[];
   dimensions: {
     correctness: {
@@ -65,7 +65,8 @@ export type LynxtronEvaluation = {
     };
     speed: {
       comparable: boolean;
-      originalDurationMs: number | null;
+      originalDurationMs: number[];
+      originalMedianDurationMs: number | null;
       replayDurationMs: number[];
       replayMedianDurationMs: number | null;
       speedup: number | null;
@@ -81,18 +82,32 @@ export type LynxtronEvaluation = {
 };
 
 export function evaluateLynxtronBenchmark(
-  original: LynxtronRunResult,
+  originals: LynxtronRunResult[],
   replays: LynxtronRunResult[],
   aiReview?: LynxtronAiReview,
 ): LynxtronEvaluation {
-  if (original.mode !== "original") throw new Error("Original result must have mode=original");
-  if (replays.length !== 5) throw new Error("Exactly five replay results are required");
+  if (originals.length !== 2) throw new Error("Exactly two original results are required");
+  if (replays.length !== 2) throw new Error("Exactly two replay results are required");
+  const oracle = originals[0];
   const failures: Array<{ runId: string; reason: string }> = [];
+
+  for (const original of originals) {
+    if (original.mode !== "original") {
+      failures.push({ runId: original.runId, reason: "result mode is not original" });
+    } else if (original.benchmark !== oracle.benchmark) {
+      failures.push({ runId: original.runId, reason: "benchmark id differs from first original" });
+    } else if (original.status !== "passed") {
+      failures.push({ runId: original.runId, reason: "original status is failed" });
+    } else {
+      const assertionFailure = originalAssertionFailureReason(oracle, original);
+      if (assertionFailure) failures.push({ runId: original.runId, reason: assertionFailure });
+    }
+  }
 
   for (const replay of replays) {
     if (replay.mode !== "replay") {
       failures.push({ runId: replay.runId, reason: "result mode is not replay" });
-    } else if (replay.benchmark !== original.benchmark) {
+    } else if (replay.benchmark !== oracle.benchmark) {
       failures.push({ runId: replay.runId, reason: "benchmark id differs from original" });
     } else if (replay.status !== "passed") {
       failures.push({ runId: replay.runId, reason: "replay status is failed" });
@@ -100,11 +115,15 @@ export function evaluateLynxtronBenchmark(
       replay.artifacts?.assertionDecision !== replay.assertionDecision) {
       failures.push({ runId: replay.runId, reason: "missing or contradicted assertion decision record reference" });
     } else {
-      const assertionFailure = assertionFailureReason(original, replay);
+      const assertionFailure = assertionFailureReason(oracle, replay);
       if (assertionFailure) failures.push({ runId: replay.runId, reason: assertionFailure });
     }
   }
 
+  const originalDurations = originals
+    .filter((run) => run.status === "passed")
+    .map((run) => run.executionDurationMs)
+    .filter((duration): duration is number => validDuration(duration) !== null);
   const replayDurations = replays
     .filter((run) => run.status === "passed")
     .map((run) => run.executionDurationMs)
@@ -112,32 +131,34 @@ export function evaluateLynxtronBenchmark(
       typeof duration === "number" && Number.isFinite(duration) && duration > 0,
     );
   const replayDiagnostics = replays.map((run) => normalizeReplayDiagnostics(run));
-  const originalDuration = validDuration(original.executionDurationMs);
+  const originalMedian = originalDurations.length ? median(originalDurations) : null;
   const replayMedian = replayDurations.length ? median(replayDurations) : null;
-  const cliPassed = original.status === "passed" && failures.length === 0;
-  const aiPassed = aiReview?.benchmark === original.benchmark && aiReview.decision === "passed";
+  const cliPassed = failures.length === 0;
+  const aiPassed = aiReview?.benchmark === oracle.benchmark && aiReview.decision === "passed";
   const correctnessPassed = cliPassed && aiPassed;
-  const comparable = correctnessPassed && originalDuration !== null &&
-    replayMedian !== null && replayDurations.length === replays.length;
-  const speedup = comparable ? originalDuration / replayMedian : null;
+  const comparable = correctnessPassed && originalMedian !== null &&
+    originalDurations.length === originals.length && replayMedian !== null &&
+    replayDurations.length === replays.length;
+  const speedup = comparable ? originalMedian / replayMedian : null;
 
   return {
     schemaVersion: 1,
-    benchmark: original.benchmark,
-    originalRunId: original.runId,
+    benchmark: oracle.benchmark,
+    originalRunIds: originals.map((run) => run.runId),
     replayRunIds: replays.map((run) => run.runId),
     dimensions: {
       correctness: {
         passed: correctnessPassed,
         cliPassed,
         aiPassed,
-        successfulRuns: replays.length - failures.length,
-        totalRuns: replays.length,
+        successfulRuns: originals.length + replays.length - failures.length,
+        totalRuns: originals.length + replays.length,
         failures,
       },
       speed: {
         comparable,
-        originalDurationMs: originalDuration,
+        originalDurationMs: originalDurations,
+        originalMedianDurationMs: originalMedian,
         replayDurationMs: replayDurations,
         replayMedianDurationMs: replayMedian,
         speedup,
@@ -211,6 +232,14 @@ function assertionFailureReason(
   if (!sameObservation(replay.expected, original.expected)) return "expected values differ from original";
   if (!sameObservation(replay.observed, original.expected)) return "observed values do not exactly match expected";
   return null;
+}
+
+function originalAssertionFailureReason(
+  oracle: LynxtronRunResult,
+  original: LynxtronRunResult,
+): string | null {
+  const reason = assertionFailureReason(oracle, original);
+  return reason ? `original observation mismatch: ${reason}` : null;
 }
 
 function deepEqual(left: unknown, right: unknown): boolean {

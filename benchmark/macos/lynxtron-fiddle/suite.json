@@ -5,8 +5,24 @@
   "cases": [
     "diagnostic-hover",
     "palette-find-navigation",
+    "editor-undo-redo-roundtrip",
     "dual-editor-diagnostic-recovery",
     "console-gallery-roundtrip",
     "edit-run-preview-stop-restore"
+  ],
+  "defaultCases": [
+    "diagnostic-hover",
+    "editor-undo-redo-roundtrip",
+    "console-gallery-roundtrip"
+  ],
+  "excludedFromDefault": [
+    {
+      "cases": [
+        "palette-find-navigation",
+        "dual-editor-diagnostic-recovery",
+        "edit-run-preview-stop-restore"
+      ],
+      "reason": "Pinned Lynxtron Fiddle quick-open currently does not consume standard Cmd+V paste input. Keep the cases for explicit regression testing after the upstream control is fixed."
+    }
   ]
 }

@@ -9,6 +9,7 @@
 | --- | --- | --- |
 | `diagnostic-hover` | basic | 编辑 → 语言服务诊断 → hover 提示 → 撤销 |
 | `palette-find-navigation` | intermediate | 命令面板 → 切换编辑器 → 查找 → 选中 → 返回 |
+| `editor-undo-redo-roundtrip` | intermediate | 可见 main.js 编辑 → undo → redo → 精确恢复 |
 | `dual-editor-diagnostic-recovery` | advanced | 破坏两个编辑器 → 独立验证 → 分别恢复 |
 | `console-gallery-roundtrip` | advanced | 切换 Console → Gallery 导航 → 检查卡片 → 恢复视图 |
 | `edit-run-preview-stop-restore` | deep | 编辑主进程/包配置 → 运行原生预览 → 检查 Console → 停止 → 恢复 |
@@ -50,7 +51,7 @@ npm run benchmark:macos:lynxtron
 npm run benchmark:macos:lynxtron -- --case dual-editor-diagnostic-recovery
 ```
 
-执行完整 suite，或按给定顺序执行一个子集：
+执行默认 suite，或按给定顺序显式执行一个子集：
 
 ```bash
 npm run benchmark:macos:lynxtron:reproduce-suite
@@ -59,7 +60,13 @@ npm run benchmark:macos:lynxtron:suite -- \
   --case edit-run-preview-stop-restore
 ```
 
-完整 suite 可能连续控制桌面数分钟。`suite-runner.ts` 串行执行各 case，避免窗口、
+manifest 定义六条 case；默认 suite 目前运行 `diagnostic-hover`、
+`editor-undo-redo-roundtrip` 和 `console-gallery-roundtrip`。需要向 Cmd+P quick-open
+输入框粘贴文件名的 case 暂时
+不进入默认集合，直到固定版本 Lynxtron 的输入控件能消费标准 Cmd+V paste event；
+这些 case 仍可通过显式 `--case` 参数用于修复后的回归验证。
+
+所选 suite 可能连续控制桌面数分钟。`suite-runner.ts` 串行执行各 case，避免窗口、
 键盘焦点、录制和清理过程重叠；某条 case 失败不会阻止后续 case 生成证据。
 
 可通过 `ACTONCE_DISPLAY_ID` 指定 Midscene display（默认 `0`），或通过
@@ -90,15 +97,17 @@ replay 的视觉 assertion 只从所选 display 截图中裁剪窗口相对区�
 
 ```bash
 npm run benchmark:macos:lynxtron:cli -- evidence \
-  --original <original-result.json> \
-  --replay <replay-result.json> \
+  --original <original-1-result.json> \
+  --original <original-2-result.json> \
+  --replay <replay-1-result.json> \
+  --replay <replay-2-result.json> \
   --output <review-directory>
 ```
 
 计分区间统一使用 `executionDurationMs`，截图筛选和最终 AI 审核耗时不计入其中；
 fallback 的模型耗时、恢复动作、checkpoint 复验和 cleanup 都必须计入。fallback 统计
-只作为诊断信息，不单独评分。一次正确的原始执行与五次独立重置且正确的 replay
-比较，replay 使用耗时中位数。
+只作为诊断信息，不单独评分。两次独立重置且正确的 original 耗时中位数，与两次
+独立重置且正确的正式 replay 耗时中位数进行比较。
 
 ## 产物
 

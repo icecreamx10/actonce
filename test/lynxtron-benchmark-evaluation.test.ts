@@ -40,60 +40,66 @@ function result(
   };
 }
 
+const originals = (first = 12_000, second = 10_000) => [
+  result("original", "original-1", first),
+  result("original", "original-2", second),
+];
+
 describe("Lynxtron benchmark evaluation", () => {
-  it("reports exact correctness and median replay speedup", () => {
+  it("reports exact 2+2 correctness and median-to-median speedup", () => {
     const evaluation = evaluateLynxtronBenchmark(
-      result("original", "original-1", 12_000),
-      [
-        result("replay", "replay-1", 2_200),
-        result("replay", "replay-2", 2_000),
-        result("replay", "replay-3", 1_800),
-        result("replay", "replay-4", 2_100),
-        result("replay", "replay-5", 1_900),
-      ],
+      originals(),
+      [result("replay", "replay-1", 2_200), result("replay", "replay-2", 1_800)],
       passedReview,
     );
     expect(evaluation.dimensions.correctness).toMatchObject({
       passed: true,
-      successfulRuns: 5,
-      totalRuns: 5,
+      successfulRuns: 4,
+      totalRuns: 4,
     });
     expect(evaluation.dimensions.speed).toMatchObject({
       comparable: true,
-      originalDurationMs: 12_000,
+      originalDurationMs: [12_000, 10_000],
+      originalMedianDurationMs: 11_000,
       replayMedianDurationMs: 2_000,
-      speedup: 6,
+      speedup: 5.5,
     });
-    expect(evaluation.dimensions.speed.reductionPercent).toBeCloseTo(83.333, 2);
+    expect(evaluation.dimensions.speed.reductionPercent).toBeCloseTo(81.818, 2);
   });
 
-  it("rejects a replay whose observation differs from the fixed oracle", () => {
+  it("rejects either replay when its observation differs from the oracle", () => {
     const evaluation = evaluateLynxtronBenchmark(
-      result("original", "original-1", 12_000),
+      originals(),
       [
         result("replay", "replay-1", 100, { observed: { ...expected, tooltipVisible: false } }),
         result("replay", "replay-2", 100),
-        result("replay", "replay-3", 100),
-        result("replay", "replay-4", 100),
-        result("replay", "replay-5", 100),
       ],
       passedReview,
     );
     expect(evaluation.dimensions.correctness.passed).toBe(false);
     expect(evaluation.dimensions.correctness.failures[0].reason).toContain("exactly match");
     expect(evaluation.dimensions.speed.comparable).toBe(false);
-    expect(evaluation.dimensions.speed.speedup).toBeNull();
   });
 
-  it("does not compare speed when a measured duration is missing", () => {
+  it("rejects either original when its live observation differs", () => {
+    const badOriginal = result("original", "original-2", 10_000, {
+      observed: { ...expected, tooltipVisible: false },
+    });
     const evaluation = evaluateLynxtronBenchmark(
-      result("original", "original-1", 12_000),
+      [originals()[0], badOriginal],
+      [result("replay", "replay-1", 100), result("replay", "replay-2", 100)],
+      passedReview,
+    );
+    expect(evaluation.dimensions.correctness.passed).toBe(false);
+    expect(evaluation.dimensions.correctness.failures[0].reason).toContain("original observation mismatch");
+  });
+
+  it("does not compare speed when any measured duration is missing", () => {
+    const evaluation = evaluateLynxtronBenchmark(
+      originals(),
       [
         result("replay", "replay-1", 100, { executionDurationMs: null }),
         result("replay", "replay-2", 100),
-        result("replay", "replay-3", 100),
-        result("replay", "replay-4", 100),
-        result("replay", "replay-5", 100),
       ],
       passedReview,
     );
@@ -103,48 +109,47 @@ describe("Lynxtron benchmark evaluation", () => {
 
   it("compares correct hybrid replay with fallback overhead included", () => {
     const evaluation = evaluateLynxtronBenchmark(
-      result("original", "original-1", 12_000),
+      originals(),
       [
         result("replay", "replay-1", 4_000, {
           replayDiagnostics: { strategy: "hybrid", fallbackCount: 1, fallbackDurationMs: 2_000 },
         }),
         result("replay", "replay-2", 2_000),
-        result("replay", "replay-3", 2_100),
-        result("replay", "replay-4", 2_200),
-        result("replay", "replay-5", 2_300),
       ],
       passedReview,
     );
-    expect(evaluation.dimensions.correctness.passed).toBe(true);
     expect(evaluation.dimensions.speed).toMatchObject({
       comparable: true,
-      replayMedianDurationMs: 2_200,
-      replayDiagnostics: expect.arrayContaining([
-        {
-          runId: "replay-1",
-          strategy: "hybrid",
-          fallbackCount: 1,
-          fallbackDurationMs: 2_000,
-        },
-      ]),
+      replayMedianDurationMs: 3_000,
+      replayDiagnostics: expect.arrayContaining([{
+        runId: "replay-1",
+        strategy: "hybrid",
+        fallbackCount: 1,
+        fallbackDurationMs: 2_000,
+      }]),
     });
-    expect(evaluation.dimensions.speed.speedup).toBeCloseTo(12_000 / 2_200);
+    expect(evaluation.dimensions.speed.speedup).toBeCloseTo(11_000 / 3_000);
   });
 
   it("withholds performance until the final AI evidence review passes", () => {
     const evaluation = evaluateLynxtronBenchmark(
-      result("original", "original-1", 12_000),
-      [
-        result("replay", "replay-1", 2_000),
-        result("replay", "replay-2", 2_000),
-        result("replay", "replay-3", 2_000),
-        result("replay", "replay-4", 2_000),
-        result("replay", "replay-5", 2_000),
-      ],
+      originals(),
+      [result("replay", "replay-1", 2_000), result("replay", "replay-2", 2_000)],
     );
     expect(evaluation.dimensions.correctness.cliPassed).toBe(true);
     expect(evaluation.dimensions.correctness.aiPassed).toBe(false);
     expect(evaluation.dimensions.correctness.passed).toBe(false);
     expect(evaluation.dimensions.speed.comparable).toBe(false);
+  });
+
+  it("requires exactly two originals and two replays", () => {
+    expect(() => evaluateLynxtronBenchmark(
+      [originals()[0]],
+      [result("replay", "replay-1", 100), result("replay", "replay-2", 100)],
+    )).toThrow(/Exactly two original/);
+    expect(() => evaluateLynxtronBenchmark(
+      originals(),
+      [result("replay", "replay-1", 100)],
+    )).toThrow(/Exactly two replay/);
   });
 });

@@ -10,6 +10,7 @@ runner does not embed a second copy of them.
 | --- | --- | --- |
 | `diagnostic-hover` | basic | edit → language-service diagnostic → hover tooltip → undo |
 | `palette-find-navigation` | intermediate | command palette → editor switch → Find → selection → return |
+| `editor-undo-redo-roundtrip` | intermediate | visible main.js edit → undo → redo → exact restore |
 | `dual-editor-diagnostic-recovery` | advanced | break two editors → verify independently → recover both |
 | `console-gallery-roundtrip` | advanced | toggle console → Gallery navigation → inspect cards → restore view |
 | `edit-run-preview-stop-restore` | deep | edit main/package config → run native preview → verify console → stop → restore |
@@ -52,7 +53,7 @@ Run a specific case:
 npm run benchmark:macos:lynxtron -- --case dual-editor-diagnostic-recovery
 ```
 
-Run the complete suite, or a selected subset in the given order:
+Run the default suite, or an explicitly selected subset in the given order:
 
 ```bash
 npm run benchmark:macos:lynxtron:reproduce-suite
@@ -61,7 +62,14 @@ npm run benchmark:macos:lynxtron:suite -- \
   --case edit-run-preview-stop-restore
 ```
 
-The full suite may control the desktop for several minutes. `suite-runner.ts` runs
+The manifest defines six cases, and the default suite currently runs
+`diagnostic-hover`, `editor-undo-redo-roundtrip`, and `console-gallery-roundtrip`.
+Cases that paste a filename into
+the Cmd+P quick-open input are excluded from the default until the pinned Lynxtron
+control consumes standard Cmd+V paste events; they remain available through explicit
+`--case` arguments for regression testing.
+
+The selected suite may control the desktop for several minutes. `suite-runner.ts` runs
 cases serially so their windows, keyboard focus, recordings, and cleanup cannot
 overlap. A failed case does not prevent later cases from producing evidence.
 
@@ -98,16 +106,18 @@ window-relative regions and action points into the live display.
 
 ```bash
 npm run benchmark:macos:lynxtron:cli -- evidence \
-  --original <original-result.json> \
-  --replay <replay-result.json> \
+  --original <original-1-result.json> \
+  --original <original-2-result.json> \
+  --replay <replay-1-result.json> \
+  --replay <replay-2-result.json> \
   --output <review-directory>
 ```
 
 The scored interval is `executionDurationMs`; evidence selection and final AI review
 are outside it. Fallback model latency, recovery actions, checkpoint revalidation,
 and cleanup remain inside it. Fallback diagnostics are reported but are not a separate
-score. Compare one correct original run with the median of five independently reset,
-correct replay runs.
+score. Compare the median of two independently reset, correct original runs with the
+median of two independently reset, correct formal replay runs.
 
 ## Outputs
 

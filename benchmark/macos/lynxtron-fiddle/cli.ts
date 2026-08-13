@@ -22,9 +22,9 @@ else {
 
 Commands:
   run --mode <original|replay> --case <id> [--output <directory>] [--runner <replay-runner>] [--source-recording <directory>]
-  evidence --original <result> --replay <result>... --output <directory>
+  evidence --original <result> --original <result> --replay <result> --replay <result> --output <directory>
   review --manifest <review-manifest.json> --decision <passed|failed> --reason <text> --output <review.json>
-  evaluate --original <result> --replay <result>... --review <review.json> [--output <evaluation.json>]`);
+  evaluate --original <result> --original <result> --replay <result> --replay <result> --review <review.json> [--output <evaluation.json>]`);
   if (command && command !== "help" && command !== "--help") process.exitCode = 2;
 }
 
@@ -112,18 +112,18 @@ function validateReplayDiagnostics(result: LynxtronRunResult): void {
 async function evidenceCommand(args: string[]): Promise<void> {
   const parsed = parseRuns(args);
   if (!parsed.output) throw new Error("--output is required");
-  const original = await readResult(parsed.original);
+  const originals = await Promise.all(parsed.originals.map(readResult));
   const replays = await Promise.all(parsed.replays.map(readResult));
   await Promise.all(parsed.replays.map((path, index) =>
     validateReplayObservationProvenance(resolve(path), replays[index])));
-  const cliGate = evaluateLynxtronBenchmark(original, replays);
+  const cliGate = evaluateLynxtronBenchmark(originals, replays);
   if (!cliGate.dimensions.correctness.cliPassed) {
     console.log(JSON.stringify(cliGate, null, 2));
     throw new Error("Structured assertion gate failed; AI review was not prepared");
   }
   const output = resolve(parsed.output);
   const manifest = await buildEvidenceManifest(
-    [parsed.original, ...parsed.replays],
+    [...parsed.originals, ...parsed.replays],
     output,
   );
   const path = resolve(output, "review-manifest.json");
@@ -173,7 +173,7 @@ async function evaluateCommand(args: string[]): Promise<void> {
   const parsed = parseRuns(args);
   const review = JSON.parse(await readFile(resolve(optionValue(args, "--review")), "utf8")) as LynxtronAiReview;
   const evaluation = evaluateLynxtronBenchmark(
-    await readResult(parsed.original),
+    await Promise.all(parsed.originals.map(readResult)),
     await Promise.all(parsed.replays.map(readResult)),
     review,
   );
@@ -188,8 +188,8 @@ function optionValue(values: string[], key: string): string {
   return values[index + 1];
 }
 
-function parseRuns(values: string[]): { original: string; replays: string[]; output?: string } {
-  let original: string | undefined;
+function parseRuns(values: string[]): { originals: string[]; replays: string[]; output?: string } {
+  const originals: string[] = [];
   let output: string | undefined;
   const replays: string[] = [];
   for (let index = 0; index < values.length; index += 1) {
@@ -200,14 +200,14 @@ function parseRuns(values: string[]): { original: string; replays: string[]; out
     }
     const value = values[++index];
     if (!value) throw new Error(`${token} requires a value`);
-    if (token === "--original") original = value;
+    if (token === "--original") originals.push(value);
     else if (token === "--replay") replays.push(value);
     else if (token === "--output") output = value;
     else throw new Error(`Unknown argument: ${token}`);
   }
-  if (!original) throw new Error("--original is required");
-  if (!replays.length) throw new Error("At least one --replay is required");
-  return { original, replays, output };
+  if (originals.length !== 2) throw new Error("Exactly two --original results are required");
+  if (replays.length !== 2) throw new Error("Exactly two --replay results are required");
+  return { originals, replays, output };
 }
 
 function keyValues(values: string[]): Map<string, string> {

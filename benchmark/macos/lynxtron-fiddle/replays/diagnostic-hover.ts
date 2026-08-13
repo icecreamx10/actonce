@@ -1,6 +1,6 @@
 /**
- * Compiled from ActOnce recording: sdk-window-benchmark-20260813/original/recording/actonce
- * Source sequence range: 5..92
+ * Compiled from ActOnce recording: no-quick-open-original-smoke-20260813/diagnostic-hover
+ * Source sequence range: 1..92
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -15,26 +15,26 @@ import {
 type Point = { x: number; y: number };
 type WindowFrame = Point & { width: number; height: number };
 type PixelRegion = { left: number; top: number; width: number; height: number };
-const PROBE = "const actOnceSyntaxProbe = (";
+const PROBE = "const actOnceSyntaxProbe = ;";
 const EXPECTED_TOOLTIP = "Expression expected.";
 const DEFAULT_MAIN_SOURCE = `// Main process — Lynxtron entry
 const { app, LynxWindow } = require('lynxtron');
 
 app.whenReady().then(() => {
   const win = new LynxWindow({ width: 800, height: 600 });
-  // A LynxWindow renders a compiled Lynx bundle — relative paths resolve
-  // into main.lynx.bundle by rspeedy. There is no HTML entry point.
+  // A LynxWindow renders a compiled Lynx bundle — renderer.js is built
+  // into main.lynx.bundle by rspeedy. There is no HTML page in Lynxtron.
   win.loadFile('main.lynx.bundle');
 });
 `;
 const DISPLAY = { width: 1728, height: 1117, dpr: 2 };
 const RECORDED_WINDOW = { x: 178, y: 118, width: 1372, height: 880 };
 const RECORDED_INPUT_TARGET = {
-  center: [721, 382] as [number, number],
-  rect: { left: 463, top: 176, width: 517, height: 413 },
+  center: [721, 479] as [number, number],
+  rect: { left: 463, top: 176, width: 516, height: 608 },
   description: "the recorded top-left main.js editor",
 };
-const RECORDED_HOVER_TARGET = { x: 714, y: 206 };
+const RECORDED_HOVER_TARGET = { x: 710, y: 206 };
 const outputDir = resolve(process.env.ACTONCE_BENCHMARK_OUTPUT_DIR ?? ".");
 const fixtureRoot = requiredEnv("ACTONCE_LYNXTRON_FIXTURE_ROOT");
 const desktopBundle = requiredEnv("ACTONCE_LYNXTRON_DESKTOP_BUNDLE");
@@ -47,15 +47,15 @@ if (displayId !== 0) {
 const repositoryRoot = resolve(import.meta.dirname, "../../../..");
 const sourceRecording = join(
   repositoryRoot,
-  "artifacts/benchmarks/lynxtron-fiddle/sdk-window-benchmark-20260813/original/recording/actonce",
+  "artifacts/benchmarks/lynxtron-fiddle-suites/no-quick-open-original-smoke-20260813/cases/diagnostic-hover/recording/actonce",
 );
 const recordedCheckpoint = (path: string) => join(sourceRecording, path);
 const REFERENCES = {
-  precondition: recordedCheckpoint("artifacts/01/0162630da7265ca653eeab8f58cd855ec09af30c8fb25183d03df10132e979ae"),
-  inputApplied: recordedCheckpoint("artifacts/02/02d652521d969e8a19e1e8b123c12f16f826bbde96ca3b6655c77139fc2ffba8"),
-  redSquiggle: recordedCheckpoint("artifacts/41/4103dd346a78f32b46cf8bbf01d12bdfe853c9cd8f3a543a171d7da83b1b6476"),
-  tooltip: recordedCheckpoint("artifacts/1a/1af31d3b8feb7eddfbe024c2b81a9b2c61c4e63eb257053a67bf80193f30e964"),
-  restored: recordedCheckpoint("artifacts/dc/dc25cd5b2bd7b99019285ecc0e375bf418f768b949d647e617d6a51aaf406e10"),
+  precondition: recordedCheckpoint("artifacts/d7/d71c8ee5684c5deba0bae0dc89ebd790ca71f7e57d6d778e2e98ff6815cd8fcd"),
+  inputApplied: recordedCheckpoint("artifacts/fb/fbc7efd47308ba8191db6d7ca915b22473c036fd3c424bd953f7a41ef5c681c6"),
+  redSquiggle: recordedCheckpoint("artifacts/fb/fbc7efd47308ba8191db6d7ca915b22473c036fd3c424bd953f7a41ef5c681c6"),
+  tooltip: recordedCheckpoint("artifacts/0a/0a8f7862d3e65c669a1ddfa2f4918a54bdf3297e138c8df3635e8a682ded1bd6"),
+  restored: recordedCheckpoint("artifacts/64/6485f0f7fc3a53f05d8815aeea42e6ecf1bbaf41e64ec5890f27d5680b60a2aa"),
 };
 // Physical-pixel regions relative to the Lynxtron window, derived from the
 // recorded display screenshot. Desktop position and unrelated windows are not
@@ -71,6 +71,7 @@ const assertionDecisionPath = join(outputDir, "assertion-decision.json");
 await mkdir(screenshotsDir, { recursive: true });
 
 await writeFile(assertionDecisionPath, `${JSON.stringify(assertionDecision(), null, 2)}\n`);
+if (process.env.ACTONCE_DECISION_ONLY === "1") process.exit(0);
 
 const startedAt = new Date().toISOString();
 const fullStarted = process.hrtime.bigint();
@@ -371,14 +372,13 @@ function assertionDecision(): Record<string, unknown> {
   ];
   return {
     schemaVersion: 1,
-    recording: "original/recording/actonce",
-    selectedSequenceRange: { from: 5, to: 92 },
+    recording: sourceRecording,
+    selectedSequenceRange: { from: 1, to: 92 },
     decisions: [
-      { observationTaskId: "4eb3bb8b-f858-4104-8ff6-86fac377086c", stepId: "precondition", recordedMode: "visual", evidence: [{ sequence: 6, artifact: "artifacts/01/0162630da7265ca653eeab8f58cd855ec09af30c8fb25183d03df10132e979ae" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
-      { observationTaskId: "634e40cb-7d26-4265-b67a-cb75cbf3fd40", stepId: "error-source-applied", recordedMode: "visual", evidence: [{ sequence: 36, artifact: "artifacts/02/02d652521d969e8a19e1e8b123c12f16f826bbde96ca3b6655c77139fc2ffba8" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
-      { observationTaskId: "cdb230a0-6593-483a-ba2e-86833c8cc3af", stepId: "red-squiggle", recordedMode: "visual", evidence: [{ sequence: 48, artifact: "artifacts/41/4103dd346a78f32b46cf8bbf01d12bdfe853c9cd8f3a543a171d7da83b1b6476" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
-      { observationTaskId: "9903afac-399c-4c7a-9175-723a1859619f", stepId: "tooltip-message", recordedMode: "visual", evidence: [{ sequence: 76, artifact: "artifacts/1a/1af31d3b8feb7eddfbe024c2b81a9b2c61c4e63eb257053a67bf80193f30e964" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
-      { observationTaskId: "cleanup-restored", stepId: "restore-editor", recordedMode: "visual", evidence: [{ sequence: 90, artifact: "artifacts/dc/dc25cd5b2bd7b99019285ecc0e375bf418f768b949d647e617d6a51aaf406e10" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
+      { observationTaskId: "c02ff4db-870f-46bb-8651-b0c83f756019", stepId: "precondition", recordedMode: "visual", evidence: [{ sequence: 6, artifact: "artifacts/d7/d71c8ee5684c5deba0bae0dc89ebd790ca71f7e57d6d778e2e98ff6815cd8fcd" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
+      { observationTaskId: "90fd9e5f-9df2-483b-ac2a-60eab12bc346", stepId: "error-source-applied", recordedMode: "visual", evidence: [{ sequence: 36, artifact: "artifacts/fb/fbc7efd47308ba8191db6d7ca915b22473c036fd3c424bd953f7a41ef5c681c6" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
+      { observationTaskId: "53f91017-cd68-4830-a9ac-70769c65f184", stepId: "red-squiggle", recordedMode: "visual", evidence: [{ sequence: 48, artifact: "artifacts/fb/fbc7efd47308ba8191db6d7ca915b22473c036fd3c424bd953f7a41ef5c681c6" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
+      { observationTaskId: "b323e910-bb5e-44f0-ae37-78ed9e527df4", stepId: "tooltip-message", recordedMode: "visual", evidence: [{ sequence: 76, artifact: "artifacts/0a/0a8f7862d3e65c669a1ddfa2f4918a54bdf3297e138c8df3635e8a682ded1bd6" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
     ],
   };
 }
