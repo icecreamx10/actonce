@@ -2,7 +2,7 @@ import type {
   FallbackDriver,
   FallbackRequest,
   FallbackResult,
-} from "@actonce/replay";
+} from "@byted-lynx/actonce-replay";
 
 export type MidsceneFallbackAgent = {
   aiAction(

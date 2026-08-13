@@ -25,10 +25,10 @@ export function compileIOSPrimitives(
   ]);
   return {
     source: [
-      "/**", " * Generated mechanically by @actonce/ios; do not inline primitive implementations.",
+      "/**", " * Generated mechanically by @byted-lynx/actonce-ios; do not inline primitive implementations.",
       ...(provenance.recordingId ? [` * Recording: ${provenance.recordingId}`] : []),
       ...(range ? [` * Sequence range: ${range.from}..${range.to}`] : []),
-      " */", 'import { replayIOSPrimitive } from "@actonce/ios";', "",
+      " */", 'import { replayIOSPrimitive } from "@byted-lynx/actonce-ios";', "",
       "export default async function replayRecordedPrimitives({ ios }) {", ...lines, "}", "",
     ].join("\n"),
     primitiveCount: actions.length,

@@ -1,4 +1,4 @@
-import type { ReplayFlow } from "@actonce/replay";
+import type { ReplayFlow } from "@byted-lynx/actonce-replay";
 import type { IOSCheckpointActual, IOSCheckpointExpectation } from "./checkpoint.js";
 import type { IOSSession } from "./session.js";
 

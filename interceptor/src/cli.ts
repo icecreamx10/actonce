@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import {
   RECORDING_PROFILES,
   recordingProfile,

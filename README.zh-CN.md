@@ -55,8 +55,8 @@ ActOnce 刻意拆分四类职责：
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill；macOS 路径已经验证，iOS 仍处于基础建设阶段 |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | 发布 Skill：选择有证据支持的片段并生成 replay 脚本 |
 | [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
-| [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos` 确定性回放 SDK 与 CLI |
-| [`runtime/ios/`](runtime/ios/README.md) | `@actonce/ios` 固定 WDA primitive、source/visual checkpoint 与 replay runner |
+| [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos` 确定性回放 SDK 与 CLI |
+| [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios` 固定 WDA primitive、source/visual checkpoint 与 replay runner |
 | [`runtime/common/`](runtime/common/README.md) | 共享的 checkpoint 回放流程 |
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | 可选的受限 Midscene 恢复适配器 |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.zh-CN.md) | 固定桌面 fixture、自然语言 case、runner、证据与 evaluator |
@@ -67,6 +67,26 @@ ActOnce 刻意拆分四类职责：
 ## 快速开始
 
 基础要求是 Node.js 22 或更高版本，以及对应平台工作流所需的 macOS 权限。
+
+从 BNPM 安装完整且版本同步的发行包：
+
+```bash
+npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
+npx actonce skill install record-device-use
+npx actonce skill install compile-device-recording
+```
+
+Skill 安装命令在设置了 `CODEX_HOME` 时复制到 `${CODEX_HOME}/skills`，否则复制到 `~/.codex/skills`；其他 Agent 可通过 `--target <目录>` 指定安装位置。API 使用平台子路径导入：
+
+```ts
+import { ReplayFlow } from "@byted-lynx/actonce/replay";
+import { replayMacPrimitive } from "@byted-lynx/actonce/macos";
+import { replayIOSPrimitive } from "@byted-lynx/actonce/ios";
+```
+
+所有 `@byted-lynx/actonce-*` 组件都属于同一个 Changesets fixed group，因此总包、录制 CLI、平台 runtime 和 Skills 始终使用同一发布版本；有精简环境需求时仍可单独安装组件包。
+
+在源码仓库中开发：
 
 ```bash
 npm install
@@ -110,14 +130,14 @@ npm run interceptor:start -- record midscene-macos \
 
 ## macOS 回放 Runtime
 
-[`@actonce/macos`](runtime/macos/README.md) 是第一个完整的平台 runtime。它使用 Appium Mac2/WebDriverIO 控制应用和执行固定输入 primitive，将目标窗口规范化到指定显示器，并通过原生窗口区域截图快速验证视觉 checkpoint。
+[`@byted-lynx/actonce-macos`](runtime/macos/README.md) 是第一个完整的平台 runtime。它使用 Appium Mac2/WebDriverIO 控制应用和执行固定输入 primitive，将目标窗口规范化到指定显示器，并通过原生窗口区域截图快速验证视觉 checkpoint。
 
 ```ts
 import {
   captureMacRegionScreenshot,
   replayMacPrimitive,
   setupMacWindow,
-} from "@actonce/macos";
+} from "@byted-lynx/actonce-macos";
 
 const setup = await setupMacWindow({
   processName: "Example",

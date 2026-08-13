@@ -49,7 +49,7 @@ export async function doctor(): Promise<DoctorReport> {
         id: dependency,
         status: "fail",
         message: `${dependency} is unavailable: ${errorMessage(error)}`,
-        fix: "Install @actonce/macos dependencies with npm install.",
+        fix: "Install @byted-lynx/actonce-macos dependencies with npm install.",
       });
     }
   }

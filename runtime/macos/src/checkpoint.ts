@@ -7,8 +7,8 @@ import type {
   FallbackDriver,
   FallbackPolicy,
   ReplayEvent,
-} from "@actonce/replay";
-import { ReplayFlow } from "@actonce/replay";
+} from "@byted-lynx/actonce-replay";
+import { ReplayFlow } from "@byted-lynx/actonce-replay";
 import { locatorToWebdriver } from "./locator.js";
 import type { MacSession } from "./session.js";
 import type { MacLocator } from "./types.js";

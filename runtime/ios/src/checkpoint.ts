@@ -1,8 +1,8 @@
 import type {
   CheckpointDifference, CheckpointDriver, CheckpointResult, CheckpointSpec,
   CheckpointVerificationContext, FallbackDriver, FallbackPolicy, ReplayEvent,
-} from "@actonce/replay";
-import { ReplayFlow } from "@actonce/replay";
+} from "@byted-lynx/actonce-replay";
+import { ReplayFlow } from "@byted-lynx/actonce-replay";
 import type { IOSSession } from "./session.js";
 
 export type IOSTextExpectation = { equals?: string; includes?: string; matches?: string };

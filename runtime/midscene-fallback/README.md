@@ -1,7 +1,7 @@
-# @actonce/midscene-fallback
+# @byted-lynx/actonce-midscene-fallback
 
 Injects an existing Midscene Agent as a bounded, segment-local fallback for
-`@actonce/replay`. It calls `aiAction` only after a checkpoint mismatch and never
+`@byted-lynx/actonce-replay`. It calls `aiAction` only after a checkpoint mismatch and never
 marks the checkpoint as passed itself; the replay flow captures and verifies the
 checkpoint again before resuming deterministic execution.
 

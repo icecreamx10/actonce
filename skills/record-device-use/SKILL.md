@@ -7,10 +7,17 @@ description: Record AI-driven device or desktop tasks through ActOnce CLI profil
 
 Capture one authoritative run without changing the task's intended behavior. Preserve raw evidence so a later compiler can select replayable segments.
 
+## Availability and environment
+
+- The bundled verifier is self-contained and needs only Node.js 20.19+, 22.12+, or 24+.
+- Live recording requires `@byted-lynx/actonce-recorder` (included by `@byted-lynx/actonce`), the selected platform/device, and the permissions required by Midscene or WebDriverAgent.
+- macOS profiles require a supported macOS developer machine. iOS profiles require an explicitly selected Simulator or device and reachable WebDriverAgent. Model-backed tasks also require the model credentials configured for Midscene.
+- If `actonce-record profiles --json` does not list the required profile, stop and report the missing runtime instead of inventing commands.
+
 ## Workflow
 
-1. Locate the ActOnce checkout or installed CLI. In a checkout, identify it by the `interceptor:start` package script.
-2. Run `npm run interceptor:start -- profiles --json`. Use only a profile returned by the CLI; do not construct or attach interceptor sources in the skill workflow.
+1. Locate the installed `actonce-record` CLI or an ActOnce checkout. In a checkout, identify it by the `interceptor:start` package script.
+2. Run `actonce-record profiles --json`; in a checkout use `npm run interceptor:start -- profiles --json`. Use only a profile returned by the CLI; do not construct or attach interceptor sources in the skill workflow.
 3. Read [references/cli-profiles.md](references/cli-profiles.md) and prepare the task module required by `midscene-macos` or `midscene-ios`. Generic `ios-wda` recording does not require a task module.
 4. Establish a meaningful recording ID and run the selected CLI profile. The CLI owns source composition, startup order, checkpoint policy, and shutdown.
 5. Run the intended task normally. Do not add extra AI actions merely to improve the trace.

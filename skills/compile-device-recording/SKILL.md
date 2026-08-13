@@ -9,8 +9,16 @@ Treat the recording as immutable evidence. Produce derived summaries, segments, 
 
 ## Availability and environment
 
+- Offline verification, summarization, and segment extraction are self-contained and use only Node.js 20.19+, 22.12+, or 24+ plus a completed ActOnce recording.
+- Replay execution requires the matching platform package, included by `@byted-lynx/actonce`: `@byted-lynx/actonce-macos` on macOS or `@byted-lynx/actonce-ios` on iOS.
+- macOS execution requires macOS 11.3+, Xcode 13+, Appium Mac2 prerequisites, and the Accessibility permissions reported by `actonce-macos doctor`. iOS requires an explicitly selected Simulator or device and reachable WebDriverAgent.
+- Deterministic replay needs no model credential. Hybrid recovery or an online screenshot evaluator additionally requires the configured Midscene/model provider credentials.
+- If only offline requirements are available, complete inspection and extraction, then report live replay as blocked with the exact missing platform prerequisite.
+
+## Availability and environment
+
 - Offline inspection is self-contained in this skill package. The bundled summarizer and segment extractor use only Node.js built-ins and need Node.js 20.19+, 22.12+, or 24+, plus a completed ActOnce recording containing `manifest.json` and `events.ndjson`.
-- Replay compilation and execution are not self-contained in this skill package. They require the matching ActOnce platform runtime and CLI: `@actonce/macos` / `actonce-macos` for macOS or `@actonce/ios` / `actonce-ios` for iOS. Until those packages are available in the target registry, use a built ActOnce checkout. Do not substitute handwritten driver calls when the runtime is absent.
+- Replay compilation and execution are not self-contained in this skill package. They require the matching ActOnce platform runtime and CLI: `@byted-lynx/actonce-macos` / `actonce-macos` for macOS or `@byted-lynx/actonce-ios` / `actonce-ios` for iOS. Until those packages are available in the target registry, use a built ActOnce checkout. Do not substitute handwritten driver calls when the runtime is absent.
 - macOS execution requires macOS 11.3+, Xcode 13+, a compatible Node.js/npm toolchain, Appium Mac2 dependencies, and the Accessibility permissions diagnosed by `actonce-macos doctor`.
 - iOS execution requires an explicitly selected Simulator or device and a reachable WebDriverAgent. The runtime does not start or select the device implicitly.
 - Deterministic replay needs no model credential. Hybrid action recovery or an online screenshot evaluator additionally needs the configured Midscene/model provider and its credentials; never copy those credentials into generated code or artifacts.
@@ -67,7 +75,7 @@ Treat the recording as immutable evidence. Produce derived summaries, segments, 
 - Exclude incidental focus changes, report viewing, recorder cleanup, and manual repair actions unless the target test requires them.
 - Never copy credentials, authorization headers, clipboard contents, or model reasoning into generated scripts.
 - Add the recording ID and selected sequence range to the generated file header.
-- Keep platform APIs separate. Target `@actonce/macos` for macOS and `@actonce/ios` for iOS; do not invent a cross-platform abstraction while compiling a platform-specific recording.
+- Keep platform APIs separate. Target `@byted-lynx/actonce-macos` for macOS and `@byted-lynx/actonce-ios` for iOS; do not invent a cross-platform abstraction while compiling a platform-specific recording.
 
 ## Output contract
 

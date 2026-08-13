@@ -1,6 +1,6 @@
 # iOS replay target
 
-Generate iOS replay fragments for `@actonce/ios`. The runtime connects to the
+Generate iOS replay fragments for `@byted-lynx/actonce-ios`. The runtime connects to the
 explicit Simulator/WebDriverAgent selected by the repository environment; it does
 not boot, erase, or choose a device inside generated code.
 
@@ -22,7 +22,7 @@ actions fail closed.
 Compose fixed calls with the shared replay flow:
 
 ```ts
-import { replayIOSPrimitive } from "@actonce/ios";
+import { replayIOSPrimitive } from "@byted-lynx/actonce-ios";
 
 export default async function replay({ ios, flow }) {
   await flow.segment({

@@ -1,0 +1,36 @@
+{
+  "name": "@byted-lynx/actonce",
+  "version": "0.0.0",
+  "description": "ActOnce complete distribution: recording, replay runtimes, CLIs, and agent skills.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "publishConfig": { "registry": "http://bnpm.byted.org" },
+  "engines": { "node": "^20.19.0 || ^22.12.0 || >=24.0.0" },
+  "exports": {
+    "./replay": { "types": "./dist/replay.d.ts", "import": "./dist/replay.js" },
+    "./macos": { "types": "./dist/macos.d.ts", "import": "./dist/macos.js" },
+    "./ios": { "types": "./dist/ios.d.ts", "import": "./dist/ios.js" },
+    "./midscene-fallback": { "types": "./dist/midscene-fallback.d.ts", "import": "./dist/midscene-fallback.js" }
+  },
+  "bin": { "actonce": "./dist/cli.js" },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepack": "npm run clean && npm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@byted-lynx/actonce-recorder": "^0.0.0",
+    "@byted-lynx/actonce-replay": "^0.0.0",
+    "@byted-lynx/actonce-macos": "^0.0.0",
+    "@byted-lynx/actonce-ios": "^0.0.0",
+    "@byted-lynx/actonce-midscene-fallback": "^0.0.0",
+    "@byted-lynx/actonce-skill-record-device-use": "^0.0.0",
+    "@byted-lynx/actonce-skill-compile-device-recording": "^0.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "7.0.2"
+  }
+}

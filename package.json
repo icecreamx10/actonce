@@ -4,7 +4,21 @@
   "private": true,
   "type": "module",
   "description": "Record AI device actions once, replay them deterministically.",
+  "workspaces": [
+    "packages/*",
+    "interceptor",
+    "runtime/common",
+    "runtime/macos",
+    "runtime/ios",
+    "runtime/midscene-fallback",
+    "skills/record-device-use",
+    "skills/compile-device-recording"
+  ],
   "scripts": {
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
+    "build:packages": "npm run build -w @byted-lynx/actonce-replay && npm run build -w @byted-lynx/actonce-recorder && npm run build -w @byted-lynx/actonce-macos && npm run build -w @byted-lynx/actonce-ios && npm run build -w @byted-lynx/actonce-midscene-fallback && npm run build -w @byted-lynx/actonce",
     "android:bootstrap": "bash scripts/android/bootstrap-sdk.sh",
     "android:start": "bash scripts/android/start-emulator.sh",
     "android:start:foreground": "bash scripts/android/start-emulator.sh --foreground",
@@ -70,6 +84,7 @@
     "playwright": "1.62.1"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.0",
     "@types/node": "^24.0.0",
     "appium-webdriveragent": "^16.1.6",
     "tsx": "4.23.12",

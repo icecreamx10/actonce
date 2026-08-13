@@ -1,9 +1,10 @@
 {
-  "name": "@actonce/midscene-fallback",
-  "version": "0.1.0",
+  "name": "@byted-lynx/actonce-midscene-fallback",
+  "version": "0.0.0",
   "description": "Bounded Midscene fallback adapter for ActOnce replay flows.",
   "type": "module",
   "license": "Apache-2.0",
+  "publishConfig": { "registry": "http://bnpm.byted.org" },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -12,12 +13,14 @@
   },
   "files": ["dist", "README.md"],
   "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run clean && npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@actonce/replay": "file:../common"
+    "@byted-lynx/actonce-replay": "^0.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

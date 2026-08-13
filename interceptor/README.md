@@ -19,6 +19,15 @@ contracts, ordering, correlation, and supported combinations.
 ## CLI recording profiles
 
 ```bash
+actonce-record profiles --json
+actonce-record record midscene-macos --entry /absolute/task.ts --display-id 0
+actonce-record record midscene-ios --entry /absolute/task.ts --upstream-port 8100
+actonce-record record ios-wda --upstream-port 8100
+```
+
+Inside an ActOnce checkout the equivalent development commands are:
+
+```bash
 npm run interceptor:start -- profiles --json
 npm run interceptor:start -- record midscene-macos --entry /absolute/task.ts --display-id 0
 npm run interceptor:start -- record midscene-ios --entry /absolute/task.ts --upstream-port 8100

@@ -1,4 +1,4 @@
-import type { FallbackDriver, FallbackRequest, FallbackResult } from "@actonce/replay";
+import type { FallbackDriver, FallbackRequest, FallbackResult } from "@byted-lynx/actonce-replay";
 export type MidsceneFallbackAgent = {
     aiAction(prompt: string, options?: {
         abortSignal?: AbortSignal;

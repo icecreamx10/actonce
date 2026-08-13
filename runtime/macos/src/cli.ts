@@ -206,7 +206,7 @@ function optionalInteger(values: string[], option: string): number | undefined {
 }
 
 function printUsage() {
-  console.log(`@actonce/macos
+  console.log(`@byted-lynx/actonce-macos
 
 Usage:
   actonce-macos doctor [--json]

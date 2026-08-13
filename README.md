@@ -55,8 +55,8 @@ ActOnce deliberately separates four concerns:
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published recording Skill; its macOS path is validated, while iOS support remains foundational |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
-| [`runtime/macos/`](runtime/macos/README.md) | `@actonce/macos`, the deterministic macOS replay SDK and CLI |
-| [`runtime/ios/`](runtime/ios/README.md) | `@actonce/ios`, fixed WDA primitives, source/visual checkpoints, and replay runner |
+| [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos`, the deterministic macOS replay SDK and CLI |
+| [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios`, fixed WDA primitives, source/visual checkpoints, and replay runner |
 | [`runtime/common/`](runtime/common/README.md) | Shared checkpoint-gated replay flow |
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | Optional bounded Midscene recovery adapter |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.md) | Pinned desktop fixture, natural-language cases, runners, evidence, and evaluator |
@@ -67,6 +67,26 @@ ActOnce deliberately separates four concerns:
 ## Quick start
 
 Requirements: Node.js 22 or newer and macOS permissions appropriate to the platform workflow you run.
+
+Install the complete synchronized distribution from BNPM:
+
+```bash
+npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
+npx actonce skill install record-device-use
+npx actonce skill install compile-device-recording
+```
+
+The installer copies each complete Skill directory into `${CODEX_HOME}/skills` when `CODEX_HOME` is set, otherwise `~/.codex/skills`. Use `--target <directory>` for another agent. APIs are exposed through platform subpaths:
+
+```ts
+import { ReplayFlow } from "@byted-lynx/actonce/replay";
+import { replayMacPrimitive } from "@byted-lynx/actonce/macos";
+import { replayIOSPrimitive } from "@byted-lynx/actonce/ios";
+```
+
+Every `@byted-lynx/actonce-*` component belongs to one Changesets fixed group, so the umbrella package, recorder, runtimes, and Skills always publish with the same version. Individual component packages remain installable for narrower environments.
+
+For repository development:
 
 ```bash
 npm install
@@ -110,14 +130,14 @@ The compilation Skill then selects useful spans, lowers recorded input through f
 
 ## macOS replay runtime
 
-[`@actonce/macos`](runtime/macos/README.md) is the first complete platform runtime. It wraps Appium Mac2/WebDriverIO for application control and fixed input primitives, normalizes the target window onto a selected display, and provides native window-region screenshots for fast visual checkpoints.
+[`@byted-lynx/actonce-macos`](runtime/macos/README.md) is the first complete platform runtime. It wraps Appium Mac2/WebDriverIO for application control and fixed input primitives, normalizes the target window onto a selected display, and provides native window-region screenshots for fast visual checkpoints.
 
 ```ts
 import {
   captureMacRegionScreenshot,
   replayMacPrimitive,
   setupMacWindow,
-} from "@actonce/macos";
+} from "@byted-lynx/actonce-macos";
 
 const setup = await setupMacWindow({
   processName: "Example",
