@@ -1,6 +1,6 @@
 {
   "name": "@byted-lynx/actonce",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ActOnce complete distribution: recording, replay runtimes, CLIs, and agent skills.",
   "type": "module",
   "license": "Apache-2.0",
@@ -22,14 +22,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@byted-lynx/actonce-recorder": "^0.1.0",
-    "@byted-lynx/actonce-replay": "^0.1.0",
-    "@byted-lynx/actonce-macos": "^0.1.0",
-    "@byted-lynx/actonce-ios": "^0.1.0",
-    "@byted-lynx/actonce-android": "^0.1.0",
-    "@byted-lynx/actonce-midscene-fallback": "^0.1.0",
-    "@byted-lynx/actonce-skill-record-device-use": "^0.1.0",
-    "@byted-lynx/actonce-skill-compile-device-recording": "^0.1.0"
+    "@byted-lynx/actonce-recorder": "^0.2.0",
+    "@byted-lynx/actonce-replay": "^0.2.0",
+    "@byted-lynx/actonce-macos": "^0.2.0",
+    "@byted-lynx/actonce-ios": "^0.2.0",
+    "@byted-lynx/actonce-android": "^0.2.0",
+    "@byted-lynx/actonce-midscene-fallback": "^0.2.0",
+    "@byted-lynx/actonce-skill-record-device-use": "^0.2.0",
+    "@byted-lynx/actonce-skill-compile-device-recording": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -1,6 +1,6 @@
 {
   "name": "@byted-lynx/actonce-midscene-adapter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The only ActOnce package allowed to depend on Midscene.",
   "type": "module",
   "license": "Apache-2.0",
