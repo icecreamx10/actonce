@@ -73,6 +73,7 @@
     "benchmark:android:smoke": "bash scripts/android/run-midscene-smoke.sh",
     "benchmark:android:record-demo-app": "npm run android:reset:demo-app && tsx interceptor/src/cli.ts record midscene-android --entry benchmark/android/my-demo-app/checkout-task.ts",
     "benchmark:android:replay-demo-app": "npm run android:reset:demo-app && tsx benchmark/android/my-demo-app/checkout-replay.ts",
+    "benchmark:android:demo-app": "tsx benchmark/android/my-demo-app/benchmark.ts",
     "benchmark:ios:smoke": "tsx benchmark/ios/midscene-settings-smoke.ts",
     "benchmark:ios:record-settings": "tsx interceptor/src/cli.ts record midscene-ios --entry benchmark/ios/settings-about-task.ts",
     "benchmark:ios:replay-settings": "tsx benchmark/ios/settings-about-replay.ts",

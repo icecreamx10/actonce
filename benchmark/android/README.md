@@ -28,11 +28,12 @@ The primary fixture is Sauce Labs My Demo App Android 2.2.0 build 25. Its offici
 
 ```bash
 npm run android:install:demo-app
-npm run benchmark:android:record-demo-app
-npm run benchmark:android:replay-demo-app
+npm run benchmark:android:demo-app
 ```
 
-Every command resets app data before the measured task. The original runs through the fixed `midscene-android` recorder profile; replay uses the mechanically recorded logical coordinates, Android UI-tree checkpoints, a final screenshot, and no fallback by default. The first end-to-end smoke completed in about 127 seconds for the AI original and 18 seconds for deterministic replay; these are development measurements, not yet a formal two-run score.
+The benchmark CLI resets app data outside measured time, runs the fixed `midscene-android` original once, resets again, and runs the native ActOnce replay once. Both results must independently pass the same live accessibility-tree oracle and save a final screenshot before their timings are comparable. The original must also contain two successful recorded Midscene assertions; replay reports fallback count and separates checkpoint capture time from settle delay.
+
+Use `--mode original`, `--mode replay`, or `--mode evaluate` with the same `--output <directory>` to run the phases separately. A one-sample run is intended as a quick development benchmark; repeat it in independent output directories before publishing formal performance claims.
 
 ## Alternative document fixture
 
