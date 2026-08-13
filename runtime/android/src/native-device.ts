@@ -94,14 +94,34 @@ export class NativeAndroidDevice {
   }
   async doubleClick(point: Point): Promise<void> { await this.tap(point); await delay(80); await this.tap(point); }
   async longPress(point: Point, duration = 800): Promise<void> { const p = this.physical(point); await this.shell(["input", "swipe", `${p.x}`, `${p.y}`, `${p.x}`, `${p.y}`, `${duration}`]); }
-  async swipe(start: Point, end: Point, duration = 300): Promise<void> { const a = this.physical(start), b = this.physical(end); await this.shell(["input", "swipe", `${a.x}`, `${a.y}`, `${b.x}`, `${b.y}`, `${duration}`]); }
+  async swipe(start: Point, end: Point, duration = 300): Promise<void> {
+    const a = this.physical(start), b = this.physical(end);
+    await this.request("POST", this.sessionPath("/actions"), {
+      actions: [{
+        type: "pointer",
+        id: "finger1",
+        parameters: { pointerType: "touch" },
+        actions: [
+          { type: "pointerMove", duration: 0, x: a.x, y: a.y },
+          { type: "pointerDown", button: 0 },
+          { type: "pointerMove", duration, x: b.x, y: b.y },
+          { type: "pointerUp", button: 0 },
+        ],
+      }],
+    });
+  }
   async typeText(value: string): Promise<void> { await this.shell(["input", "text", value.replaceAll("%", "%25").replaceAll(" ", "%s")]); }
   async keyboardPress(key: string): Promise<void> { await this.shell(["input", "keyevent", keyCode(key)]); }
   async clearInput(): Promise<void> { await this.shell(["input", "keyevent", "KEYCODE_MOVE_END"]); await this.shell(["input", "keyevent", "--longpress", "KEYCODE_DEL"]); }
   async back(): Promise<void> { await this.keyboardPress("BACK"); }
   async home(): Promise<void> { await this.keyboardPress("HOME"); }
   async recentApps(): Promise<void> { await this.keyboardPress("APP_SWITCH"); }
-  async launch(packageName: string): Promise<void> { await this.shell(["monkey", "-p", packageName, "-c", "android.intent.category.LAUNCHER", "1"]); }
+  async launch(packageName: string): Promise<void> {
+    await this.shell([
+      "am", "start", "-W", "-a", "android.intent.action.MAIN",
+      "-c", "android.intent.category.LAUNCHER", "-p", packageName,
+    ]);
+  }
   async terminate(packageName: string): Promise<void> { await this.shell(["am", "force-stop", packageName]); }
 
   private physical(point: Point): Point { return { x: Math.round(point.x * this.densityScale), y: Math.round(point.y * this.densityScale) }; }

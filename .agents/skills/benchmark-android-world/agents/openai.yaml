@@ -1,0 +1,4 @@
+interface:
+  display_name: "AndroidWorld Replay Benchmark"
+  short_description: "Run official AndroidWorld original-versus-replay cases"
+  default_prompt: "Use $benchmark-android-world to run an official AndroidWorld case in a fresh context and report correctness and conditional speedup."

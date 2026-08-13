@@ -48,6 +48,10 @@ EMULATOR_ARGS=(
   -partition-size "${ACTONCE_PARTITION_SIZE_MB}"
 )
 
+if [[ -n "${ACTONCE_EMULATOR_GRPC_PORT}" ]]; then
+  EMULATOR_ARGS+=(-grpc "${ACTONCE_EMULATOR_GRPC_PORT}")
+fi
+
 if [[ "${HEADED}" == "false" ]]; then
   EMULATOR_ARGS+=(-no-window)
 fi

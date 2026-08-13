@@ -1,0 +1,114 @@
+---
+name: benchmark-android-world
+description: Run repository-internal AndroidWorld original-versus-ActOnce replay benchmarks with the official task initializer and validator. Use when measuring correctness and conditional replay speed for Android cases that Midscene's published AndroidWorld report marks PASS. Formal measurements must be delegated to a completely context-free agent.
+---
+
+# Benchmark AndroidWorld
+
+Treat the official AndroidWorld reward as the correctness gate. Never report a
+speedup for a replay whose reward is not exactly `1.0`.
+
+## Context isolation
+
+Execute every measured benchmark in a completely fresh agent context. The agent
+that authored, compiled, debugged, or repaired the runner must not execute or
+judge the measured run.
+
+1. The coordinating agent must start a new benchmark agent with no forked
+   conversation turns or inherited summary (for example, `fork_turns: "none"`).
+2. Give it only the repository path, this Skill path, and the request to run the
+   named case. Do not include expected actions, coordinates, timings, prior
+   results, failure diagnoses, or intended fixes.
+3. Let the fresh agent reconstruct the procedure from committed repository
+   files and raw artifacts. Environment secrets may remain available through
+   ignored local configuration, but never include their values in the prompt.
+4. If no facility exists to start an isolated agent, stop and report that the
+   benchmark is not independently validated. Do not substitute the current
+   context and label it fresh.
+
+Development runs used to repair a failure are not measured results. After any
+repair, create another fresh zero-context agent and restart the measured case
+from initialization.
+
+The fresh benchmark agent must label its result `formal` only when it received
+no inherited context and used a clean output directory. Record this isolation
+fact in the result summary. If it needs to change benchmark code, its run becomes
+development-only: return the diagnosis to the coordinator, commit the repair,
+then delegate the formal rerun to a different fresh agent.
+
+## SystemBrightnessMax workflow
+
+1. Read `benchmark/android/android-world/README.md` and the checked-in runner.
+   Do not edit the task goal, parameters, initialization, official validator,
+   or timing boundary during a measured run.
+2. Run ADB, emulator, UIAutomator2, AndroidWorld gRPC, and local model-proxy
+   commands with host/local-loopback permission. In a restricted sandbox,
+   request escalation before the first such command. Do not start a second ADB
+   daemon or silently wait for an inaccessible localhost service.
+3. Verify the coordinator-prepared pinned environment using the read-only,
+   offline check:
+
+   ```bash
+   npm run android-world:check
+   ```
+
+   Never install or update dependencies inside the fresh measured agent. If the
+   check fails, stop and return setup to the coordinator. The coordinator runs
+   `npm run android-world:bootstrap`, then delegates to a different fresh agent.
+
+4. Start the pinned Pixel 6/API 33 AVD with emulator gRPC. In process-isolated
+   environments use the foreground command in an independent terminal:
+
+   ```bash
+   npm run android-world:start:foreground
+   ```
+
+5. Create the official Settings snapshot once, outside measurement:
+
+   ```bash
+   npm run android-world:prepare
+   ```
+
+6. Load the ignored `.env` without printing it and verify the Midscene model.
+7. Run one independently initialized original and one independently initialized
+   replay for a development benchmark:
+
+   ```bash
+   npm run benchmark:android:android-world -- --output <output-directory>
+   ```
+
+   The CLI invokes AndroidWorld's `SystemBrightnessMax.initialize_task()` before
+   each mode and `SystemBrightnessMax.is_successful()` afterward. Setup and
+   validation are outside `executionDurationMs`, matching AndroidWorld's agent
+   evaluation boundary.
+8. Inspect `evaluation.json`, both result files, the original recording, replay
+   diagnostics, and final screenshots. Require:
+   - original and replay process success;
+   - official reward `1.0` for each;
+   - a complete original recording;
+   - replay checkpoint evidence and fallback diagnostics;
+   - positive durations measured at the same task-execution boundary.
+9. Report correctness first. Only when both official rewards pass, report
+   original duration, replay duration, speedup, reduction percent, checkpoint
+   capture time, settle delay, and fallback count.
+
+For a formal score, run two originals and two replays in independent output
+directories and compare medians. Do not discard failures or mix results from a
+runner revision made between samples.
+
+## Integrity rules
+
+- Use the pinned upstream commit and API 33 AVD. API 35 fixture results are not
+  AndroidWorld results.
+- Use only tasks listed PASS in Midscene's published report and preserve the
+  report URL in evaluation metadata.
+- Let AndroidWorld initialize and validate state. A locally invented A11y or
+  screenshot assertion is supporting evidence, not a replacement oracle.
+- Setup may use AndroidWorld's ADB utilities. Measured replay actions must go
+  through ActOnce's native Android runtime; never set the target state directly
+  with `adb settings put`.
+- Include deterministic actions, checkpoint capture, settling, and any fallback
+  inside replay execution time. Keep dependency setup, AVD boot, fixture
+  initialization, official validation, and artifact writing outside it.
+- Preserve failed artifacts and diagnose the first divergence. Do not weaken
+  the task or validator to produce a pass.
