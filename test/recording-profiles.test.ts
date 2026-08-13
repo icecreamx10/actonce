@@ -8,6 +8,12 @@ describe("recording CLI profiles", () => {
   it("owns stable source combinations outside skills", () => {
     expect(RECORDING_PROFILES).toEqual([
       expect.objectContaining({
+        id: "midscene-android",
+        platform: "android",
+        mode: "task-module",
+        sources: ["midscene", "android-input", "checkpoint"],
+      }),
+      expect.objectContaining({
         id: "midscene-macos",
         platform: "macos",
         mode: "task-module",
@@ -29,6 +35,11 @@ describe("recording CLI profiles", () => {
   });
 
   it("resolves only named public profiles", () => {
+    expect(recordingProfile("midscene-android")?.sources).toEqual([
+      "midscene",
+      "android-input",
+      "checkpoint",
+    ]);
     expect(recordingProfile("midscene-ios")?.sources).toEqual([
       "midscene",
       "wda",

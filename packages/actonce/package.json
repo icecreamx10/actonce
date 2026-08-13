@@ -10,6 +10,7 @@
     "./replay": { "types": "./dist/replay.d.ts", "import": "./dist/replay.js" },
     "./macos": { "types": "./dist/macos.d.ts", "import": "./dist/macos.js" },
     "./ios": { "types": "./dist/ios.d.ts", "import": "./dist/ios.js" },
+    "./android": { "types": "./dist/android.d.ts", "import": "./dist/android.js" },
     "./midscene-fallback": { "types": "./dist/midscene-fallback.d.ts", "import": "./dist/midscene-fallback.js" }
   },
   "bin": { "actonce": "./dist/cli.js" },
@@ -25,6 +26,7 @@
     "@byted-lynx/actonce-replay": "^0.1.0",
     "@byted-lynx/actonce-macos": "^0.1.0",
     "@byted-lynx/actonce-ios": "^0.1.0",
+    "@byted-lynx/actonce-android": "^0.1.0",
     "@byted-lynx/actonce-midscene-fallback": "^0.1.0",
     "@byted-lynx/actonce-skill-record-device-use": "^0.1.0",
     "@byted-lynx/actonce-skill-compile-device-recording": "^0.1.0"

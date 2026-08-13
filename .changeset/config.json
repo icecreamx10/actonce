@@ -8,6 +8,7 @@
     "@byted-lynx/actonce-replay",
     "@byted-lynx/actonce-macos",
     "@byted-lynx/actonce-ios",
+    "@byted-lynx/actonce-android",
     "@byted-lynx/actonce-midscene-fallback",
     "@byted-lynx/actonce-skill-record-device-use",
     "@byted-lynx/actonce-skill-compile-device-recording"

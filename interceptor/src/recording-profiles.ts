@@ -1,26 +1,38 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { IOSAgent, IOSDevice } from "@midscene/ios";
+import type { AndroidAgent, AndroidDevice } from "@midscene/android";
 import type { ComputerAgent, ComputerDevice } from "@midscene/computer";
 import { RecordingWriter } from "./common/recording-writer.js";
 import { agentForRecordedIOS } from "./ios/recording-ios-device.js";
 import { agentForRecordedComputer } from "./macos/recording-computer-device.js";
 import { WdaInterceptor } from "./sources/wda/wda-interceptor.js";
+import { agentForRecordedAndroid } from "./android/recording-android-device.js";
 
 export const RECORDING_PROFILES = [
+  {
+    id: "midscene-android",
+    platform: "android",
+    mode: "task-module",
+    sources: ["midscene", "android-input", "checkpoint"],
+    description:
+      "Run a Midscene Android task with semantic, normalized input, screenshot, and UI-tree checkpoints.",
+  },
   {
     id: "midscene-macos",
     platform: "macos",
     mode: "task-module",
     sources: ["midscene", "macos-input", "checkpoint"],
-    description: "Run a Midscene Computer task with semantic, input, and screenshot checkpoints.",
+    description:
+      "Run a Midscene Computer task with semantic, input, and screenshot checkpoints.",
   },
   {
     id: "midscene-ios",
     platform: "ios",
     mode: "task-module",
     sources: ["midscene", "wda", "checkpoint"],
-    description: "Run a Midscene iOS task through WDA with semantic and native UI checkpoints.",
+    description:
+      "Run a Midscene iOS task through WDA with semantic and native UI checkpoints.",
   },
   {
     id: "ios-wda",
@@ -47,6 +59,8 @@ export type RecordingRunOptions = {
   listenPort?: number;
   upstreamHost?: string;
   upstreamPort?: number;
+  serial?: string;
+  adbPath?: string;
 };
 
 export type RecordingTaskContext<TAgent, TDevice> = {
@@ -82,7 +96,9 @@ export async function runRecordingProfile(
         args: options.taskArgs ?? [],
       });
     } catch (error) {
-      recorded.writer.markIncomplete(`Recording task failed: ${errorMessage(error)}`);
+      recorded.writer.markIncomplete(
+        `Recording task failed: ${errorMessage(error)}`,
+      );
       throw error;
     } finally {
       await recorded.close();
@@ -114,7 +130,38 @@ export async function runRecordingProfile(
         args: options.taskArgs ?? [],
       });
     } catch (error) {
-      recorded.writer.markIncomplete(`Recording task failed: ${errorMessage(error)}`);
+      recorded.writer.markIncomplete(
+        `Recording task failed: ${errorMessage(error)}`,
+      );
+      throw error;
+    } finally {
+      await recorded.close();
+      console.log(`Recording: ${recorded.writer.recordingDir}`);
+    }
+    return;
+  }
+
+  if (profileId === "midscene-android") {
+    const task = await loadTask<AndroidAgent, AndroidDevice>(
+      requiredEntry(options),
+    );
+    const recorded = await agentForRecordedAndroid(
+      { serial: options.serial, androidAdbPath: options.adbPath },
+      {},
+      { rootDir: options.rootDir, recordingId: options.recordingId },
+    );
+    try {
+      await task({
+        profile: profileId,
+        agent: recorded.agent,
+        device: recorded.device,
+        recordingDir: recorded.writer.recordingDir,
+        args: options.taskArgs ?? [],
+      });
+    } catch (error) {
+      recorded.writer.markIncomplete(
+        `Recording task failed: ${errorMessage(error)}`,
+      );
       throw error;
     } finally {
       await recorded.close();

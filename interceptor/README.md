@@ -9,6 +9,7 @@ All sources write through one `RecorderSession`; none owns files directly.
 src/
   core/     session, source interface, ordering, artifacts, lifecycle
   sources/  Midscene, macOS input, macOS AX, and WDA interceptors
+  android/  recorded Midscene Android composition
   ios/      WDA CLI composition
   macos/    recorded Midscene Computer composition
 ```
@@ -22,6 +23,7 @@ contracts, ordering, correlation, and supported combinations.
 actonce-record profiles --json
 actonce-record record midscene-macos --entry /absolute/task.ts --display-id 0
 actonce-record record midscene-ios --entry /absolute/task.ts --upstream-port 8100
+actonce-record record midscene-android --entry /absolute/task.ts --serial emulator-5554
 actonce-record record ios-wda --upstream-port 8100
 ```
 
@@ -31,6 +33,7 @@ Inside an ActOnce checkout the equivalent development commands are:
 npm run interceptor:start -- profiles --json
 npm run interceptor:start -- record midscene-macos --entry /absolute/task.ts --display-id 0
 npm run interceptor:start -- record midscene-ios --entry /absolute/task.ts --upstream-port 8100
+npm run interceptor:start -- record midscene-android --entry /absolute/task.ts --serial emulator-5554
 npm run interceptor:start -- record ios-wda --upstream-port 8100
 ```
 
@@ -38,7 +41,8 @@ Source composition is owned by named CLI profiles. Skills and task modules never
 attach sources directly. `midscene-macos` fixes the `midscene + macos-input +
 checkpoint` combination. `midscene-ios` fixes `midscene + wda + checkpoint`,
 including screenshot and native UI tree capture. `ios-wda` is the protocol-only
-proxy profile. Add and test a new named CLI profile when another combination is
+proxy profile. `midscene-android` fixes `midscene + normalized Android actions +
+checkpoint`, including screenshot and UI-tree capture. Add and test a new named CLI profile when another combination is
 needed.
 
 ## iOS / WDA
