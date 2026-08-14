@@ -24,6 +24,10 @@ its default input behavior dismisses a visible software keyboard after typing. V
 that the shared runtime preserves both semantics before blaming later coordinates.
 Fix missing parity in the runtime, never by adding unrecorded Back/Delete calls to a
 case-specific generated script.
+Do not monkeypatch `android.device`, override runtime methods, or inline a different
+keyboard timeout in generated replay. If the shared bounded dismissal behavior is
+insufficient, repair and test the published runtime first, then recompile from the
+immutable recording.
 
 ## Guarded fragments
 

@@ -177,7 +177,7 @@ export class NativeAndroidDevice {
       ...Array.from({ length: maxLength }, () => ["67", "112"]).flat(),
     ]);
   }
-  async hideKeyboard(timeoutMs = 1_000): Promise<boolean> {
+  async hideKeyboard(timeoutMs = 3_000): Promise<boolean> {
     if (!(await this.isKeyboardShown())) return false;
     // BACK is consumed by the visible IME on stock Android. ESC may be
     // delivered to the app and dismiss a dialog even while mInputShown=true.

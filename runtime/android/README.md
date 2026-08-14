@@ -12,7 +12,9 @@ actonce-android run replay.ts --serial emulator-5554
 
 Generated code must use `replayAndroidPrimitive`; do not inline ADB commands. Coordinates are normalized logical points and the native backend converts them to physical ADB coordinates using the device density.
 
-`typeText` preserves Midscene's Android replace and keyboard-dismiss semantics.
+`typeText` preserves Midscene's Android replace and keyboard-dismiss semantics,
+including a bounded three-second IME dismissal observation window before trying
+the guarded secondary key path.
 The compile Skill may emit `tapUniqueNode` only after proving a selector unique
 and semantically aligned from recorded evidence; the primitive performs a native
 UIAutomator2 element click and retains the normalized recorded coordinate as its
