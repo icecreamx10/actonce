@@ -153,6 +153,12 @@ the final target already matches, skip remaining calls; never undo, delete, subm
 or close after cleanup is complete. Otherwise execute only the next opaque call,
 settle on its checkpoint, and reassess.
 
+The preceding skip rule never applies to the initial forward action chain. On a fresh
+fixture, execute every selected forward primitive exactly once in recorded order.
+Never use a future or final checkpoint as lookahead to skip setup or intermediate
+actions. Only a retry of an already-attempted primitive may consult that primitive's
+own immediate postcondition; cleanup may consult only its own cleanup postcondition.
+
 Use bounded polling for asynchronous UI changes in both action and assertion
 pre/post checkpoints. Keep short input-settle delays only when required by the
 recorded driver behavior.
