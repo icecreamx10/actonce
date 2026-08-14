@@ -51,6 +51,13 @@ export class NativeAndroidDevice {
     });
     this.sessionId = stringValue(session.sessionId) ?? stringValue(recordValue(session.value)?.sessionId) ?? stringValue(recordValue(session.value)?.id);
     if (!this.sessionId) throw new Error(`UIAutomator2 did not return a session id: ${JSON.stringify(session)}`);
+    // Toast nodes are transient and are not valid replay checkpoints. More
+    // importantly, UIAutomator2's synthetic toast node path reflects into
+    // AccessibilityNodeInfo internals that are absent on some Android builds.
+    // Disable only that listener; the normal accessibility tree remains intact.
+    await this.request("POST", this.sessionPath("/appium/settings"), {
+      settings: { enableNotificationListener: false },
+    });
     const density = await this.shell(["wm", "density"]);
     const match = density.match(/(?:Override|Physical) density:\s*(\d+)/);
     this.densityScale = match ? Number(match[1]) / 160 : 1;

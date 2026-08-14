@@ -107,6 +107,8 @@ export async function compileAndroidPrimitivesFile(
 function lower(event: Event): RecordedAndroidPrimitive {
   const args = event.normalizedArguments ?? {};
   const mapping: Record<string, AndroidPrimitiveOperation> = {
+    Launch: "launchApp",
+    Terminate: "terminateApp",
     Tap: "tap",
     DoubleClick: "doubleClick",
     LongPress: "longPress",
@@ -127,6 +129,14 @@ function lower(event: Event): RecordedAndroidPrimitive {
     );
   if (["back", "home", "recentApps"].includes(operation))
     return { operation, arguments: [] };
+  if (["launchApp", "terminateApp"].includes(operation)) {
+    const packageName = args.uri ?? args.packageName ?? args.package;
+    if (typeof packageName !== "string" || packageName.length === 0)
+      throw new Error(
+        `Recorded Android ${event.operation} action is missing package name`,
+      );
+    return { operation, arguments: [packageName] };
+  }
   if (["tap", "doubleClick", "longPress"].includes(operation))
     return { operation, arguments: [targetPoint(args.locate)] };
   if (operation === "typeText") {
@@ -136,7 +146,10 @@ function lower(event: Event): RecordedAndroidPrimitive {
       operation,
       arguments: [
         args.value,
-        { target: args.locate, replace: args.replace !== false },
+        {
+          target: args.locate,
+          replace: args.mode === "replace" || args.replace !== false,
+        },
       ],
     };
   }

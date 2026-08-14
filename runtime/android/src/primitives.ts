@@ -66,8 +66,8 @@ export async function replayAndroidPrimitive(
         const target = inputOptions?.target;
         if (target && typeof target === "object") {
           await android.device.tap(point(target, "typeText target"));
-          if (inputOptions?.replace !== false) await android.device.clearInput();
         }
+        if (inputOptions?.replace !== false) await android.device.clearInput();
         if (!inputOptions?.focusOnly) await android.device.typeText(value);
       }
       return;
