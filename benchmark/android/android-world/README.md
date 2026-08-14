@@ -20,6 +20,33 @@ npm run android-world:catalog -- --selection pass@3 --format lines
 ```
 
 `SystemBrightnessMax` is the first completed case, not the whole suite.
+Full-suite app installation and snapshots are measurement-external setup:
+
+```bash
+npm run android-world:prepare-suite
+```
+
+Generated cases persist exact AndroidWorld parameters in a sample-local
+`params.pickle` and a readable `task.json` summary. Initialization and official
+validation must reuse that same state directory.
+
+Repository-owned patches under `patches/` are applied idempotently by bootstrap
+and remain part of the pinned environment provenance. They may fix setup or
+stability without changing task intent or the official success condition.
+
+Create and resume the full matrix in explicit phases:
+
+```bash
+npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
+npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
+# Compile each awaiting sample to <sample>/compiled/replay.ts.
+npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
+npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
+```
+
+Each phase skips completed artifacts unless `--force` is provided. Use
+`--task <TaskName>` to work on one catalog case without changing its denominator
+or directory identity.
 
 ```bash
 npm run android-world:bootstrap

@@ -63,6 +63,29 @@ in the denominator; never silently skip it.
 The current `SystemBrightnessMax` workflow below is the suite canary. It proves
 the harness, not full AndroidWorld coverage.
 
+Use the resumable suite phases from one stable output root:
+
+```bash
+npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
+npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
+# Compile every sample reported as awaiting_compile into <sample>/compiled/replay.ts.
+npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
+npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
+```
+
+Invoke the repository's recording compilation skill for each complete original
+recording. A sample-local generated `compiled/replay.ts` is an expected
+benchmark artifact, not a benchmark-runner code change. Editing the catalog,
+runner, runtime, initializer bridge, validator bridge, or setup patches still
+invalidates the measurement and requires a different fresh agent.
+
+Before delegating formal suite work, the coordinator must run the resumable
+measurement-external setup and require `24 ready / 0 failed / 0 pending`:
+
+```bash
+npm run android-world:prepare-suite -- --output .cache/android-world/setup
+```
+
 ## SystemBrightnessMax workflow
 
 1. Read `benchmark/android/android-world/README.md` and the checked-in runner.

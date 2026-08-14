@@ -1,0 +1,23 @@
+diff --git a/android_world/env/setup_device/apps.py b/android_world/env/setup_device/apps.py
+index 6505b4e..9357df9 100644
+--- a/android_world/env/setup_device/apps.py
++++ b/android_world/env/setup_device/apps.py
+@@ -457,11 +457,15 @@ class AudioRecorder(AppSetup):
+     adb_utils.issue_generic_request(
+         [
+             "shell",
+-            "monkey",
++            "am",
++            "start",
++            "-W",
++            "-a",
++            "android.intent.action.MAIN",
++            "-c",
++            "android.intent.category.LAUNCHER",
+             "-p",
+             "com.dimowner.audiorecorder",
+-            "-candroid.intent.category.LAUNCHER",
+-            "1",
+         ],
+         env.controller,
+     )

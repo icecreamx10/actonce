@@ -7,6 +7,24 @@ SOURCE="${CACHE}/source"
 VENV="${CACHE}/venv"
 ANDROID_WORLD_COMMIT="3e50888527ef9f29b9157ecd537e408008bb1c85"
 AVD_ROOT="${ANDROID_AVD_HOME:-${HOME}/.android/avd}"
+PATCH_DIR="${ROOT}/benchmark/android/android-world/patches"
+
+apply_patches() {
+  local patch_path
+  for patch_path in "${PATCH_DIR}"/*.patch; do
+    [[ -e "${patch_path}" ]] || continue
+    if git -C "${SOURCE}" apply --reverse --check "${patch_path}" >/dev/null 2>&1; then
+      continue
+    fi
+    git -C "${SOURCE}" apply --check "${patch_path}"
+    git -C "${SOURCE}" apply "${patch_path}"
+  done
+}
+
+if [[ -d "${SOURCE}/.git" ]] \
+  && [[ "$(git -C "${SOURCE}" rev-parse HEAD 2>/dev/null || true)" == "${ANDROID_WORLD_COMMIT}" ]]; then
+  apply_patches
+fi
 
 environment_ready() {
   [[ -d "${SOURCE}/.git" ]] \
@@ -47,6 +65,7 @@ if [[ ! -d "${SOURCE}/.git" ]]; then
 fi
 git -C "${SOURCE}" fetch --depth 1 origin "${ANDROID_WORLD_COMMIT}"
 git -C "${SOURCE}" checkout --detach "${ANDROID_WORLD_COMMIT}"
+apply_patches
 
 if [[ ! -x "${VENV}/bin/python" ]]; then
   python3 -m venv "${VENV}"

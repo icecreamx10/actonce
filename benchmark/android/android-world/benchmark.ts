@@ -1,12 +1,15 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { MIDSCENE_ANDROID_WORLD_CASES, MIDSCENE_ANDROID_WORLD_REPORT } from "./catalog.js";
 
 type Mode = "all" | "original" | "replay" | "evaluate";
 const args = parseArgs(process.argv.slice(2));
 const outputDir = resolve(args.output ?? `.cache/android-world/runs/${new Date().toISOString().replaceAll(":", "-")}`);
 const python = resolve(".cache/android-world/venv/bin/python");
 const taskCli = resolve("benchmark/android/android-world/task.py");
+const stateDir = resolve(outputDir, "task-state");
+const catalogCase = requireCatalogCase(args.task);
 await mkdir(outputDir, { recursive: true });
 
 if (args.mode === "all" || args.mode === "original") await original();
@@ -21,19 +24,22 @@ async function original() {
   const runDir = resolve(outputDir, "original");
   await mkdir(runDir, { recursive: true });
   const initialized = await task("initialize");
+  const originalEntry = args.originalEntry ?? (args.task === "SystemBrightnessMax"
+    ? "benchmark/android/android-world/system-brightness-max-task.ts"
+    : "benchmark/android/android-world/generic-task.ts");
   const processResult = await run("node_modules/.bin/tsx", [
     "interceptor/src/cli.ts", "record", "midscene-android",
-    "--entry", "benchmark/android/android-world/system-brightness-max-task.ts",
+    "--entry", originalEntry,
     "--recordings-dir", outputDir, "--recording-id", "original",
-  ]);
+  ], { ACTONCE_ANDROID_WORLD_GOAL: String(initialized.goal) });
   const official = await task("evaluate");
   const manifest = await json(resolve(runDir, "manifest.json"));
   const duration = manifestDuration(manifest) ?? processResult.durationMs;
   await writeJson(resolve(runDir, "result.json"), {
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: benchmarkId(),
     suite: "AndroidWorld",
-    task: "SystemBrightnessMax",
+    task: args.task,
     mode: "original",
     status: processResult.code === 0 && official.reward === 1 ? "passed" : "failed",
     goal: initialized.goal,
@@ -48,18 +54,22 @@ async function replay() {
   const runDir = resolve(outputDir, "replay");
   await mkdir(runDir, { recursive: true });
   const initialized = await task("initialize");
+  const replayEntry = args.replayEntry ?? (args.task === "SystemBrightnessMax"
+    ? "benchmark/android/android-world/system-brightness-max-replay.ts"
+    : undefined);
+  if (!replayEntry) throw new Error(`--replay-entry is required for ${args.task}`);
   const processResult = await run(
     "node_modules/.bin/tsx",
-    ["benchmark/android/android-world/system-brightness-max-replay.ts"],
+    [replayEntry],
     { ACTONCE_BENCHMARK_OUTPUT_DIR: runDir },
   );
   const official = await task("evaluate");
   const runtime = await json(resolve(runDir, "result.json"));
   await writeJson(resolve(runDir, "benchmark-result.json"), {
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: benchmarkId(),
     suite: "AndroidWorld",
-    task: "SystemBrightnessMax",
+    task: args.task,
     mode: "replay",
     status: processResult.code === 0 && runtime?.status === "passed" && official.reward === 1 ? "passed" : "failed",
     goal: initialized.goal,
@@ -82,13 +92,15 @@ async function evaluate() {
   const speedup = comparable ? originalMs / replayMs : null;
   const result = {
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: benchmarkId(),
     upstream: {
       suite: "AndroidWorld",
-      task: "SystemBrightnessMax",
-      commit: "3e50888527ef9f29b9157ecd537e408008bb1c85",
-      midscenePublishedRound1Status: "PASS",
-      midscenePublishedReport: "https://midscenejs.com/android-world-benchmark-report?file=Task-79-SystemBrightnessMax__group-8-47bb9356-d880-425c-87cc-e0a575c206fe-Pass.html",
+      task: args.task,
+      taskId: catalogCase.id,
+      commit: MIDSCENE_ANDROID_WORLD_REPORT.androidWorldCommit,
+      midscenePublishedRounds: catalogCase.rounds,
+      midscenePublishedFinalStatus: catalogCase.finalStatus,
+      midscenePublishedReport: MIDSCENE_ANDROID_WORLD_REPORT.url,
     },
     correctness: {
       passed,
@@ -112,7 +124,9 @@ async function evaluate() {
 }
 
 async function task(command: "initialize" | "evaluate") {
-  const result = await runCapture(python, [taskCli, command], {
+  const taskArgs = [taskCli, command, "--task", args.task, "--state-dir", stateDir];
+  if (command === "initialize" && args.seed !== undefined) taskArgs.push("--seed", String(args.seed));
+  const result = await runCapture(python, taskArgs, {
     GRPC_VERBOSITY: "ERROR",
   });
   const line = result.stdout.trim().split("\n").at(-1);
@@ -140,15 +154,28 @@ function runCapture(command: string, childArgs: string[], extraEnv: Record<strin
   });
 }
 
-function parseArgs(values: string[]): { mode: Mode; output?: string } {
-  let mode: Mode = "all", output: string | undefined;
+function parseArgs(values: string[]): {
+  mode: Mode;
+  output?: string;
+  task: string;
+  seed?: number;
+  originalEntry?: string;
+  replayEntry?: string;
+} {
+  let mode: Mode = "all", output: string | undefined, task = "SystemBrightnessMax";
+  let seed: number | undefined, originalEntry: string | undefined, replayEntry: string | undefined;
   for (let index = 0; index < values.length; index += 1) {
     if (values[index] === "--mode") mode = values[++index] as Mode;
     else if (values[index] === "--output") output = values[++index];
+    else if (values[index] === "--task") task = values[++index];
+    else if (values[index] === "--seed") seed = Number(values[++index]);
+    else if (values[index] === "--original-entry") originalEntry = values[++index];
+    else if (values[index] === "--replay-entry") replayEntry = values[++index];
     else throw new Error(`Unknown argument: ${values[index]}`);
   }
   if (!["all", "original", "replay", "evaluate"].includes(mode)) throw new Error(`Unknown mode: ${mode}`);
-  return { mode, output };
+  if (seed !== undefined && !Number.isInteger(seed)) throw new Error(`Invalid seed: ${seed}`);
+  return { mode, output, task, seed, originalEntry, replayEntry };
 }
 
 async function json(path: string): Promise<Record<string, unknown> | null> {
@@ -164,3 +191,9 @@ function manifestDuration(manifest: Record<string, unknown> | null) {
 function number(value: unknown) { return typeof value === "number" && Number.isFinite(value) ? value : null; }
 function object(value: unknown) { return value && typeof value === "object" ? value as Record<string, unknown> : null; }
 function elapsed(started: bigint) { return Number(process.hrtime.bigint() - started) / 1_000_000; }
+function benchmarkId() { return `android-world-${args.task.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase()}`; }
+function requireCatalogCase(task: string) {
+  const entry = MIDSCENE_ANDROID_WORLD_CASES.find((candidate) => candidate.task === task);
+  if (!entry) throw new Error(`Task is absent from the pinned Midscene catalog: ${task}`);
+  return entry;
+}

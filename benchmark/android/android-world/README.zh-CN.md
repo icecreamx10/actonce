@@ -19,6 +19,30 @@ npm run android-world:catalog -- --selection pass@3 --format lines
 ```
 
 `SystemBrightnessMax` 只是第一个已完成 case，并不代表完整 suite。
+完整 suite 的 App 安装及 snapshot 属于测量外 setup：
+
+```bash
+npm run android-world:prepare-suite
+```
+
+动态 case 会在 sample 目录保存精确的 AndroidWorld `params.pickle` 及可读的
+`task.json` 摘要；initializer 与官方 validator 必须复用同一个 state 目录。
+
+bootstrap 会幂等应用 `patches/` 下由仓库管理的补丁，并把它们纳入环境来源记录；
+补丁只允许修复 setup 或稳定性，不能改变任务意图与官方成功条件。
+
+完整矩阵分阶段创建并支持断点续跑：
+
+```bash
+npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
+npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
+# 将每个 awaiting sample 编译为 <sample>/compiled/replay.ts。
+npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
+npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
+```
+
+各阶段默认跳过已有完整 artifact，只有 `--force` 才重跑。可用
+`--task <TaskName>` 处理单个 catalog case，但不会改变总分母或目录身份。
 
 ```bash
 npm run android-world:bootstrap
