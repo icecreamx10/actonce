@@ -44,6 +44,14 @@ screenshots. Replay spent `4.274 s` capturing accessibility checkpoints and
 only `0.201 s` in actual settle delay.
 See the [Android benchmark guide](benchmark/android/README.md).
 
+The AndroidWorld harness now pins Midscene's published 116-task catalog and
+targets all 113 tasks that passed by round 3. Its resumable CLI performs
+official initialization, Midscene recording, automatic evidence-backed
+compilation, native replay, and official validation per sample. Full-suite
+formal scoring is in progress; current AndroidWorld canaries pass both a system
+setting task and a generated-data Contacts form. See the
+[AndroidWorld benchmark guide](benchmark/android/android-world/README.md).
+
 ## How it works
 
 ```text
@@ -84,6 +92,7 @@ Midscene is quarantined behind `@byted-lynx/actonce-midscene-adapter`: original 
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | Optional bounded Midscene recovery adapter |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.md) | Pinned desktop fixture, natural-language cases, runners, evidence, and evaluator |
 | [`benchmark/android/`](benchmark/android/README.md) | Android emulator and reproducible Midscene-versus-ActOnce checkout benchmark |
+| [`benchmark/android/android-world/`](benchmark/android/android-world/README.md) | Pinned 113-case Midscene PASS catalog, official AndroidWorld bridge, compiler, resumable suite, and evaluator |
 | [`benchmark/ios/`](benchmark/ios/README.md) | iOS Simulator, WDA, and Midscene smoke setup |
 | [`.agents/skills/benchmark-lynxtron-fiddle`](.agents/skills/benchmark-lynxtron-fiddle/SKILL.md) | Repository-internal benchmark procedure; not a published Skill |
 

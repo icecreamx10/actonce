@@ -11,3 +11,10 @@ actonce-android run replay.ts --serial emulator-5554
 ```
 
 Generated code must use `replayAndroidPrimitive`; do not inline ADB commands. Coordinates are normalized logical points and the native backend converts them to physical ADB coordinates using the device density.
+
+`replayCheckpointGatedAndroidRecording` executes mechanically compiled steps
+with screenshot-first settling and recorded native-node evidence when raster
+state is ambiguous. It resolves recorded tap targets against live accessibility
+bounds when selectors are available, reuses a matched postcondition as the
+adjacent precondition, and reports screenshot capture, source capture, actual
+settle delay, skipped actions, and fallback separately.

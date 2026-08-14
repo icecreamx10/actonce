@@ -68,16 +68,28 @@ Use the resumable suite phases from one stable output root:
 ```bash
 npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
-# Compile every sample reported as awaiting_compile into <sample>/compiled/replay.ts.
+npm run benchmark:android:android-world-suite -- --phase compile --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
 ```
 
-Invoke the repository's recording compilation skill for each complete original
-recording. A sample-local generated `compiled/replay.ts` is an expected
-benchmark artifact, not a benchmark-runner code change. Editing the catalog,
+The compile phase mechanically lowers every complete successful recording,
+derives screenshot and native-node checkpoints from its immutable evidence,
+and writes `compiled/replay.ts`, `recorded-input.ts`,
+`assertion-decision.json`, and `compile-result.json`. Inspect failures and use
+the repository's recording compilation skill when a task requires a narrower
+repair; never handwave a missing generated script. A sample-local generated
+`compiled/replay.ts` is an expected benchmark artifact, not a benchmark-runner
+code change. Editing the catalog,
 runner, runtime, initializer bridge, validator bridge, or setup patches still
 invalidates the measurement and requires a different fresh agent.
+
+The generated Android replay checks screenshots first. When raster state is
+not discriminative, it may use only native node facts present in the same
+recorded checkpoint, including structured focus state. Recorded tap coordinates
+are replaced by live native bounds when the recording identifies the target
+node. A matched postcondition is reused as the immediately adjacent next
+precondition. These are deterministic compilation rules, not AI fallback.
 
 Before delegating formal suite work, the coordinator must run the resumable
 measurement-external setup and require `24 ready / 0 failed / 0 pending`:
@@ -137,6 +149,7 @@ npm run android-world:prepare-suite -- --output .cache/android-world/setup
    - official reward `1.0` for each;
    - a complete original recording;
    - replay checkpoint evidence and fallback diagnostics;
+   - separate screenshot capture, native source capture, and settle-delay time;
    - positive durations measured at the same task-execution boundary.
 9. Report correctness first. Only when both official rewards pass, report
    original duration, replay duration, speedup, reduction percent, checkpoint

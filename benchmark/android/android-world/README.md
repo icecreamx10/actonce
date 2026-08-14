@@ -39,10 +39,24 @@ Create and resume the full matrix in explicit phases:
 ```bash
 npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
-# Compile each awaiting sample to <sample>/compiled/replay.ts.
+npm run benchmark:android:android-world-suite -- --phase compile --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
 ```
+
+The compile phase is automatic and fail-closed. It lowers recorded actions to
+native ActOnce primitives, derives visual and accessibility checkpoints from
+the same immutable trace, and emits a standalone replay per sample. Live native
+bounds replace recorded tap coordinates when node evidence is available.
+Screenshot capture, accessibility capture, actual settle delay, skipped
+already-satisfied primitives, and fallback count are reported separately.
+
+Development validation now covers both a system task (`SystemBrightnessMax`)
+and a generated-data app form (`ContactsAddContact`). The latter passed the
+official database validator with a `139.019 s` Midscene original and a
+checkpoint-gated generated replay whose latest successful run took `32.774 s`
+(`4.24×`), with zero AI fallback. This is a representative development result,
+not the pending aggregate score for all 113 tasks.
 
 Each phase skips completed artifacts unless `--force` is provided. Use
 `--task <TaskName>` to work on one catalog case without changing its denominator

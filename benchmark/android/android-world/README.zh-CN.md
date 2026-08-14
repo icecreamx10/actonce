@@ -36,10 +36,21 @@ bootstrap 会幂等应用 `patches/` 下由仓库管理的补丁，并把它们�
 ```bash
 npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
-# 将每个 awaiting sample 编译为 <sample>/compiled/replay.ts。
+npm run benchmark:android:android-world-suite -- --phase compile --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
 ```
+
+compile 阶段自动且 fail-closed：它把录制动作降低为原生 ActOnce primitive，
+从同一条不可变 trace 生成截图与 accessibility checkpoint，并为每个 sample
+产出独立 replay。录制证据能识别节点时，执行会用 live native bounds 代替原始
+坐标。结果会分别记录截图捕获、原生 source 捕获、真正 settle delay、已满足而
+跳过的 primitive 以及 fallback 次数。
+
+开发验证目前覆盖 system task `SystemBrightnessMax` 与带生成参数的表单任务
+`ContactsAddContact`。后者通过官方数据库 validator：Midscene original 为
+`139.019 秒`，最新一次自动编译 replay 为 `32.774 秒`（`4.24×`），AI fallback
+为 0。这只是代表性开发结果，不是 113 个任务的最终汇总分数。
 
 各阶段默认跳过已有完整 artifact，只有 `--force` 才重跑。可用
 `--task <TaskName>` 处理单个 catalog case，但不会改变总分母或目录身份。

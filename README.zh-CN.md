@@ -40,6 +40,12 @@ Android 通过固定 `midscene-android` profile 录制同构的 My Demo App chec
 replay 其中 `4.274 秒` 用于 accessibility checkpoint capture，真正 settle delay
 仅为 `0.201 秒`。详情见 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
 
+AndroidWorld harness 现已固定 Midscene 发布的 116 个任务目录，并以截至第三轮
+通过的全部 113 个任务为完整目标。可恢复 CLI 会对每个样本依次执行官方初始化、
+Midscene 录制、基于证据的自动编译、原生 replay 和官方校验。全量正式评分仍在
+进行；当前 system setting 与带随机数据的 Contacts 表单两个 canary 均已通过。
+详情见 [AndroidWorld benchmark 指南](benchmark/android/android-world/README.md)。
+
 ## 工作原理
 
 ```text
@@ -80,6 +86,7 @@ Midscene 被集中隔离在 `@byted-lynx/actonce-midscene-adapter`：原始 AI �
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | 可选的受限 Midscene 恢复适配器 |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.zh-CN.md) | 固定桌面 fixture、自然语言 case、runner、证据与 evaluator |
 | [`benchmark/android/`](benchmark/android/README.zh-CN.md) | Android 模拟器与可复现的 Midscene 对 ActOnce checkout benchmark |
+| [`benchmark/android/android-world/`](benchmark/android/android-world/README.md) | 固定的 113-case Midscene PASS 目录、官方 AndroidWorld bridge、编译器、可恢复 suite 与 evaluator |
 | [`benchmark/ios/`](benchmark/ios/README.zh-CN.md) | iOS Simulator、WDA 与 Midscene smoke 环境 |
 | [`.agents/skills/benchmark-lynxtron-fiddle`](.agents/skills/benchmark-lynxtron-fiddle/SKILL.md) | 仓库内部 benchmark 流程，不作为 Skill 发布 |
 
