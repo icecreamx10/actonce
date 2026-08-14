@@ -1,4 +1,5 @@
 export * from "./checkpoint.js";
+export * from "./native-device.js";
 export * from "./primitives.js";
 export * from "./primitive-compiler.js";
 export * from "./recorded-replay.js";

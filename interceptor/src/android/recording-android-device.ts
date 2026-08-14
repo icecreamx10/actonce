@@ -5,6 +5,10 @@ import {
   getConnectedDevices,
 } from "@byted-lynx/actonce-midscene-adapter";
 import {
+  NativeAndroidDevice,
+  androidUiAutomatorXmlToUiTree,
+} from "@byted-lynx/actonce-android";
+import {
   RecordingWriter,
   decodeDataUrl,
   type RecordingWriterOptions,
@@ -66,6 +70,30 @@ export async function agentForRecordedAndroid(
       `${message(error)}\nActOnce failure recording: ${writer.recordingDir}`,
     );
   }
+  let checkpointDevice: NativeAndroidDevice;
+  try {
+    checkpointDevice = await NativeAndroidDevice.connect({
+      serial,
+      androidAdbPath:
+        deviceOptions.androidAdbPath ??
+        process.env.MIDSCENE_ADB_PATH ??
+        process.env.ACTONCE_ADB_PATH,
+      systemPort: checkpointSystemPort(),
+    });
+  } catch (error) {
+    writer.markIncomplete(
+      `Android accessibility checkpoint service failed: ${message(error)}`,
+    );
+    await device.destroy().catch(() => undefined);
+    await writer.close();
+    throw new Error(
+      `${message(error)}\nActOnce failure recording: ${writer.recordingDir}`,
+    );
+  }
+  device.getUITree = async () => androidUiAutomatorXmlToUiTree(
+    await checkpointDevice.sourceXml(),
+    checkpointDevice.pixelRatio(),
+  ) as Awaited<ReturnType<AndroidDevice["getUITree"]>>;
 
   const checkpointContext = writer.source({
     type: "checkpoint",
@@ -77,6 +105,7 @@ export async function agentForRecordedAndroid(
   }> = [];
   const captureCheckpoint = createAndroidCheckpointCapture(
     device,
+    checkpointDevice,
     checkpointContext,
     (evidence) => observationScreenshots.push(evidence),
   );
@@ -103,6 +132,7 @@ export async function agentForRecordedAndroid(
       if (closed) return;
       closed = true;
       try {
+        await checkpointDevice.close();
         await device.destroy();
       } catch (error) {
         writer.markIncomplete(
@@ -117,6 +147,7 @@ export async function agentForRecordedAndroid(
 
 export function createAndroidCheckpointCapture(
   device: AndroidDevice,
+  checkpointDevice: Pick<NativeAndroidDevice, "source">,
   context: RecorderContext,
   onScreenshot?: (evidence: {
     sequence: number;
@@ -130,7 +161,7 @@ export function createAndroidCheckpointCapture(
       const [image, viewport, nativeUi] = await Promise.all([
         device.screenshotBase64(),
         device.size(),
-        device.getUITree(),
+        checkpointDevice.source(),
       ]);
       const decoded = decodeDataUrl(image);
       const screenshot = await context.artifact(
@@ -138,7 +169,7 @@ export function createAndroidCheckpointCapture(
         decoded.mediaType,
       );
       const nativeUiArtifact = context.storeArtifact(
-        Buffer.from(JSON.stringify(nativeUi), "utf8"),
+        Buffer.from(nativeUi, "utf8"),
         "application/json",
       );
       const receipt = context.emit({
@@ -153,14 +184,14 @@ export function createAndroidCheckpointCapture(
           deviceMetadata: { platform: "android", viewport },
           nativeUi: {
             status: "available",
-            source: "android-uiautomator-tree",
+            source: "appium-uiautomator2-accessibility-tree",
             artifact: nativeUiArtifact,
           },
         },
         coherence: {
           status: "bounded",
           reason:
-            "screenshot and native UI were captured concurrently through one AndroidDevice",
+            "screenshot and native UI were captured concurrently from one device through the Midscene screenshot path and a session-scoped UIAutomator2 accessibility service",
         },
         timing: {
           startedMonotonicNs,
@@ -195,6 +226,14 @@ export function createAndroidCheckpointCapture(
       );
     }
   };
+}
+function checkpointSystemPort(): number {
+  const raw = process.env.ACTONCE_ANDROID_SYSTEM_PORT;
+  if (!raw) return 8200;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1 || value > 65_535)
+    throw new Error(`Invalid ACTONCE_ANDROID_SYSTEM_PORT: ${raw}`);
+  return value;
 }
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

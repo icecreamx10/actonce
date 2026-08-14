@@ -65,16 +65,27 @@ export class NativeAndroidDevice {
 
   async close(): Promise<void> {
     if (this.sessionId) await this.request("DELETE", `/session/${this.sessionId}`).catch(() => undefined);
+    this.sessionId = undefined;
     this.instrumentation?.kill("SIGTERM");
+    await Promise.all([
+      this.shell(["am", "force-stop", SERVER_PACKAGE]).catch(() => ""),
+      this.shell(["am", "force-stop", TEST_PACKAGE]).catch(() => ""),
+    ]);
     await this.run(["forward", "--remove", `tcp:${this.systemPort}`]).catch(() => "");
   }
 
   async source(): Promise<string> {
+    return normalizeAndroidSource(await this.sourceXml());
+  }
+
+  async sourceXml(): Promise<string> {
     const response = await this.request<unknown>("GET", this.sessionPath("/source"));
     const xml = typeof response === "string" ? response : stringValue(recordValue(response)?.value);
-    if (!xml) return JSON.stringify(response);
-    return normalizeAndroidSource(xml);
+    if (!xml) throw new Error(`UIAutomator2 source response did not contain XML: ${JSON.stringify(response)}`);
+    return xml;
   }
+
+  pixelRatio(): number { return this.densityScale; }
 
   async screenshotBase64(): Promise<string> {
     const response = await this.request<unknown>("GET", this.sessionPath("/screenshot"));
@@ -163,4 +174,85 @@ function keyCode(key: string): string { const normalized = key.toUpperCase().rep
 
 export function normalizeAndroidSource(xml: string): string {
   return JSON.stringify(new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" }).parse(xml));
+}
+
+export type AndroidUiTreeNode = {
+  type: string;
+  attrs: Record<string, string>;
+  bounds: { left: number; top: number; width: number; height: number };
+  children: AndroidUiTreeNode[];
+};
+
+export type AndroidUiTree = {
+  platform: "android";
+  capturedAt: number;
+  root: AndroidUiTreeNode;
+};
+
+export function androidUiAutomatorXmlToUiTree(
+  xml: string,
+  devicePixelRatio = 1,
+  capturedAt = Date.now(),
+): AndroidUiTree {
+  const parsed = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "",
+    preserveOrder: true,
+  }).parse(xml) as Array<Record<string, unknown>>;
+  const hierarchy = parsed.find((entry) => Array.isArray(entry.hierarchy));
+  if (!hierarchy) throw new Error("UIAutomator2 source did not contain a hierarchy root");
+  const roots = (hierarchy.hierarchy as Array<Record<string, unknown>>)
+    .map((entry) => orderedXmlNode(entry, devicePixelRatio))
+    .filter((entry): entry is AndroidUiTreeNode => entry !== null);
+  if (roots.length === 0) throw new Error("UIAutomator2 hierarchy did not contain a UI node");
+  return {
+    platform: "android",
+    capturedAt,
+    root: roots.length === 1 ? roots[0] : {
+      type: "hierarchy",
+      attrs: {},
+      bounds: unionBounds(roots),
+      children: roots,
+    },
+  };
+}
+
+function orderedXmlNode(
+  entry: Record<string, unknown>,
+  devicePixelRatio: number,
+): AndroidUiTreeNode | null {
+  const tag = Object.keys(entry).find((key) => key !== ":@" && key !== "#text");
+  if (!tag || !Array.isArray(entry[tag])) return null;
+  const rawAttrs = recordValue(entry[":@"]);
+  const attrs = Object.fromEntries(
+    Object.entries(rawAttrs ?? {}).map(([key, value]) => [key, String(value)]),
+  );
+  const bounds = parseBounds(attrs.bounds, devicePixelRatio);
+  delete attrs.bounds;
+  const children = (entry[tag] as Array<Record<string, unknown>>)
+    .map((child) => orderedXmlNode(child, devicePixelRatio))
+    .filter((child): child is AndroidUiTreeNode => child !== null);
+  return { type: attrs.class || tag, attrs, bounds, children };
+}
+
+function parseBounds(raw: string | undefined, devicePixelRatio: number) {
+  const match = raw?.match(/^\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]$/);
+  const ratio = devicePixelRatio > 0 ? devicePixelRatio : 1;
+  if (!match) return { left: 0, top: 0, width: 0, height: 0 };
+  const left = Number(match[1]), top = Number(match[2]);
+  const right = Number(match[3]), bottom = Number(match[4]);
+  return {
+    left: left / ratio,
+    top: top / ratio,
+    width: Math.max(0, right - left) / ratio,
+    height: Math.max(0, bottom - top) / ratio,
+  };
+}
+
+function unionBounds(nodes: AndroidUiTreeNode[]) {
+  const left = Math.min(...nodes.map((node) => node.bounds.left));
+  const top = Math.min(...nodes.map((node) => node.bounds.top));
+  const right = Math.max(...nodes.map((node) => node.bounds.left + node.bounds.width));
+  const bottom = Math.max(...nodes.map((node) => node.bounds.top + node.bounds.height));
+  return { left, top, width: right - left, height: bottom - top };
 }
