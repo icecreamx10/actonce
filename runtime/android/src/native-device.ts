@@ -195,10 +195,7 @@ export class NativeAndroidDevice {
   async home(): Promise<void> { await this.keyboardPress("HOME"); }
   async recentApps(): Promise<void> { await this.keyboardPress("APP_SWITCH"); }
   async launch(packageName: string): Promise<void> {
-    await this.shell([
-      "am", "start", "-W", "-a", "android.intent.action.MAIN",
-      "-c", "android.intent.category.LAUNCHER", "-p", packageName,
-    ]);
+    await activateAndroidPackage(packageName, (args) => this.shell(args));
   }
   async terminate(packageName: string): Promise<void> { await this.shell(["am", "force-stop", packageName]); }
 
@@ -243,6 +240,78 @@ export class NativeAndroidDevice {
     }
     await this.sessionRecovery;
   }
+}
+
+type AndroidShell = (args: string[]) => Promise<string>;
+
+export async function activateAndroidPackage(
+  packageName: string,
+  shell: AndroidShell,
+): Promise<void> {
+  if (!/^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/.test(packageName)) {
+    throw new TypeError(`Invalid Android package name: ${packageName}`);
+  }
+
+  const sdkOutput = await shell(["getprop", "ro.build.version.sdk"]);
+  const apiLevel = Number.parseInt(sdkOutput.trim(), 10);
+  if (!Number.isFinite(apiLevel)) {
+    throw new Error(`Cannot determine Android API level: ${sdkOutput}`);
+  }
+
+  if (apiLevel < 24) {
+    const output = await shell([
+      "monkey", "-p", packageName,
+      "-c", "android.intent.category.LAUNCHER", "1",
+    ]);
+    if (/monkey aborted|no activities found|error:/i.test(output)) {
+      throw new Error(`Cannot activate '${packageName}': ${output}`);
+    }
+    return;
+  }
+
+  const component = await resolveLaunchableComponent(packageName, shell);
+  const output = await shell([
+    "am", apiLevel < 26 ? "start" : "start-activity",
+    "-a", "android.intent.action.MAIN",
+    "-c", "android.intent.category.LAUNCHER",
+    "-f", "0x10200000",
+    "-n", component,
+  ]);
+  if (/^error:/mi.test(output)) {
+    throw new Error(`Cannot activate '${packageName}': ${output}`);
+  }
+}
+
+export async function resolveLaunchableComponent(
+  packageName: string,
+  shell: AndroidShell,
+): Promise<string> {
+  const resolved = await shell([
+    "cmd", "package", "resolve-activity", "--brief", packageName,
+  ]).catch(() => "");
+  const direct = launchableComponents(resolved, packageName);
+  if (direct.length === 1) return direct[0];
+
+  const queried = await shell([
+    "cmd", "package", "query-activities", "--brief",
+    "-a", "android.intent.action.MAIN",
+    "-c", "android.intent.category.LAUNCHER",
+    "-p", packageName,
+  ]).catch(() => "");
+  const candidates = launchableComponents(queried, packageName);
+  if (candidates.length === 1) return candidates[0];
+  throw new Error(
+    `Unable to resolve one launchable activity for '${packageName}'; matched ${candidates.length}`,
+  );
+}
+
+function launchableComponents(output: string, packageName: string): string[] {
+  const escapedPackage = packageName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `(?:^|\\s)(${escapedPackage}\\/[A-Za-z0-9_.$]+)(?=\\s|$)`,
+    "gm",
+  );
+  return [...new Set([...output.matchAll(pattern)].map((match) => match[1]))];
 }
 
 function androidUiSelector(selector: AndroidNodeSelector): string {

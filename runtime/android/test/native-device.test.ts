@@ -1,11 +1,81 @@
 import { describe, expect, it } from "vitest";
 import {
   androidUiAutomatorXmlToUiTree,
+  activateAndroidPackage,
   findAndroidUiTreeNodes,
   normalizeAndroidSource,
   isInvalidSessionError,
   UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS,
 } from "../src/native-device.js";
+
+describe("activateAndroidPackage", () => {
+  it("starts the uniquely resolved launcher component with Android launcher flags", async () => {
+    const calls: string[][] = [];
+    await activateAndroidPackage("com.example.files", async (args) => {
+      calls.push(args);
+      if (args[0] === "getprop") return "33";
+      if (args.includes("resolve-activity")) return "priority=0 match=0x108000";
+      if (args.includes("query-activities")) {
+        return "1 activities found:\n  com.example.files/com.example.files.LauncherActivity";
+      }
+      return "Starting: Intent";
+    });
+
+    expect(calls.at(-1)).toEqual([
+      "am", "start-activity",
+      "-a", "android.intent.action.MAIN",
+      "-c", "android.intent.category.LAUNCHER",
+      "-f", "0x10200000",
+      "-n", "com.example.files/com.example.files.LauncherActivity",
+    ]);
+  });
+
+  it("uses the package manager default without enumerating activities", async () => {
+    const calls: string[][] = [];
+    await activateAndroidPackage("com.example.app", async (args) => {
+      calls.push(args);
+      if (args[0] === "getprop") return "29";
+      if (args.includes("resolve-activity")) {
+        return "com.example.app/.MainActivity";
+      }
+      return "Starting: Intent";
+    });
+
+    expect(calls.some((args) => args.includes("query-activities"))).toBe(false);
+    expect(calls.at(-1)).toContain("com.example.app/.MainActivity");
+  });
+
+  it("fails closed when package activation is ambiguous", async () => {
+    await expect(activateAndroidPackage("com.example.app", async (args) => {
+      if (args[0] === "getprop") return "33";
+      if (args.includes("resolve-activity")) return "No activity found";
+      return [
+        "com.example.app/.FirstActivity",
+        "com.example.app/.SecondActivity",
+      ].join("\n");
+    })).rejects.toThrow("matched 2");
+  });
+
+  it("rejects start errors even when adb shell exits successfully", async () => {
+    await expect(activateAndroidPackage("com.example.app", async (args) => {
+      if (args[0] === "getprop") return "33";
+      if (args.includes("resolve-activity")) return "com.example.app/.MainActivity";
+      return "Error: Activity class does not exist";
+    })).rejects.toThrow("Cannot activate 'com.example.app'");
+  });
+
+  it("uses launcher-style monkey activation before API 24", async () => {
+    const calls: string[][] = [];
+    await activateAndroidPackage("com.example.legacy", async (args) => {
+      calls.push(args);
+      return args[0] === "getprop" ? "23" : "Events injected: 1";
+    });
+    expect(calls.at(-1)).toEqual([
+      "monkey", "-p", "com.example.legacy",
+      "-c", "android.intent.category.LAUNCHER", "1",
+    ]);
+  });
+});
 
 describe("persistent UIAutomator2 session", () => {
   it("outlives the ten-minute benchmark model timeout", () => {

@@ -29,6 +29,10 @@ keyboard timeout in generated replay. If the shared bounded dismissal behavior i
 insufficient, repair and test the published runtime first, then recompile from the
 immutable recording.
 
+Preserve Android `Launch` as `launchApp(recordedPackage)` and require its recorded
+after-checkpoint. Let the shared runtime resolve the component; never hard-code a
+development-device activity in generated replay.
+
 ## Guarded fragments
 
 Compose `replayAndroidPrimitive` calls with `flow.segment`. Guard state transitions with Android UI-tree expectations only when a relevant `checkpoint.captured` native UI artifact supports the fact. A screenshot-backed Midscene Assert/Boolean/Query remains visual even when an Android UI tree exists nearby.

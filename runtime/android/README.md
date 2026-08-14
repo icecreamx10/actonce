@@ -15,6 +15,10 @@ Generated code must use `replayAndroidPrimitive`; do not inline ADB commands. Co
 `typeText` preserves Midscene's Android replace and keyboard-dismiss semantics,
 including a bounded three-second IME dismissal observation window before trying
 the guarded secondary key path.
+`launchApp` preserves package-level activation semantics by resolving the
+device's launcher component at runtime and starting it explicitly. Generated
+replays keep the recorded package name and never hard-code a development-device
+activity.
 The compile Skill may emit `tapUniqueNode` only after proving a selector unique
 and semantically aligned from recorded evidence; the primitive performs a native
 UIAutomator2 element click and retains the normalized recorded coordinate as its
