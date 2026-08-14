@@ -75,7 +75,6 @@ Use the resumable suite phases from one stable output root:
 ```bash
 npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
-npm run benchmark:android:android-world-suite -- --phase compile --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
 ```
@@ -89,30 +88,32 @@ API key, and must be verified before the suite with:
 npm run android-world:model:verify
 ```
 
-The compile phase mechanically lowers every complete successful recording,
-derives screenshot and native-node checkpoints from its immutable evidence,
-and writes `compiled/replay.ts`, `recorded-input.ts`,
-`assertion-decision.json`, and `compile-result.json`. Inspect failures and use
-the repository's recording compilation skill when a task requires a narrower
-repair; never handwave a missing generated script. A sample-local generated
-`compiled/replay.ts` is an expected benchmark artifact, not a benchmark-runner
-code change. Editing the catalog,
+There is intentionally no benchmark CLI compile phase. After the original
+phase, invoke the published `compile-device-recording` Skill separately for
+every complete official-pass recording. The Skill owns segment selection,
+semantic target mapping, checkpoint decisions, generated code, execution,
+diagnosis, and fresh-fixture repair. Primitive lowering must preserve the raw
+recorded action; never automatically replace a coordinate with a native node
+merely because their bounds overlap. Write `compiled/replay.ts`,
+`recorded-input.ts`, `assertion-decision.json`, `compile-result.json`, and the
+attempt history under the sample directory. A sample-local generated replay is
+an expected benchmark artifact, not a benchmark-runner code change. Editing the catalog,
 runner, runtime, initializer bridge, validator bridge, or setup patches still
 invalidates the measurement and requires a different fresh agent.
 
-The generated Android replay checks screenshots first. When raster state is
-not discriminative, it may use only native node facts present in the same
-recorded checkpoint, including structured focus state. Recorded tap coordinates
-are replaced by live native bounds when the recording identifies the target
-node. A matched postcondition is reused as the immediately adjacent next
-precondition. These are deterministic compilation rules, not AI fallback.
+The Skill may introduce a native selector only after proving uniqueness,
+semantic alignment, and stability by execution, while retaining the recorded
+coordinate primitive as fallback. Preserve all necessary checkpoint facts:
+one focused node must not override a separately recorded label, value, or
+visual outcome.
 
-Compilation is not completion. In development, execute every generated replay,
+Compilation is not completion. The compiling agent must execute every generated replay,
 run the official validator, and compare its action/checkpoint chain with the
 successful original. If runtime checkpoints pass but official reward does not,
 the replay is incorrect: diagnose the first skipped, mismatched, or over-broad
 checkpoint; repair the compiler/runtime; and recompile and rerun until stable or
-a concrete blocker is proven. Only then commit and delegate a new formal run.
+a concrete blocker is proven. These are development validation attempts. Only
+then delegate formal replay measurement to a different zero-context agent.
 
 Before delegating formal suite work, the coordinator must run the resumable
 measurement-external setup and require `24 ready / 0 failed / 0 pending`:

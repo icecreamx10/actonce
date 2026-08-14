@@ -36,10 +36,12 @@ bootstrap 会幂等应用 `patches/` 下由仓库管理的补丁，并把它们�
 ```bash
 npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
-npm run benchmark:android:android-world-suite -- --phase compile --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
 ```
+
+在 `original` 与 `replay` 之间，对每条完整且官方通过的录制使用发布的
+`skills/compile-device-recording` Skill。benchmark 刻意不提供自动 compile 命令。
 
 正式默认口径刻意保持串行：单 emulator、每个 case 一个 sample，不做跨重复
 平均。suite 固定使用 `codex-luna` profile，通过本机已登录的 Codex app server
@@ -50,10 +52,10 @@ npm run benchmark:android:android-world-suite -- --phase evaluate --selection pa
 npm run android-world:model:verify
 ```
 
-compile 阶段自动且 fail-closed：它把录制动作降低为原生 ActOnce primitive，
-从同一条不可变 trace 生成截图与 accessibility checkpoint，并为每个 sample
-产出独立 replay。录制证据能识别节点时，执行会用 live native bounds 代替原始
-坐标。结果会分别记录截图捕获、原生 source 捕获、真正 settle delay、已满足而
+编译属于 Agent Skill，而不是 benchmark 脚本。它默认保留录制动作，只生成与
+证据模态一致的 checkpoint；只有证明 selector 唯一、语义一致并通过 fresh-fixture
+执行后，才允许把坐标优化为原生 selector，且原始坐标必须保留为 fallback。
+结果会分别记录截图捕获、原生 source 捕获、真正 settle delay、已满足而
 跳过的 primitive 以及 fallback 次数。
 Midscene 和 recorder 共用一个常驻 UIAutomator2 session 读取原生树；因此仍然
 保留 accessibility checkpoint，同时避免每次 observation 都新建
@@ -65,10 +67,9 @@ AccessibilityForwarder 仅在官方初始化和 validator 阶段启用；测量�
 Midscene 与 recorder 共用 UIAutomator2 session。设备独占 lease 会拒绝第二个
 benchmark 进程，避免两个执行流操作同一 emulator。
 
-开发验证目前覆盖 system task `SystemBrightnessMax` 与带生成参数的表单任务
-`ContactsAddContact`。当前 Luna canary 中后者通过官方数据库 validator：
-Midscene original 为 `126.984 秒`，自动编译 replay 为 `28.631 秒`（`4.44×`），AI fallback
-为 0。这只是代表性开发结果，不是 113 个任务的最终汇总分数。
+早期自动 compiler 的开发 artifact 会保留用于诊断，但不再作为当前 benchmark
+证据。新的 replay 只有在发布的编译 Skill 基于不可变录制完成生成、执行、修复和
+验证后，才能计入结果。
 
 各阶段默认跳过已有完整 artifact，只有 `--force` 才重跑。可用
 `--task <TaskName>` 处理单个 catalog case，但不会改变总分母或目录身份。

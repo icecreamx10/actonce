@@ -84,7 +84,6 @@
     "benchmark:android:demo-app": "tsx benchmark/android/my-demo-app/benchmark.ts",
     "benchmark:android:android-world": "tsx benchmark/android/android-world/benchmark.ts",
     "benchmark:android:android-world-suite": "tsx benchmark/android/android-world/suite.ts",
-    "android-world:compile": "npm --prefix runtime/android run build && tsx benchmark/android/android-world/compile.ts",
     "benchmark:ios:smoke": "tsx benchmark/ios/midscene-settings-smoke.ts",
     "benchmark:ios:record-settings": "tsx interceptor/src/cli.ts record midscene-ios --entry benchmark/ios/settings-about-task.ts",
     "benchmark:ios:replay-settings": "tsx benchmark/ios/settings-about-replay.ts",

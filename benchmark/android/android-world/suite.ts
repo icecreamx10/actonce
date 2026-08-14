@@ -13,7 +13,7 @@ import {
 } from "./model-profile.js";
 import { acquireAndroidWorldDeviceLease } from "./device-lease.js";
 
-type Phase = "plan" | "original" | "compile" | "replay" | "evaluate";
+type Phase = "plan" | "original" | "replay" | "evaluate";
 const args = parseArgs(process.argv.slice(2));
 const outputDir = resolve(args.output);
 const selected = selectMidsceneAndroidWorldCases(args.selection)
@@ -23,35 +23,14 @@ await mkdir(outputDir, { recursive: true });
 const releaseDeviceLease = args.phase === "original" || args.phase === "replay"
   ? await acquireAndroidWorldDeviceLease()
   : undefined;
-if (args.phase === "compile") {
-  await run("npm", ["--prefix", "runtime/android", "run", "build"]);
-}
-
 for (const entry of selected) {
   for (let sample = 1; sample <= args.samples; sample += 1) {
     const sampleDir = resolve(outputDir, "cases", `${String(entry.id).padStart(3, "0")}-${slug(entry.task)}`, `sample-${sample}`);
     await mkdir(sampleDir, { recursive: true });
     if (args.phase === "original") await runOriginal(entry.task, entry.id, sample, sampleDir);
-    else if (args.phase === "compile") await runCompile(sampleDir);
     else if (args.phase === "replay") await runReplay(entry.task, sampleDir);
     else if (args.phase === "evaluate") await runEvaluation(entry.task, sampleDir);
   }
-}
-
-async function runCompile(sampleDir: string) {
-  const resultPath = resolve(sampleDir, "compiled", "compile-result.json");
-  if (!args.force && await exists(resultPath)) return;
-  if (!await exists(resolve(sampleDir, "original", "result.json"))) return;
-  if (args.force) {
-    await Promise.all([
-      rm(resolve(sampleDir, "replay"), { recursive: true, force: true }),
-      rm(resolve(sampleDir, "evaluation.json"), { force: true }),
-    ]);
-  }
-  await run(resolve("node_modules/.bin/tsx"), [
-    resolve("benchmark/android/android-world/compile.ts"),
-    "--sample", sampleDir,
-  ]);
 }
 
 const summary = await summarize();
@@ -109,14 +88,6 @@ async function runBenchmark(childArgs: string[]) {
       },
       stdio: "inherit",
     });
-    child.once("error", reject);
-    child.once("exit", () => resolveRun());
-  });
-}
-
-async function run(command: string, childArgs: string[]) {
-  await new Promise<void>((resolveRun, reject) => {
-    const child = spawn(command, childArgs, { cwd: process.cwd(), env: process.env, stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", () => resolveRun());
   });
@@ -250,7 +221,7 @@ function parseArgs(values: string[]): {
     else if (values[index] === "--force") force = true;
     else throw new Error(`Unknown argument: ${values[index]}`);
   }
-  if (!["plan", "original", "compile", "replay", "evaluate"].includes(phase)) throw new Error(`Unknown phase: ${phase}`);
+  if (!["plan", "original", "replay", "evaluate"].includes(phase)) throw new Error(`Unknown phase: ${phase}`);
   if (selection !== "pass@1" && selection !== "pass@3") throw new Error(`Unknown selection: ${selection}`);
   if (!Number.isInteger(samples) || samples < 1) throw new Error(`Invalid samples: ${samples}`);
   requireAndroidWorldModelProfile(modelProfile);

@@ -39,10 +39,13 @@ Create and resume the full matrix in explicit phases:
 ```bash
 npm run benchmark:android:android-world-suite -- --phase plan --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase original --selection pass@3 --output <suite-root>
-npm run benchmark:android:android-world-suite -- --phase compile --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
 ```
+
+Between `original` and `replay`, use the published
+`skills/compile-device-recording` Skill on each complete official-pass
+recording. There is intentionally no automatic benchmark compile command.
 
 The formal default is intentionally serial: one emulator, one sample per case,
 and no cross-case averaging. The suite pins the `codex-luna` model profile,
@@ -54,10 +57,11 @@ result, and contains no API key. Verify it independently with:
 npm run android-world:model:verify
 ```
 
-The compile phase is automatic and fail-closed. It lowers recorded actions to
-native ActOnce primitives, derives visual and accessibility checkpoints from
-the same immutable trace, and emits a standalone replay per sample. Live native
-bounds replace recorded tap coordinates when node evidence is available.
+Compilation is an agent Skill, not a benchmark script. It preserves recorded
+actions by default, derives evidence-compatible checkpoints, and may optimize a
+coordinate to a native selector only after proving uniqueness, semantic
+alignment, and fresh-fixture correctness. The original coordinate remains the
+fallback.
 Screenshot capture, accessibility capture, actual settle delay, skipped
 already-satisfied primitives, and fallback count are reported separately.
 Midscene and the recorder share one persistent UIAutomator2 session for native
@@ -71,12 +75,10 @@ is enabled for official initialization and validation, then suspended while the
 shared UIAutomator2 measurement session is active. A device lease rejects a
 second benchmark process targeting the same emulator.
 
-Development validation now covers both a system task (`SystemBrightnessMax`)
-and a generated-data app form (`ContactsAddContact`). The latter passed the
-official database validator in the current Luna canary with a `126.984 s`
-Midscene original and a checkpoint-gated replay taking `28.631 s` (`4.44×`),
-with zero AI fallback. This is a representative development result,
-not the pending aggregate score for all 113 tasks.
+Earlier automatic-compiler development artifacts are preserved for diagnosis
+but are not current benchmark evidence. New replay results count only after the
+published compilation Skill has generated, executed, repaired, and validated
+the sample from its immutable recording.
 
 Each phase skips completed artifacts unless `--force` is provided. Use
 `--task <TaskName>` to work on one catalog case without changing its denominator

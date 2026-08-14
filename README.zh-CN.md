@@ -32,7 +32,7 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 fallback 均为 0。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
 
 Android 通过固定 `midscene-android` profile 录制同构的 My Demo App checkout，
-并机械编译出 9 个归一化 tap primitive。正式基线中，original 中位数为
+并通过 Android 原生 runtime 回放 9 个归一化 tap primitive。正式基线中，original 中位数为
 `140.446 秒`，replay 中位数为 `17.412 秒`，加速 `8.07×`；两次 replay 均正确且
 没有 fallback。仓库现在提供一个 CLI，负责 reset fixture、执行两侧流程，并使用
 同一个实时 accessibility 与截图精确匹配 oracle。最新一次开发运行正确完成于
@@ -41,12 +41,13 @@ replay 其中 `4.274 秒` 用于 accessibility checkpoint capture，真正 settl
 仅为 `0.201 秒`。详情见 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
 
 AndroidWorld harness 现已固定 Midscene 发布的 116 个任务目录，并以截至第三轮
-通过的全部 113 个任务为完整目标。可恢复 CLI 会对每个样本依次执行官方初始化、
-Midscene 录制、基于证据的自动编译、原生 replay 和官方校验。正式执行采用单设备、
+通过的全部 113 个任务为完整目标。可恢复 CLI 会对每个样本执行官方初始化、
+Midscene 录制、原生 replay 和官方校验；录制与 replay 之间基于证据的编译由发布的
+`compile-device-recording` Skill 负责。正式执行采用单设备、
 每 case 单 sample，并通过本机 Codex app server 使用仓库固定的 `codex-luna`
 profile；Midscene 与 recorder 共用一个常驻 UIAutomator2 source 获取 accessibility
-checkpoint。全量正式评分仍在进行；当前 system setting 与带随机数据的 Contacts
-表单两个 canary 均已通过。
+checkpoint。全量正式评分等待 Skill 编译 replay 的验证；由已删除的 AndroidWorld
+自动 compiler 生成的结果不再作为当前 benchmark 证据。
 详情见 [AndroidWorld benchmark 指南](benchmark/android/android-world/README.md)。
 
 ## 工作原理
@@ -89,7 +90,7 @@ Midscene 被集中隔离在 `@byted-lynx/actonce-midscene-adapter`：原始 AI �
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | 可选的受限 Midscene 恢复适配器 |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.zh-CN.md) | 固定桌面 fixture、自然语言 case、runner、证据与 evaluator |
 | [`benchmark/android/`](benchmark/android/README.zh-CN.md) | Android 模拟器与可复现的 Midscene 对 ActOnce checkout benchmark |
-| [`benchmark/android/android-world/`](benchmark/android/android-world/README.md) | 固定的 113-case Midscene PASS 目录、官方 AndroidWorld bridge、编译器、可恢复 suite 与 evaluator |
+| [`benchmark/android/android-world/`](benchmark/android/android-world/README.md) | 固定的 113-case Midscene PASS 目录、官方 AndroidWorld bridge、Skill 交接、可恢复 suite 与 evaluator |
 | [`benchmark/ios/`](benchmark/ios/README.zh-CN.md) | iOS Simulator、WDA 与 Midscene smoke 环境 |
 | [`.agents/skills/benchmark-lynxtron-fiddle`](.agents/skills/benchmark-lynxtron-fiddle/SKILL.md) | 仓库内部 benchmark 流程，不作为 Skill 发布 |
 

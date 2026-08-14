@@ -33,8 +33,8 @@ including `3.008 s` of accessibility capture and no settle delay or fallback.
 See the [iOS benchmark guide](benchmark/ios/README.md).
 
 Android records the matching My Demo App checkout through a fixed
-`midscene-android` profile and mechanically compiles nine normalized tap
-primitives. Its formal baseline passed with an original median of `140.446 s`
+`midscene-android` profile and replays nine normalized tap primitives through
+the native Android runtime. Its formal baseline passed with an original median of `140.446 s`
 and replay median of `17.412 s` (`8.07×` speedup), two of two replays correct,
 and no fallback. The repository now provides one CLI that resets the fixture,
 runs both sides, and applies the same live accessibility and exact-screenshot
@@ -46,13 +46,14 @@ See the [Android benchmark guide](benchmark/android/README.md).
 
 The AndroidWorld harness now pins Midscene's published 116-task catalog and
 targets all 113 tasks that passed by round 3. Its resumable CLI performs
-official initialization, Midscene recording, automatic evidence-backed
-compilation, native replay, and official validation per case. The formal run is
+official initialization, Midscene recording, native replay, and official
+validation per case; the published `compile-device-recording` Skill owns
+evidence-backed compilation between recording and replay. The formal run is
 single-device and single-sample, with a repository-pinned `codex-luna` profile
 through the local Codex app server. Midscene and the recorder share one
 persistent UIAutomator2 source for accessibility checkpoints. Full-suite formal
-scoring is in progress; current AndroidWorld canaries pass both a system setting
-task and a generated-data Contacts form. See the
+scoring is pending Skill-compiled replay validation; results produced by the
+removed automatic AndroidWorld compiler are not current benchmark evidence. See the
 [AndroidWorld benchmark guide](benchmark/android/android-world/README.md).
 
 ## How it works
@@ -95,7 +96,7 @@ Midscene is quarantined behind `@byted-lynx/actonce-midscene-adapter`: original 
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | Optional bounded Midscene recovery adapter |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.md) | Pinned desktop fixture, natural-language cases, runners, evidence, and evaluator |
 | [`benchmark/android/`](benchmark/android/README.md) | Android emulator and reproducible Midscene-versus-ActOnce checkout benchmark |
-| [`benchmark/android/android-world/`](benchmark/android/android-world/README.md) | Pinned 113-case Midscene PASS catalog, official AndroidWorld bridge, compiler, resumable suite, and evaluator |
+| [`benchmark/android/android-world/`](benchmark/android/android-world/README.md) | Pinned 113-case Midscene PASS catalog, official AndroidWorld bridge, skill handoff, resumable suite, and evaluator |
 | [`benchmark/ios/`](benchmark/ios/README.md) | iOS Simulator, WDA, and Midscene smoke setup |
 | [`.agents/skills/benchmark-lynxtron-fiddle`](.agents/skills/benchmark-lynxtron-fiddle/SKILL.md) | Repository-internal benchmark procedure; not a published Skill |
 
