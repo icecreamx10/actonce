@@ -44,18 +44,38 @@ npm run benchmark:android:android-world-suite -- --phase replay --selection pass
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
 ```
 
+The formal default is intentionally serial: one emulator, one sample per case,
+and no cross-case averaging. The suite pins the `codex-luna` model profile,
+which runs `gpt-5.6-luna` through the locally authenticated Codex app server.
+The model profile is applied by the CLI, recorded as safe provenance in every
+result, and contains no API key. Verify it independently with:
+
+```bash
+npm run android-world:model:verify
+```
+
 The compile phase is automatic and fail-closed. It lowers recorded actions to
 native ActOnce primitives, derives visual and accessibility checkpoints from
 the same immutable trace, and emits a standalone replay per sample. Live native
 bounds replace recorded tap coordinates when node evidence is available.
 Screenshot capture, accessibility capture, actual settle delay, skipped
 already-satisfied primitives, and fallback count are reported separately.
+Midscene and the recorder share one persistent UIAutomator2 session for native
+tree reads. This preserves accessibility checkpoints while avoiding a new
+`uiautomator dump` process for every observation.
+
+Original and replay use the same measurement-external app setup: the CLI
+force-stops declared target packages, launches the first official target app,
+and verifies foreground focus before timing. AndroidWorld's AccessibilityForwarder
+is enabled for official initialization and validation, then suspended while the
+shared UIAutomator2 measurement session is active. A device lease rejects a
+second benchmark process targeting the same emulator.
 
 Development validation now covers both a system task (`SystemBrightnessMax`)
 and a generated-data app form (`ContactsAddContact`). The latter passed the
-official database validator with a `139.019 s` Midscene original and a
-checkpoint-gated generated replay whose latest successful run took `32.774 s`
-(`4.24×`), with zero AI fallback. This is a representative development result,
+official database validator in the current Luna canary with a `126.984 s`
+Midscene original and a checkpoint-gated replay taking `28.631 s` (`4.44×`),
+with zero AI fallback. This is a representative development result,
 not the pending aggregate score for all 113 tasks.
 
 Each phase skips completed artifacts unless `--force` is provided. Use
@@ -68,7 +88,6 @@ npm run android-world:check
 npm run android-world:start:foreground
 # In another shell after boot:
 npm run android-world:prepare
-set -a; source .env; set +a
 npm run benchmark:android:android-world
 ```
 
@@ -78,9 +97,9 @@ uses only the native ActOnce Android runtime and keeps accessibility checkpoints
 inside its measured duration. AndroidWorld validation runs after each mode and
 is excluded from the agent execution boundary, as in the upstream benchmark.
 
-This one-original/one-replay command is a development measurement. Use the
-repository-internal `benchmark-android-world` Skill for context isolation and
-formal repetition requirements.
+The full formal suite also uses one original and one replay per case. Use the
+repository-internal `benchmark-android-world` Skill for context isolation,
+correctness gating, artifact preservation, and resumable execution requirements.
 
 Upstream evidence:
 

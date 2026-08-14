@@ -47,9 +47,12 @@ See the [Android benchmark guide](benchmark/android/README.md).
 The AndroidWorld harness now pins Midscene's published 116-task catalog and
 targets all 113 tasks that passed by round 3. Its resumable CLI performs
 official initialization, Midscene recording, automatic evidence-backed
-compilation, native replay, and official validation per sample. Full-suite
-formal scoring is in progress; current AndroidWorld canaries pass both a system
-setting task and a generated-data Contacts form. See the
+compilation, native replay, and official validation per case. The formal run is
+single-device and single-sample, with a repository-pinned `codex-luna` profile
+through the local Codex app server. Midscene and the recorder share one
+persistent UIAutomator2 source for accessibility checkpoints. Full-suite formal
+scoring is in progress; current AndroidWorld canaries pass both a system setting
+task and a generated-data Contacts form. See the
 [AndroidWorld benchmark guide](benchmark/android/android-world/README.md).
 
 ## How it works

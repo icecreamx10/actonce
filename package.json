@@ -44,6 +44,7 @@
     "android-world:prepare": "GRPC_VERBOSITY=ERROR .cache/android-world/venv/bin/python benchmark/android/android-world/task.py prepare",
     "android-world:prepare-suite": "tsx benchmark/android/android-world/prepare-suite.ts",
     "android-world:catalog": "tsx benchmark/android/android-world/catalog-cli.ts",
+    "android-world:model:verify": "tsx benchmark/android/android-world/model-verify.ts",
     "android:prepare:markor": "bash scripts/android/run-android-ts.sh benchmark/android/markor-fixture.ts",
     "ios:start": "bash scripts/ios/start-simulator.sh",
     "ios:wda": "bash scripts/ios/start-wda.sh",

@@ -41,15 +41,33 @@ npm run benchmark:android:android-world-suite -- --phase replay --selection pass
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
 ```
 
+正式默认口径刻意保持串行：单 emulator、每个 case 一个 sample，不做跨重复
+平均。suite 固定使用 `codex-luna` profile，通过本机已登录的 Codex app server
+调用 `gpt-5.6-luna`。该 profile 由 CLI 自动注入，并以不含凭据的 provenance
+写入结果；仓库不会保存 API key。可独立验证：
+
+```bash
+npm run android-world:model:verify
+```
+
 compile 阶段自动且 fail-closed：它把录制动作降低为原生 ActOnce primitive，
 从同一条不可变 trace 生成截图与 accessibility checkpoint，并为每个 sample
 产出独立 replay。录制证据能识别节点时，执行会用 live native bounds 代替原始
 坐标。结果会分别记录截图捕获、原生 source 捕获、真正 settle delay、已满足而
 跳过的 primitive 以及 fallback 次数。
+Midscene 和 recorder 共用一个常驻 UIAutomator2 session 读取原生树；因此仍然
+保留 accessibility checkpoint，同时避免每次 observation 都新建
+`uiautomator dump` 进程。
+
+original 与 replay 使用相同且不计时的 app setup：CLI 会 force-stop 官方声明的
+目标 package，启动第一个目标 app，并确认其处于前台。AndroidWorld
+AccessibilityForwarder 仅在官方初始化和 validator 阶段启用；测量期间暂停，
+Midscene 与 recorder 共用 UIAutomator2 session。设备独占 lease 会拒绝第二个
+benchmark 进程，避免两个执行流操作同一 emulator。
 
 开发验证目前覆盖 system task `SystemBrightnessMax` 与带生成参数的表单任务
-`ContactsAddContact`。后者通过官方数据库 validator：Midscene original 为
-`139.019 秒`，最新一次自动编译 replay 为 `32.774 秒`（`4.24×`），AI fallback
+`ContactsAddContact`。当前 Luna canary 中后者通过官方数据库 validator：
+Midscene original 为 `126.984 秒`，自动编译 replay 为 `28.631 秒`（`4.44×`），AI fallback
 为 0。这只是代表性开发结果，不是 113 个任务的最终汇总分数。
 
 各阶段默认跳过已有完整 artifact，只有 `--force` 才重跑。可用
@@ -61,7 +79,6 @@ npm run android-world:check
 npm run android-world:start:foreground
 # 启动完成后，在另一个 shell 中执行：
 npm run android-world:prepare
-set -a; source .env; set +a
 npm run benchmark:android:android-world
 ```
 
@@ -70,5 +87,6 @@ CLI 会在 original 与 replay 前分别初始化官方任务。Midscene origina
 accessibility checkpoint 计入执行耗时。与上游 benchmark 一致，AndroidWorld
 官方 validator 在每个 mode 结束后运行，不计入 agent 执行边界。
 
-默认的一次 original、一次 replay 用于开发测量。完全无上下文的独立 agent
-要求与正式重复次数见仓库内部 `benchmark-android-world` Skill。
+完整正式 suite 同样为每个 case 一次 original、一次 replay。完全无上下文的
+独立 agent、正确性 gate、artifact 保留及断点续跑要求见仓库内部
+`benchmark-android-world` Skill。

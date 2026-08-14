@@ -42,8 +42,11 @@ replay 其中 `4.274 秒` 用于 accessibility checkpoint capture，真正 settl
 
 AndroidWorld harness 现已固定 Midscene 发布的 116 个任务目录，并以截至第三轮
 通过的全部 113 个任务为完整目标。可恢复 CLI 会对每个样本依次执行官方初始化、
-Midscene 录制、基于证据的自动编译、原生 replay 和官方校验。全量正式评分仍在
-进行；当前 system setting 与带随机数据的 Contacts 表单两个 canary 均已通过。
+Midscene 录制、基于证据的自动编译、原生 replay 和官方校验。正式执行采用单设备、
+每 case 单 sample，并通过本机 Codex app server 使用仓库固定的 `codex-luna`
+profile；Midscene 与 recorder 共用一个常驻 UIAutomator2 source 获取 accessibility
+checkpoint。全量正式评分仍在进行；当前 system setting 与带随机数据的 Contacts
+表单两个 canary 均已通过。
 详情见 [AndroidWorld benchmark 指南](benchmark/android/android-world/README.md)。
 
 ## 工作原理

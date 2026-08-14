@@ -54,11 +54,18 @@ For each catalog case:
 5. Preserve failures under a stable case/sample directory and resume without
    discarding or renumbering them.
 
-Run two independently initialized originals and two replays per case. Aggregate
-case medians only after both samples pass. Report suite coverage separately as
+Run exactly one independently initialized original and one replay per case on
+one serially used emulator. Do not parallelize measured cases and do not average
+repetitions. Report suite coverage separately as
 catalog, original-pass, compiled, replay-correct, and performance-comparable
 counts. A missing, unsupported, setup-failed, or incorrect case remains visible
 in the denominator; never silently skip it.
+
+Never leave an older suite session attached to the same emulator. Formal
+original and replay phases acquire a CLI-level device lease and must fail fast
+if another ActOnce AndroidWorld process owns it. Do not bypass the lease or run
+raw ADB actions concurrently. Any run observed alongside another device writer
+is invalid even if its own artifacts look complete.
 
 The current `SystemBrightnessMax` workflow below is the suite canary. It proves
 the harness, not full AndroidWorld coverage.
@@ -71,6 +78,15 @@ npm run benchmark:android:android-world-suite -- --phase original --selection pa
 npm run benchmark:android:android-world-suite -- --phase compile --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase replay --selection pass@3 --output <suite-root>
 npm run benchmark:android:android-world-suite -- --phase evaluate --selection pass@3 --output <suite-root>
+```
+
+These commands default to `--samples 1 --model-profile codex-luna`. Keep those
+formal defaults explicit in the run manifest. The profile invokes
+`gpt-5.6-luna` through the locally authenticated Codex app server, carries no
+API key, and must be verified before the suite with:
+
+```bash
+npm run android-world:model:verify
 ```
 
 The compile phase mechanically lowers every complete successful recording,
@@ -91,12 +107,26 @@ are replaced by live native bounds when the recording identifies the target
 node. A matched postcondition is reused as the immediately adjacent next
 precondition. These are deterministic compilation rules, not AI fallback.
 
+Compilation is not completion. In development, execute every generated replay,
+run the official validator, and compare its action/checkpoint chain with the
+successful original. If runtime checkpoints pass but official reward does not,
+the replay is incorrect: diagnose the first skipped, mismatched, or over-broad
+checkpoint; repair the compiler/runtime; and recompile and rerun until stable or
+a concrete blocker is proven. Only then commit and delegate a new formal run.
+
 Before delegating formal suite work, the coordinator must run the resumable
 measurement-external setup and require `24 ready / 0 failed / 0 pending`:
 
 ```bash
 npm run android-world:prepare-suite -- --output .cache/android-world/setup
 ```
+
+At each measured original/replay boundary, the CLI force-stops declared target
+packages, opens the first official target app, and verifies it is foreground
+before timing starts. AndroidWorld's AccessibilityForwarder is used for official
+initialization/validation but suspended during measurement, where Midscene and
+recorder share one persistent UIAutomator2 session. The CLI releases UIAutomator2
+before returning to the official validator.
 
 ## SystemBrightnessMax workflow
 
@@ -131,7 +161,12 @@ npm run android-world:prepare-suite -- --output .cache/android-world/setup
    npm run android-world:prepare
    ```
 
-6. Load the ignored `.env` without printing it and verify the Midscene model.
+6. Verify the pinned `codex-luna` model profile without printing environment
+   credentials:
+
+   ```bash
+   npm run android-world:model:verify
+   ```
 7. Run one independently initialized original and one independently initialized
    replay for a development benchmark:
 
@@ -155,9 +190,9 @@ npm run android-world:prepare-suite -- --output .cache/android-world/setup
    original duration, replay duration, speedup, reduction percent, checkpoint
    capture time, settle delay, and fallback count.
 
-For a formal score, run two originals and two replays in independent output
-directories and compare medians. Do not discard failures or mix results from a
-runner revision made between samples.
+For a formal score, run exactly one original and one replay for each catalog
+case in its stable sample directory. Do not discard failures or mix results
+from different runner revisions.
 
 ## Integrity rules
 

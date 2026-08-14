@@ -60,6 +60,7 @@ def main():
           "task": task.name,
           "goal": task.goal,
           "params": jsonable(task.params),
+          "apps": task_apps(task_class),
           "state_dir": str(args.state_dir.resolve()) if args.state_dir else None,
       }
     else:
@@ -86,6 +87,17 @@ def get_task_class(task_name: str):
   if task_name not in task_registry:
     raise ValueError(f"Unknown AndroidWorld task: {task_name}")
   return task_registry[task_name]
+
+
+def task_apps(task_class):
+  result = []
+  for app_name in task_class.app_names:
+    app = setup.get_app_mapping(app_name)
+    result.append({
+        "name": app_name,
+        "package": app.package_name() if app is not None else None,
+    })
+  return result
 
 
 def load_or_create_params(task_class, task_name: str, state_dir: Path | None, seed: int | None):

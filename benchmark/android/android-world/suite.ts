@@ -6,6 +6,12 @@ import {
   selectMidsceneAndroidWorldCases,
   type MidscenePassSelection,
 } from "./catalog.js";
+import {
+  modelProfileProvenance,
+  requireAndroidWorldModelProfile,
+  type AndroidWorldModelProfile,
+} from "./model-profile.js";
+import { acquireAndroidWorldDeviceLease } from "./device-lease.js";
 
 type Phase = "plan" | "original" | "compile" | "replay" | "evaluate";
 const args = parseArgs(process.argv.slice(2));
@@ -14,6 +20,9 @@ const selected = selectMidsceneAndroidWorldCases(args.selection)
   .filter((entry) => !args.task || entry.task === args.task);
 if (args.task && selected.length !== 1) throw new Error(`Task is not in ${args.selection}: ${args.task}`);
 await mkdir(outputDir, { recursive: true });
+const releaseDeviceLease = args.phase === "original" || args.phase === "replay"
+  ? await acquireAndroidWorldDeviceLease()
+  : undefined;
 if (args.phase === "compile") {
   await run("npm", ["--prefix", "runtime/android", "run", "build"]);
 }
@@ -48,6 +57,7 @@ async function runCompile(sampleDir: string) {
 const summary = await summarize();
 await writeJson(resolve(outputDir, "suite-result.json"), summary);
 console.log(JSON.stringify(summary, null, 2));
+await releaseDeviceLease?.();
 
 async function runOriginal(task: string, taskId: number, sample: number, sampleDir: string) {
   const resultPath = resolve(sampleDir, "original", "result.json");
@@ -61,7 +71,7 @@ async function runOriginal(task: string, taskId: number, sample: number, sampleD
   }
   await runBenchmark([
     "--mode", "original", "--task", task, "--seed", String(taskId * 10_000 + sample),
-    "--output", sampleDir,
+    "--output", sampleDir, "--model-profile", args.modelProfile,
   ]);
 }
 
@@ -73,7 +83,7 @@ async function runReplay(task: string, sampleDir: string) {
   if (args.force) await rm(resolve(sampleDir, "evaluation.json"), { force: true });
   await runBenchmark([
     "--mode", "replay", "--task", task, "--output", sampleDir,
-    "--replay-entry", replayEntry,
+    "--replay-entry", replayEntry, "--model-profile", args.modelProfile,
   ]);
 }
 
@@ -81,14 +91,24 @@ async function runEvaluation(task: string, sampleDir: string) {
   if (!await exists(resolve(sampleDir, "original", "result.json"))
     || !await exists(resolve(sampleDir, "replay", "benchmark-result.json"))) return;
   if (!args.force && await exists(resolve(sampleDir, "evaluation.json"))) return;
-  await runBenchmark(["--mode", "evaluate", "--task", task, "--output", sampleDir]);
+  await runBenchmark([
+    "--mode", "evaluate", "--task", task, "--output", sampleDir,
+    "--model-profile", args.modelProfile,
+  ]);
 }
 
 async function runBenchmark(childArgs: string[]) {
   const command = resolve("node_modules/.bin/tsx");
   const runner = resolve("benchmark/android/android-world/benchmark.ts");
   await new Promise<void>((resolveRun, reject) => {
-    const child = spawn(command, [runner, ...childArgs], { cwd: process.cwd(), env: process.env, stdio: "inherit" });
+    const child = spawn(command, [runner, ...childArgs], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        ...(releaseDeviceLease ? { ACTONCE_ANDROID_WORLD_DEVICE_LEASE_OWNER: String(process.pid) } : {}),
+      },
+      stdio: "inherit",
+    });
     child.once("error", reject);
     child.once("exit", () => resolveRun());
   });
@@ -166,6 +186,10 @@ async function summarize() {
     phase: args.phase,
     caseCount: selected.length,
     samplesPerCase: args.samples,
+    execution: {
+      deviceConcurrency: 1,
+      model: modelProfileProvenance(args.modelProfile),
+    },
     sampleCount,
     coverage: {
       sampleCount,
@@ -211,22 +235,26 @@ function parseArgs(values: string[]): {
   samples: number;
   task?: string;
   force: boolean;
+  modelProfile: AndroidWorldModelProfile;
 } {
   let phase: Phase = "plan", selection: MidscenePassSelection = "pass@3";
-  let output = ".cache/android-world/suite", samples = 2, task: string | undefined, force = false;
+  let output = ".cache/android-world/suite", samples = 1, task: string | undefined, force = false;
+  let modelProfile: AndroidWorldModelProfile = "codex-luna";
   for (let index = 0; index < values.length; index += 1) {
     if (values[index] === "--phase") phase = values[++index] as Phase;
     else if (values[index] === "--selection") selection = values[++index] as MidscenePassSelection;
     else if (values[index] === "--output") output = values[++index];
     else if (values[index] === "--samples") samples = Number(values[++index]);
     else if (values[index] === "--task") task = values[++index];
+    else if (values[index] === "--model-profile") modelProfile = values[++index] as AndroidWorldModelProfile;
     else if (values[index] === "--force") force = true;
     else throw new Error(`Unknown argument: ${values[index]}`);
   }
   if (!["plan", "original", "compile", "replay", "evaluate"].includes(phase)) throw new Error(`Unknown phase: ${phase}`);
   if (selection !== "pass@1" && selection !== "pass@3") throw new Error(`Unknown selection: ${selection}`);
   if (!Number.isInteger(samples) || samples < 1) throw new Error(`Invalid samples: ${samples}`);
-  return { phase, selection, output, samples, task, force };
+  requireAndroidWorldModelProfile(modelProfile);
+  return { phase, selection, output, samples, task, force, modelProfile };
 }
 
 async function exists(path: string) { try { await access(path); return true; } catch { return false; } }
