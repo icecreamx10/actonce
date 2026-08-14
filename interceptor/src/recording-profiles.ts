@@ -59,6 +59,7 @@ export type RecordingRunOptions = {
   upstreamPort?: number;
   serial?: string;
   adbPath?: string;
+  exposeAdbShellAction?: boolean;
 };
 
 export type RecordingTaskContext<TAgent, TDevice> = {
@@ -144,7 +145,11 @@ export async function runRecordingProfile(
       requiredEntry(options),
     );
     const recorded = await agentForRecordedAndroid(
-      { serial: options.serial, androidAdbPath: options.adbPath },
+      {
+        serial: options.serial,
+        androidAdbPath: options.adbPath,
+        exposeRunAdbShellAction: options.exposeAdbShellAction,
+      },
       {},
       { rootDir: options.rootDir, recordingId: options.recordingId },
     );

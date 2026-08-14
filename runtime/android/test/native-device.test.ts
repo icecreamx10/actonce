@@ -2,7 +2,21 @@ import { describe, expect, it } from "vitest";
 import {
   androidUiAutomatorXmlToUiTree,
   normalizeAndroidSource,
+  isInvalidSessionError,
+  UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS,
 } from "../src/native-device.js";
+
+describe("persistent UIAutomator2 session", () => {
+  it("outlives the ten-minute benchmark model timeout", () => {
+    expect(UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS).toBeGreaterThan(600);
+  });
+
+  it("recovers only explicit invalid-session failures", () => {
+    expect(isInvalidSessionError(new Error("invalid session id"))).toBe(true);
+    expect(isInvalidSessionError(new Error("The session identified by abc is not known"))).toBe(true);
+    expect(isInvalidSessionError(new Error("connection refused"))).toBe(false);
+  });
+});
 
 describe("normalizeAndroidSource", () => {
   it("preserves accessibility attributes used by source checkpoints", () => {

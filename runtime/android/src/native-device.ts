@@ -7,10 +7,15 @@ import type { AndroidSessionOptions, Point } from "./types.js";
 const SERVER_PACKAGE = "io.appium.uiautomator2.server";
 const TEST_PACKAGE = `${SERVER_PACKAGE}.test`;
 const INSTRUMENTATION = `${TEST_PACKAGE}/androidx.test.runner.AndroidJUnitRunner`;
+// Midscene planning may legitimately spend several minutes between device
+// observations. Keep the persistent checkpoint session alive longer than the
+// pinned model timeout (10 minutes).
+export const UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS = 1_200;
 
 export class NativeAndroidDevice {
   private instrumentation?: ChildProcess;
   private sessionId?: string;
+  private sessionRecovery?: Promise<void>;
   private densityScale = 1;
 
   private constructor(
@@ -46,8 +51,20 @@ export class NativeAndroidDevice {
       stdio: ["ignore", "pipe", "pipe"],
     });
     await waitUntil(async () => (await fetch(this.url("/status"))).ok, 30_000, "UIAutomator2 server did not become ready");
+    await this.createSession();
+    const density = await this.shell(["wm", "density"]);
+    const match = density.match(/(?:Override|Physical) density:\s*(\d+)/);
+    this.densityScale = match ? Number(match[1]) / 160 : 1;
+  }
+
+  private async createSession(): Promise<void> {
     const session = await this.request<Record<string, unknown>>("POST", "/session", {
-      capabilities: { firstMatch: [{}], alwaysMatch: {} },
+      capabilities: {
+        firstMatch: [{}],
+        alwaysMatch: {
+          "appium:newCommandTimeout": UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS,
+        },
+      },
     });
     this.sessionId = stringValue(session.sessionId) ?? stringValue(recordValue(session.value)?.sessionId) ?? stringValue(recordValue(session.value)?.id);
     if (!this.sessionId) throw new Error(`UIAutomator2 did not return a session id: ${JSON.stringify(session)}`);
@@ -58,9 +75,6 @@ export class NativeAndroidDevice {
     await this.request("POST", this.sessionPath("/appium/settings"), {
       settings: { enableNotificationListener: false },
     });
-    const density = await this.shell(["wm", "density"]);
-    const match = density.match(/(?:Override|Physical) density:\s*(\d+)/);
-    this.densityScale = match ? Number(match[1]) / 160 : 1;
   }
 
   async close(): Promise<void> {
@@ -79,7 +93,7 @@ export class NativeAndroidDevice {
   }
 
   async sourceXml(): Promise<string> {
-    const response = await this.request<unknown>("GET", this.sessionPath("/source"));
+    const response = await this.sessionRequest<unknown>("GET", "/source");
     const xml = typeof response === "string" ? response : stringValue(recordValue(response)?.value);
     if (!xml) throw new Error(`UIAutomator2 source response did not contain XML: ${JSON.stringify(response)}`);
     return xml;
@@ -88,7 +102,7 @@ export class NativeAndroidDevice {
   pixelRatio(): number { return this.densityScale; }
 
   async screenshotBase64(): Promise<string> {
-    const response = await this.request<unknown>("GET", this.sessionPath("/screenshot"));
+    const response = await this.sessionRequest<unknown>("GET", "/screenshot");
     const value = typeof response === "string" ? response : stringValue(recordValue(response)?.value);
     if (!value) throw new Error("UIAutomator2 screenshot response did not contain base64 data");
     return value;
@@ -97,7 +111,7 @@ export class NativeAndroidDevice {
 
   async tap(point: Point): Promise<void> {
     const p = this.physical(point);
-    await this.request("POST", this.sessionPath("/actions"), {
+    await this.sessionRequest("POST", "/actions", {
       actions: [{
         type: "pointer",
         id: "finger1",
@@ -114,7 +128,7 @@ export class NativeAndroidDevice {
   async longPress(point: Point, duration = 800): Promise<void> { const p = this.physical(point); await this.shell(["input", "swipe", `${p.x}`, `${p.y}`, `${p.x}`, `${p.y}`, `${duration}`]); }
   async swipe(start: Point, end: Point, duration = 300): Promise<void> {
     const a = this.physical(start), b = this.physical(end);
-    await this.request("POST", this.sessionPath("/actions"), {
+    await this.sessionRequest("POST", "/actions", {
       actions: [{
         type: "pointer",
         id: "finger1",
@@ -153,6 +167,32 @@ export class NativeAndroidDevice {
     if (!response.ok) throw new Error(`UIAutomator2 ${method} ${path} failed (${response.status}): ${text}`);
     return (text ? JSON.parse(text) : {}) as T;
   }
+
+  private async sessionRequest<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+    const staleSessionId = this.sessionId;
+    if (!staleSessionId) throw new Error("UIAutomator2 session is not ready");
+    try {
+      return await this.request<T>(method, `/session/${staleSessionId}${path}`, body);
+    } catch (error) {
+      if (!isInvalidSessionError(error)) throw error;
+      await this.recoverSession(staleSessionId);
+      return this.request<T>(method, this.sessionPath(path), body);
+    }
+  }
+
+  private async recoverSession(staleSessionId: string): Promise<void> {
+    if (this.sessionId !== staleSessionId && this.sessionId) return;
+    if (!this.sessionRecovery) {
+      this.sessionRecovery = (async () => {
+        if (this.sessionId !== staleSessionId && this.sessionId) return;
+        this.sessionId = undefined;
+        await this.createSession();
+      })().finally(() => {
+        this.sessionRecovery = undefined;
+      });
+    }
+    await this.sessionRecovery;
+  }
 }
 
 async function adb(adbPath: string, serial: string | undefined, args: string[]): Promise<string> {
@@ -170,6 +210,10 @@ async function waitUntil(check: () => Promise<boolean>, timeoutMs: number, messa
 function delay(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }
 function recordValue(value: unknown): Record<string, unknown> | undefined { return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined; }
 function stringValue(value: unknown): string | undefined { return typeof value === "string" ? value : undefined; }
+export function isInvalidSessionError(error: unknown): boolean {
+  const value = error instanceof Error ? error.message : String(error);
+  return /invalid session id|session identified by .* is not known/i.test(value);
+}
 function keyCode(key: string): string { const normalized = key.toUpperCase().replaceAll(" ", "_"); const aliases: Record<string, string> = { ENTER: "KEYCODE_ENTER", RETURN: "KEYCODE_ENTER", BACKSPACE: "KEYCODE_DEL", DELETE: "KEYCODE_DEL", ESCAPE: "KEYCODE_BACK", BACK: "KEYCODE_BACK", HOME: "KEYCODE_HOME", APP_SWITCH: "KEYCODE_APP_SWITCH", TAB: "KEYCODE_TAB" }; return aliases[normalized] ?? (normalized.startsWith("KEYCODE_") ? normalized : `KEYCODE_${normalized}`); }
 
 export function normalizeAndroidSource(xml: string): string {

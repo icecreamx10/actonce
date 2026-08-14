@@ -244,13 +244,12 @@ async function matchesSource(
   return matchesSourceExpectation(source, checkpoint);
 }
 
-function matchesSourceExpectation(
+export function matchesSourceExpectation(
   source: string,
   checkpoint: RecordedAndroidVisualCheckpoint,
 ) {
   if (checkpoint.sourceNode) {
-    const match = findSourceNode(JSON.parse(source), checkpoint.sourceNode);
-    if (match) return true;
+    return findSourceNode(JSON.parse(source), checkpoint.sourceNode);
   }
   const expected = checkpoint.sourceIncludes ?? [];
   return expected.length > 0 && expected.every((value) => source.includes(value));
