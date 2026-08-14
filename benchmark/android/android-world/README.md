@@ -7,6 +7,20 @@ Midscene reported as PASS in round 1. It pins AndroidWorld commit
 `3e50888527ef9f29b9157ecd537e408008bb1c85`, a Pixel 6/API 33 AVD, the task's
 fixed `max` parameters, and AndroidWorld's own initializer and reward validator.
 
+## Coverage target
+
+The pinned Midscene report contains 116 AndroidWorld tasks. Round 1 passed 108;
+the union of tasks passing by round 3 contains 113. The repository catalog
+preserves every round status and treats the final 113-task set as the complete
+coverage target. List either set offline:
+
+```bash
+npm run android-world:catalog -- --selection pass@1 --format lines
+npm run android-world:catalog -- --selection pass@3 --format lines
+```
+
+`SystemBrightnessMax` is the first completed case, not the whole suite.
+
 ```bash
 npm run android-world:bootstrap
 npm run android-world:check

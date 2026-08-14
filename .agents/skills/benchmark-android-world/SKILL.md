@@ -1,6 +1,6 @@
 ---
 name: benchmark-android-world
-description: Run repository-internal AndroidWorld original-versus-ActOnce replay benchmarks with the official task initializer and validator. Use when measuring correctness and conditional replay speed for Android cases that Midscene's published AndroidWorld report marks PASS. Formal measurements must be delegated to a completely context-free agent.
+description: Run repository-internal AndroidWorld original-versus-ActOnce replay benchmarks with official task initialization and validation. Use for a single case or the complete catalog of cases marked PASS by Midscene's published AndroidWorld report. Formal measurements must be delegated to a completely context-free agent.
 ---
 
 # Benchmark AndroidWorld
@@ -35,6 +35,33 @@ no inherited context and used a clean output directory. Record this isolation
 fact in the result summary. If it needs to change benchmark code, its run becomes
 development-only: return the diagnosis to the coordinator, commit the repair,
 then delegate the formal rerun to a different fresh agent.
+
+## Suite scope
+
+Use `npm run android-world:catalog` as the pinned offline catalog. The default
+complete target is `pass@3`: all 113 tasks that passed in at least one of
+Midscene's three published rounds. Preserve `pass@1` as the 108-task first-run
+view; never describe the two sets as equivalent.
+
+For each catalog case:
+
+1. Generate and persist one official AndroidWorld parameter set per sample.
+2. Run the official initializer, record the Midscene original, and require the
+   official reward to be exactly `1.0`.
+3. Compile replay only from that complete recording and its evidence.
+4. Execute replay through ActOnce's native Android runtime and require official
+   reward `1.0` before comparing time.
+5. Preserve failures under a stable case/sample directory and resume without
+   discarding or renumbering them.
+
+Run two independently initialized originals and two replays per case. Aggregate
+case medians only after both samples pass. Report suite coverage separately as
+catalog, original-pass, compiled, replay-correct, and performance-comparable
+counts. A missing, unsupported, setup-failed, or incorrect case remains visible
+in the denominator; never silently skip it.
+
+The current `SystemBrightnessMax` workflow below is the suite canary. It proves
+the harness, not full AndroidWorld coverage.
 
 ## SystemBrightnessMax workflow
 

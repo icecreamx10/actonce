@@ -7,6 +7,19 @@ Round 1 中将该任务报告为 PASS。环境固定 AndroidWorld commit
 `3e50888527ef9f29b9157ecd537e408008bb1c85`、Pixel 6/API 33 AVD、任务的
 `max` 参数，并直接调用 AndroidWorld 自己的 initializer 与 reward validator。
 
+## 覆盖目标
+
+固定的 Midscene 报告包含 116 个 AndroidWorld 任务：Round 1 通过 108 个，
+截至 Round 3 至少一次通过的并集为 113 个。仓库 catalog 保存每轮状态，并
+把最终 113 个任务作为完整覆盖目标。可离线列出两种口径：
+
+```bash
+npm run android-world:catalog -- --selection pass@1 --format lines
+npm run android-world:catalog -- --selection pass@3 --format lines
+```
+
+`SystemBrightnessMax` 只是第一个已完成 case，并不代表完整 suite。
+
 ```bash
 npm run android-world:bootstrap
 npm run android-world:check
