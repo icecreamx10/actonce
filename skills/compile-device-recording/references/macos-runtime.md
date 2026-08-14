@@ -102,6 +102,44 @@ or hybrid replay. Record which strategy ran; when fallback occurs, include its f
 latency and actions inside the scored replay duration. Correct hybrid results remain
 eligible for replay performance comparison.
 
+Use the same concrete `flow.segment` command for assertions. An assertion is an
+observation-only segment: its precondition waits for the recorded evidence checkpoint,
+its deterministic phase sends no device input, and its postcondition accepts the
+assertion only while the independently evidenced outcome still matches:
+
+```ts
+const tooltipExpectation = {
+  visual: {
+    referencePath: "/absolute/recording/artifacts/tooltip.png",
+    region: { left: 760, top: 250, width: 480, height: 120 },
+    maxDifferenceRatio: 0.03,
+  },
+};
+
+await flow.segment({
+  id: "assert-diagnostic-tooltip",
+  precondition: {
+    id: "tooltip-ready",
+    expected: tooltipExpectation,
+    settle: { timeoutMs: 1_200, intervalMs: 60, consecutiveMatches: 2 },
+  },
+  deterministic: async () => {
+    // The checkpoint driver is the registered recorded-modality evaluator.
+    // Do not send device input or substitute an AX/DOM lookup here.
+  },
+  postcondition: {
+    id: "tooltip-expression-expected-verified",
+    expected: tooltipExpectation,
+  },
+  idempotency: "safe",
+});
+```
+
+Apply this shape to Assert, Boolean, Query, and final oracle checks. A precondition
+settle timeout is a checkpoint failure; it is not an observed `false` result. A
+postcondition mismatch means the assertion was not accepted even if a separate
+read-only evaluator call returned successfully.
+
 For a hybrid CLI run, emit a separate fallback plugin module. It must create a
 Midscene Agent on the recorded macOS device adapter so AI actions append to the same
 ActOnce timeline, then return a `MidsceneFallbackDriver` and recorder cleanup:

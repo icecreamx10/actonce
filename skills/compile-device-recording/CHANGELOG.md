@@ -1,5 +1,10 @@
 # @byted-lynx/actonce-skill-compile-device-recording
 
+## Unreleased
+
+- Gate live replay retry loops on a written execution-environment assessment so cross-machine compilation stops at offline validation when no equivalent fresh-fixture environment is available.
+- Require assertions to use the same concrete precondition/postcondition checkpoint segments and bounded settling as state-changing replay actions.
+
 ## 0.2.0
 
 ### Minor Changes

@@ -114,6 +114,36 @@ post-checkpoints exist. A mismatch must fail closed unless the caller explicitly
 in hybrid recovery mode. In hybrid mode, fallback may repair only the current segment;
 the runtime must recapture and match its checkpoint before deterministic replay resumes.
 
+Compile assertions as observation-only `flow.segment` units using the same concrete
+checkpoint contract as actions. Put the last independently evidenced state required
+to evaluate the assertion in `precondition`, with `settle` derived from
+`recommendedSettle` or the recorded synchronization budget. The `deterministic`
+function may only invoke the assertion decision record's read-only evaluator; when
+the checkpoint driver is that evaluator, use a no-op. Put the independently evidenced
+assertion outcome in `postcondition`. This applies to Assert, Boolean, Query, and final
+oracle checks. Never invoke the evaluator before the precondition settles, advance
+after evaluator dispatch alone, or turn a precondition timeout into an observed false.
+
+```ts
+await flow.segment({
+  id: "assert-tooltip-message",
+  precondition: {
+    id: "tooltip-ready",
+    expected: tooltipExpectation,
+    settle: { timeoutMs: 1_200, intervalMs: 60, consecutiveMatches: 2 },
+  },
+  deterministic: async () => {
+    // No device input. Invoke the decision record's read-only evaluator here
+    // only when the checkpoint driver is not already that evaluator.
+  },
+  postcondition: {
+    id: "tooltip-message-verified",
+    expected: tooltipExpectation,
+  },
+  idempotency: "safe",
+});
+```
+
 Mark non-idempotent segments as `observe-before-retry` or `never-retry`. Never allow
 an AI fallback to repeat a `never-retry` postcondition action.
 
@@ -123,10 +153,15 @@ the final target already matches, skip remaining calls; never undo, delete, subm
 or close after cleanup is complete. Otherwise execute only the next opaque call,
 settle on its checkpoint, and reassess.
 
-Use bounded polling for asynchronous UI changes. Keep short input-settle delays only when required by the recorded driver behavior.
+Use bounded polling for asynchronous UI changes in both action and assertion
+pre/post checkpoints. Keep short input-settle delays only when required by the
+recorded driver behavior.
 
 ## Correctness loop
 
+- Gate the loop on a written execution-environment assessment. Verify the current machine has the required platform/runtime, matching app or build, equivalent fixture and reset path, target device/display, credentials/services, and repository benchmark harness. Record concrete checks; do not infer availability from recording metadata alone.
+- Classify the environment as `available`, `equivalent-but-unproven`, or `unavailable`. Cross-machine compilation is normal: if the recording machine cannot be accessed and the compilation machine cannot prove an equivalent resettable environment, finish offline compilation/static validation and stop with zero live attempts. This is an environment blocker, not a replay failure.
+- Never enter an execute/fix retry loop without a fresh-fixture validation environment. Do not loop on launch/connection failures that merely restate the same missing environment, and do not claim correctness, stability, or two-pass validation from offline evidence.
 - Build the replay oracle before execution: action order, independently evidenced observations, equivalent checkpoint boundaries, cleanup, and final state. Compare semantic state, not timestamps, event counts, or raw artifact identity.
 - Require evidence on both sides of each state change. Event dispatch, protocol success, or an AX notification alone does not prove application state.
 - Preserve every failure. Classify the first mismatch as compiler, runtime, selector/coordinate, evaluator, fixture/environment, or fallback; fix the narrowest layer, reset, and rerun the complete case.
@@ -146,9 +181,10 @@ implementation from the recording and public runtime support.
 ## Output contract
 
 Return generated replay and decision files; range/exclusions; fixture requirements;
-deterministic/hybrid mode and bounded fallback; oracle; and complete attempt history
-with diagnoses, fixes, consecutive pass count, fallback diagnostics, residual risks,
-or exact blocker evidence.
+deterministic/hybrid mode and bounded fallback; oracle; execution-environment
+assessment and validation level; and complete attempt history (including zero live
+attempts) with diagnoses, fixes, consecutive pass count, fallback diagnostics,
+residual risks, or exact blocker evidence and the smallest unblock action.
 
 For platform fragments and shared-session execution, read [macos-runtime.md](macos-runtime.md)
 or [ios-runtime.md](ios-runtime.md), or [android-runtime.md](android-runtime.md).
