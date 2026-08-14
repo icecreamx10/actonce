@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { access } from "node:fs/promises";
 import { XMLParser } from "fast-xml-parser";
 import { SERVER_APK_PATH, TEST_APK_PATH } from "appium-uiautomator2-server";
-import type { AndroidSessionOptions, Point } from "./types.js";
+import type { AndroidNodeSelector, AndroidSessionOptions, Point } from "./types.js";
 
 const SERVER_PACKAGE = "io.appium.uiautomator2.server";
 const TEST_PACKAGE = `${SERVER_PACKAGE}.test`;
@@ -124,6 +124,29 @@ export class NativeAndroidDevice {
       }],
     });
   }
+  async tapUniqueNode(selector: AndroidNodeSelector, coordinateFallback?: Point): Promise<"selector" | "coordinate-fallback"> {
+    if (Object.values(selector).every((value) => value === undefined)) throw new TypeError("Android selector must not be empty");
+    const tree = androidUiAutomatorXmlToUiTree(await this.sourceXml(), this.densityScale);
+    const matches = findAndroidUiTreeNodes(tree.root, selector);
+    if (matches.length === 1) {
+      const response = await this.sessionRequest<unknown>("POST", "/element", {
+        strategy: "-android uiautomator",
+        selector: androidUiSelector(selector),
+      });
+      const value = recordValue(response);
+      const element = recordValue(value?.value) ?? value;
+      const elementId = stringValue(element?.["element-6066-11e4-a52e-4f735466cecf"])
+        ?? stringValue(element?.ELEMENT);
+      if (!elementId) throw new Error(`UIAutomator2 did not return an element id: ${JSON.stringify(response)}`);
+      await this.sessionRequest("POST", `/element/${encodeURIComponent(elementId)}/click`, {});
+      return "selector";
+    }
+    if (matches.length === 0 && coordinateFallback) {
+      await this.tap(coordinateFallback);
+      return "coordinate-fallback";
+    }
+    throw new Error(`Android selector must match exactly one node; matched ${matches.length}: ${JSON.stringify(selector)}`);
+  }
   async doubleClick(point: Point): Promise<void> { await this.tap(point); await delay(80); await this.tap(point); }
   async longPress(point: Point, duration = 800): Promise<void> { const p = this.physical(point); await this.shell(["input", "swipe", `${p.x}`, `${p.y}`, `${p.x}`, `${p.y}`, `${duration}`]); }
   async swipe(start: Point, end: Point, duration = 300): Promise<void> {
@@ -144,7 +167,30 @@ export class NativeAndroidDevice {
   }
   async typeText(value: string): Promise<void> { await this.shell(["input", "text", value.replaceAll("%", "%25").replaceAll(" ", "%s")]); }
   async keyboardPress(key: string): Promise<void> { await this.shell(["input", "keyevent", keyCode(key)]); }
-  async clearInput(): Promise<void> { await this.shell(["input", "keyevent", "KEYCODE_MOVE_END"]); await this.shell(["input", "keyevent", "--longpress", "KEYCODE_DEL"]); }
+  async clearInput(maxLength = 100): Promise<void> {
+    if (!Number.isInteger(maxLength) || maxLength < 0) throw new TypeError("clearInput maxLength must be a non-negative integer");
+    if (maxLength === 0) return;
+    // Match Midscene/appium-adb replace semantics exactly. The cursor may be
+    // anywhere, so delete on both sides rather than assuming MOVE_END worked.
+    await this.shell([
+      "input", "keyevent",
+      ...Array.from({ length: maxLength }, () => ["67", "112"]).flat(),
+    ]);
+  }
+  async hideKeyboard(timeoutMs = 1_000): Promise<boolean> {
+    if (!(await this.isKeyboardShown())) return false;
+    // BACK is consumed by the visible IME on stock Android. ESC may be
+    // delivered to the app and dismiss a dialog even while mInputShown=true.
+    for (const key of ["KEYCODE_BACK", "KEYCODE_ESCAPE"]) {
+      await this.keyboardPress(key);
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        await delay(100);
+        if (!(await this.isKeyboardShown())) return true;
+      }
+    }
+    throw new Error("Android software keyboard could not be hidden");
+  }
   async back(): Promise<void> { await this.keyboardPress("BACK"); }
   async home(): Promise<void> { await this.keyboardPress("HOME"); }
   async recentApps(): Promise<void> { await this.keyboardPress("APP_SWITCH"); }
@@ -157,6 +203,10 @@ export class NativeAndroidDevice {
   async terminate(packageName: string): Promise<void> { await this.shell(["am", "force-stop", packageName]); }
 
   private physical(point: Point): Point { return { x: Math.round(point.x * this.densityScale), y: Math.round(point.y * this.densityScale) }; }
+  private async isKeyboardShown(): Promise<boolean> {
+    const output = await this.shell(["dumpsys", "input_method"]);
+    return /mInputShown=true\b/.test(output);
+  }
   private sessionPath(path: string): string { if (!this.sessionId) throw new Error("UIAutomator2 session is not ready"); return `/session/${this.sessionId}${path}`; }
   private url(path: string): string { return `http://127.0.0.1:${this.systemPort}${path}`; }
   private run(args: string[]): Promise<string> { return adb(this.adbPath, this.serial, args); }
@@ -193,6 +243,15 @@ export class NativeAndroidDevice {
     }
     await this.sessionRecovery;
   }
+}
+
+function androidUiSelector(selector: AndroidNodeSelector): string {
+  let value = "new UiSelector()";
+  if (selector.type !== undefined) value += `.className(${JSON.stringify(selector.type)})`;
+  if (selector.text !== undefined) value += `.text(${JSON.stringify(selector.text)})`;
+  if (selector.contentDescription !== undefined) value += `.description(${JSON.stringify(selector.contentDescription)})`;
+  if (selector.resourceId !== undefined) value += `.resourceId(${JSON.stringify(selector.resourceId)})`;
+  return value;
 }
 
 async function adb(adbPath: string, serial: string | undefined, args: string[]): Promise<string> {
@@ -232,6 +291,23 @@ export type AndroidUiTree = {
   capturedAt: number;
   root: AndroidUiTreeNode;
 };
+
+export function findAndroidUiTreeNodes(
+  root: AndroidUiTreeNode,
+  selector: AndroidNodeSelector,
+): AndroidUiTreeNode[] {
+  const matches: AndroidUiTreeNode[] = [];
+  const visit = (node: AndroidUiTreeNode) => {
+    const matched = (selector.type === undefined || node.type === selector.type)
+      && (selector.text === undefined || node.attrs.text === selector.text)
+      && (selector.contentDescription === undefined || node.attrs["content-desc"] === selector.contentDescription)
+      && (selector.resourceId === undefined || node.attrs["resource-id"] === selector.resourceId);
+    if (matched) matches.push(node);
+    for (const child of node.children) visit(child);
+  };
+  visit(root);
+  return matches;
+}
 
 export function androidUiAutomatorXmlToUiTree(
   xml: string,

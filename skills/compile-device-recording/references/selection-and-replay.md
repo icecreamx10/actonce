@@ -165,6 +165,7 @@ recorded driver behavior.
 - Build the replay oracle before execution: action order, independently evidenced observations, equivalent checkpoint boundaries, cleanup, and final state. Compare semantic state, not timestamps, event counts, or raw artifact identity.
 - Require evidence on both sides of each state change. Event dispatch, protocol success, or an AX notification alone does not prove application state.
 - Preserve every failure. Classify the first mismatch as compiler, runtime, selector/coordinate, evaluator, fixture/environment, or fallback; fix the narrowest layer, reset, and rerun the complete case.
+- Treat a successful official oracle plus a failed internal checkpoint as evidence of an evaluator/observability mismatch, not permission to ignore the checkpoint. Re-express the same recorded fact through a modality that is both recorded and live-observable.
 - Require two consecutive fresh-fixture passes. Do not delete assertions, weaken values/modalities, enlarge recorded timeout bounds, exclude failures, or resume from contaminated state.
 - Stop only for unavailable authority, credentials, platform capability, external state, or irrecoverable source evidence. Report the exact boundary, expected/actual evidence, attempted fixes, artifacts, and smallest unblock action.
 

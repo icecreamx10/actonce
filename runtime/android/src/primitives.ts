@@ -3,6 +3,7 @@ import type { Point } from "./types.js";
 
 export const SUPPORTED_ANDROID_PRIMITIVES = [
   "tap",
+  "tapUniqueNode",
   "doubleClick",
   "longPress",
   "swipe",
@@ -40,6 +41,12 @@ export async function replayAndroidPrimitive(
     case "tap":
       await android.device.tap(point(args[0], "tap point"));
       return;
+    case "tapUniqueNode":
+      await android.device.tapUniqueNode(
+        nodeSelector(args[0]),
+        args[1] === undefined ? undefined : point(args[1], "tapUniqueNode coordinate fallback"),
+      );
+      return;
     case "doubleClick":
       await android.device.doubleClick(point(args[0], "doubleClick point"));
       return;
@@ -68,7 +75,13 @@ export async function replayAndroidPrimitive(
           await android.device.tap(point(target, "typeText target"));
         }
         if (inputOptions?.replace !== false) await android.device.clearInput();
-        if (!inputOptions?.focusOnly) await android.device.typeText(value);
+        if (!inputOptions?.focusOnly) {
+          await android.device.typeText(value);
+          // Midscene Android Input defaults autoDismissKeyboard to true. This
+          // is part of the recorded action's semantics: the next coordinate
+          // must see the same viewport, not one resized by the IME.
+          await android.device.hideKeyboard();
+        }
       }
       return;
     case "keyboardPress":
@@ -122,6 +135,22 @@ function options(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
+}
+function nodeSelector(value: unknown) {
+  const entry = options(value);
+  if (!entry) throw new TypeError("tapUniqueNode selector must be an object");
+  const selector = {
+    type: optionalString(entry.type, "tapUniqueNode selector.type"),
+    text: optionalString(entry.text, "tapUniqueNode selector.text"),
+    contentDescription: optionalString(entry.contentDescription, "tapUniqueNode selector.contentDescription"),
+    resourceId: optionalString(entry.resourceId, "tapUniqueNode selector.resourceId"),
+  };
+  if (Object.values(selector).every((item) => item === undefined)) throw new TypeError("tapUniqueNode selector must not be empty");
+  return selector;
+}
+function optionalString(value: unknown, label: string): string | undefined {
+  if (value === undefined) return undefined;
+  return string(value, label);
 }
 function string(value: unknown, label: string): string {
   if (typeof value !== "string")

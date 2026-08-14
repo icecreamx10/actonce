@@ -12,9 +12,14 @@ actonce-android run replay.ts --serial emulator-5554
 
 Generated code must use `replayAndroidPrimitive`; do not inline ADB commands. Coordinates are normalized logical points and the native backend converts them to physical ADB coordinates using the device density.
 
+`typeText` preserves Midscene's Android replace and keyboard-dismiss semantics.
+The compile Skill may emit `tapUniqueNode` only after proving a selector unique
+and semantically aligned from recorded evidence; the primitive performs a native
+UIAutomator2 element click and retains the normalized recorded coordinate as its
+fallback. Mechanical primitive compilation never invents this mapping.
+
 `replayCheckpointGatedAndroidRecording` executes mechanically compiled steps
 with screenshot-first settling and recorded native-node evidence when raster
-state is ambiguous. It resolves recorded tap targets against live accessibility
-bounds when selectors are available, reuses a matched postcondition as the
+state is ambiguous. It reuses a matched postcondition as the
 adjacent precondition, and reports screenshot capture, source capture, actual
 settle delay, skipped actions, and fallback separately.

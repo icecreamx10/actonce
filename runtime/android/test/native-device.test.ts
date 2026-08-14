@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   androidUiAutomatorXmlToUiTree,
+  findAndroidUiTreeNodes,
   normalizeAndroidSource,
   isInvalidSessionError,
   UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS,
@@ -58,5 +59,17 @@ describe("androidUiAutomatorXmlToUiTree", () => {
         ],
       },
     });
+  });
+});
+
+describe("findAndroidUiTreeNodes", () => {
+  it("matches the exact semantic fields chosen by the compile Skill", () => {
+    const tree = androidUiAutomatorXmlToUiTree(`<?xml version="1.0"?><hierarchy><node class="android.widget.Spinner" text="Mobile" content-desc="Mobile Phone" bounds="[10,20][110,70]"/><node class="android.widget.TextView" text="Mobile" bounds="[0,0][10,10]"/></hierarchy>`);
+    const matches = findAndroidUiTreeNodes(tree.root, {
+      type: "android.widget.Spinner",
+      text: "Mobile",
+    });
+    expect(matches).toHaveLength(1);
+    expect(matches[0].bounds).toEqual({ left: 10, top: 20, width: 100, height: 50 });
   });
 });
