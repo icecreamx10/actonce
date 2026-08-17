@@ -9,6 +9,42 @@ ANDROID_WORLD_COMMIT="3e50888527ef9f29b9157ecd537e408008bb1c85"
 AVD_ROOT="${ANDROID_AVD_HOME:-${HOME}/.android/avd}"
 PATCH_DIR="${ROOT}/benchmark/android/android-world/patches"
 
+python_is_supported() {
+  [[ -x "$1" ]] && "$1" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' >/dev/null 2>&1
+}
+
+resolve_python() {
+  local candidate
+  if [[ -n "${ACTONCE_ANDROID_WORLD_PYTHON:-}" ]]; then
+    if python_is_supported "${ACTONCE_ANDROID_WORLD_PYTHON}"; then
+      printf '%s\n' "${ACTONCE_ANDROID_WORLD_PYTHON}"
+      return
+    fi
+    echo "ACTONCE_ANDROID_WORLD_PYTHON must point to Python 3.10 or newer" >&2
+    return 1
+  fi
+
+  for candidate in python3.12 python3.11 python3; do
+    candidate="$(command -v "${candidate}" 2>/dev/null || true)"
+    if [[ -n "${candidate}" ]] && python_is_supported "${candidate}"; then
+      printf '%s\n' "${candidate}"
+      return
+    fi
+  done
+
+  for candidate in \
+    "${PYENV_ROOT:-${HOME}/.pyenv}"/versions/*/bin/python3 \
+    "${HOME}/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3"; do
+    if python_is_supported "${candidate}"; then
+      printf '%s\n' "${candidate}"
+      return
+    fi
+  done
+
+  echo "AndroidWorld requires Python 3.10 or newer; set ACTONCE_ANDROID_WORLD_PYTHON" >&2
+  return 1
+}
+
 apply_patches() {
   local patch_path
   for patch_path in "${PATCH_DIR}"/*.patch; do
@@ -67,9 +103,14 @@ git -C "${SOURCE}" fetch --depth 1 origin "${ANDROID_WORLD_COMMIT}"
 git -C "${SOURCE}" checkout --detach "${ANDROID_WORLD_COMMIT}"
 apply_patches
 
-if [[ ! -x "${VENV}/bin/python" ]]; then
-  python3 -m venv "${VENV}"
+PYTHON_BIN="$(resolve_python)"
+if [[ -x "${VENV}/bin/python" ]] && ! python_is_supported "${VENV}/bin/python"; then
+  rm -rf "${VENV}"
 fi
+if [[ ! -x "${VENV}/bin/python" ]]; then
+  "${PYTHON_BIN}" -m venv "${VENV}"
+fi
+echo "Using $("${VENV}/bin/python" --version) for AndroidWorld"
 "${VENV}/bin/pip" install --disable-pip-version-check -q -r "${SOURCE}/requirements.txt"
 "${VENV}/bin/pip" install --disable-pip-version-check -q -e "${SOURCE}"
 echo "AndroidWorld ${ANDROID_WORLD_COMMIT} ready in ${SOURCE}"
