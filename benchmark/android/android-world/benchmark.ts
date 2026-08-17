@@ -8,6 +8,11 @@ import {
   type AndroidWorldModelProfile,
 } from "./model-profile.js";
 import { acquireAndroidWorldDeviceLease } from "./device-lease.js";
+import {
+  CHROME_PACKAGE,
+  isChromeReady,
+  nextChromeFixtureAction,
+} from "./chrome-fixture.js";
 
 type Mode = "all" | "original" | "replay" | "evaluate";
 const args = parseArgs(process.argv.slice(2));
@@ -242,10 +247,42 @@ async function prepareInitialTargetApp(value: unknown) {
     const focus = await runCapture(adb, ["-s", serial, "shell", "dumpsys", "window"]);
     if (focus.code !== 0) throw new Error(`Failed to inspect foreground app: ${focus.stderr}`);
     const current = focus.stdout.split("\n").find((line) => line.includes("mCurrentFocus="));
-    if (current?.includes(initialPackage)) return;
+    if (current?.includes(initialPackage)) {
+      await canonicalizeInitialAppState(adb, serial, initialPackage);
+      return;
+    }
     await delay(250);
   }
   throw new Error(`Timed out waiting for target app ${initialPackage} to reach the foreground`);
+}
+
+async function canonicalizeInitialAppState(adb: string, serial: string, packageName: string) {
+  if (packageName !== CHROME_PACKAGE) return;
+  const deadline = Date.now() + 15_000;
+  const actionCounts = new Map<string, number>();
+  while (Date.now() < deadline) {
+    const dump = await runCapture(adb, ["-s", serial, "exec-out", "uiautomator", "dump", "/dev/tty"]);
+    if (dump.code !== 0) throw new Error(`Failed to inspect Chrome fixture state: ${dump.stderr}`);
+    if (isChromeReady(dump.stdout)) return;
+    const action = nextChromeFixtureAction(dump.stdout);
+    if (action) {
+      const count = actionCounts.get(action.resourceId) ?? 0;
+      if (count >= 2) {
+        throw new Error(`Chrome fixture control ${action.resourceId} remained visible after two bounded attempts`);
+      }
+      const tapped = await runCapture(adb, [
+        "-s", serial, "shell", "input", "tap", String(action.point.x), String(action.point.y),
+      ]);
+      if (tapped.code !== 0) throw new Error(`Failed to advance Chrome fixture state: ${tapped.stderr}`);
+      actionCounts.set(action.resourceId, count + 1);
+      await delay(250);
+      continue;
+    }
+    await delay(250);
+  }
+  throw new Error(
+    "Chrome fixture did not reach a normal browser surface; refusing a non-reproducible benchmark",
+  );
 }
 
 function run(command: string, childArgs: string[], extraEnv: Record<string, string> = {}) {
