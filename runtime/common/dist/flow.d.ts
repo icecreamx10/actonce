@@ -15,6 +15,12 @@ export declare class ReplayFlow<TExpectation, TActual> {
         deadlineMs: number;
         signal: AbortSignal;
     }): Promise<CheckpointResult<TActual>>;
+    /**
+     * Wait for a standalone checkpoint using the same settle scheduler and
+     * diagnostics as segment pre/postconditions. This is useful for externally
+     * driven E2E actions whose execution remains outside ActOnce.
+     */
+    waitForCheckpoint(segmentId: string, phase: "precondition" | "postcondition", spec: CheckpointSpec<TExpectation>): Promise<CheckpointResult<TActual>>;
     segment(segment: ReplaySegment<TExpectation>): Promise<void>;
     private ensure;
     private settleCheckpoint;

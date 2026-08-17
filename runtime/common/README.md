@@ -35,6 +35,9 @@ postcondition: {
 }
 ```
 
+For externally executed actions, `flow.waitForCheckpoint()` applies the same
+settle scheduler and diagnostics without inventing a deterministic segment.
+
 The runtime verifies immediately, then polls only while the checkpoint differs.
 It advances as soon as the required consecutive matches arrive. If the timeout is
 exhausted, the unchanged mismatch enters the existing fallback policy; deterministic
@@ -53,3 +56,22 @@ and timeout count. `checkpointWaitDurationMs` remains as their deprecated compat
 sum. The benchmark's enclosing
 execution timer must still cover the complete flow, including checkpoint verification
 before and after fallback.
+
+## Device and observation boundaries
+
+The package defines a deliberately small `DeviceConnector`/`DeviceSession`
+boundary and a separate `TreeObserver` boundary. Platform packages supply device
+capabilities such as native visual capture; CDP, AX, WDA, and UIAutomator remain
+replaceable tree sources. Source-native hashes are only comparable within one
+tree source. Cross-source fallback must use an explicitly compiled semantic
+projection.
+
+`ObservationCheckpointDriver` implements the shared staged checkpoint used by
+`ReplayFlow`: each verification captures the cheap tree source first, delays the
+expensive visual capture until semantic observations are stable, then recaptures
+the tree to prove the frame belongs to the same semantic state. `ReplayFlow`
+remains the only owner of polling, deadlines and fallback. Capture, comparison,
+and settle durations remain separate diagnostics.
+
+`waitForTreeThenVisual()` remains as a compatibility helper for callers that do
+not yet execute checkpoints through `ReplayFlow`.

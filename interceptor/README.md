@@ -162,6 +162,21 @@ initial raw WDA event contract is defined in
 The complete directory contract and checkpoint semantics are defined in
 [`spec/recording.md`](spec/recording.md).
 
+Replay uses the same append-only timeline. Pass the public adapter to
+`ReplayFlow.emit` so segment, checkpoint, fallback, and re-verification events
+receive the same global sequence and source ordering as recorder events:
+
+```ts
+import { RecorderSession, createReplayEventRecorder } from "@byted-lynx/actonce-recorder";
+
+const recording = await RecorderSession.create({ platform: "macos", recorder: "e2e-replay" });
+const flow = createCdpReplayFlow({
+  tree,
+  visual,
+  emit: createReplayEventRecorder(recording),
+});
+```
+
 ## Run the capture prototype
 
 Keep WDA running on port 8100, then start the interceptor in another terminal:

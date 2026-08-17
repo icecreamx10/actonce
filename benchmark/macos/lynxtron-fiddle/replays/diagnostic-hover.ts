@@ -5,7 +5,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
+import { ReplayFlow, VisualCheckpointDriver } from "@byted-lynx/actonce-replay";
+import type { VisualCaptureCapability } from "@byted-lynx/actonce-replay";
 import {
+  compileMacObservationPlanFile,
+  MacDeviceConnector,
   MacSession,
   captureMacRegionScreenshot,
   replayMacPrimitive,
@@ -46,17 +50,28 @@ if (displayId !== 0) {
   throw new Error(`This recorded replay requires displayId 0; received ${displayId}`);
 }
 const repositoryRoot = resolve(import.meta.dirname, "../../../..");
-const sourceRecording = join(
+const sourceRecording = resolve(process.env.ACTONCE_BENCHMARK_SOURCE_RECORDING ?? join(
   repositoryRoot,
   "artifacts/benchmarks/lynxtron-fiddle-suites/no-quick-open-original-smoke-20260813/cases/diagnostic-hover/recording/actonce",
+));
+const observationPlanPath = join(outputDir, "observation-plan.json");
+const observationPlan = await compileMacObservationPlanFile(
+  sourceRecording,
+  observationPlanPath,
+  { from: 1, to: 92 },
 );
+const plannedObservations = observationPlan.observations;
+if (plannedObservations.length !== 4 ||
+  plannedObservations.map((item) => item.operation).join(",") !== "Assert,Assert,Boolean,Query") {
+  throw new Error(`Unexpected diagnostic-hover observation plan: ${JSON.stringify(plannedObservations.map((item) => ({ sequence: item.sequence, operation: item.operation })))}`);
+}
 const recordedCheckpoint = (path: string) => join(sourceRecording, path);
 const REFERENCES = {
-  precondition: recordedCheckpoint("artifacts/d7/d71c8ee5684c5deba0bae0dc89ebd790ca71f7e57d6d778e2e98ff6815cd8fcd"),
-  inputApplied: recordedCheckpoint("artifacts/fb/fbc7efd47308ba8191db6d7ca915b22473c036fd3c424bd953f7a41ef5c681c6"),
-  redSquiggle: recordedCheckpoint("artifacts/fb/fbc7efd47308ba8191db6d7ca915b22473c036fd3c424bd953f7a41ef5c681c6"),
-  tooltip: recordedCheckpoint("artifacts/0a/0a8f7862d3e65c669a1ddfa2f4918a54bdf3297e138c8df3635e8a682ded1bd6"),
-  restored: recordedCheckpoint("artifacts/64/6485f0f7fc3a53f05d8815aeea42e6ecf1bbaf41e64ec5890f27d5680b60a2aa"),
+  precondition: observationScreenshot(0),
+  inputApplied: observationScreenshot(1),
+  redSquiggle: observationScreenshot(2),
+  tooltip: observationScreenshot(3),
+  restored: observationScreenshot(0),
 };
 // Physical-pixel regions relative to the Lynxtron window, derived from the
 // recorded display screenshot. Desktop position and unrelated windows are not
@@ -78,6 +93,7 @@ const startedAt = new Date().toISOString();
 const fullStarted = process.hrtime.bigint();
 const steps: Array<Record<string, unknown>> = [];
 const screenshots: string[] = [];
+const checkpointTimeline: Array<Record<string, unknown>> = [];
 let failure: ReturnType<typeof serializeError> | null = null;
 let executionStarted: bigint | undefined;
 let executionCompleted: bigint | undefined;
@@ -111,6 +127,7 @@ const mac = await MacSession.connect({
   logLevel: "error",
 });
 let liveWindow: WindowFrame;
+let livePid: number;
 try {
   const setup = await setupMacWindow({
     processName: "lynxtron",
@@ -123,12 +140,57 @@ try {
     placement: "center",
   });
   liveWindow = setup.frame;
+  livePid = setup.pid;
 } catch (error) {
   await mac.close();
   throw error;
 }
 const inputTarget = translateRecordedTarget(RECORDED_INPUT_TARGET, liveWindow);
 const hoverTarget = translateRecordedPoint(RECORDED_HOVER_TARGET, liveWindow);
+const captureDevice = await new MacDeviceConnector().connect();
+const visualTargets = (await captureDevice.listTargets()).filter((target) =>
+  target.app.pid === livePid && target.window?.bounds.width === liveWindow.width &&
+  target.window.bounds.height === liveWindow.height);
+if (visualTargets.length !== 1) {
+  await captureDevice.close();
+  await mac.close();
+  throw new Error(`Native capture resolved ${visualTargets.length} Lynxtron windows for pid ${livePid}`);
+}
+const visualCapability = await captureDevice.getCapability<VisualCaptureCapability>("visualCapture");
+const visual = await visualCapability.openStream({ target: visualTargets[0], artifactDirectory: screenshotsDir });
+const referenceDirectory = join(outputDir, "references");
+await mkdir(referenceDirectory, { recursive: true });
+const tooltipPositivePath = await cropRecordedWindowReference("tooltip-positive.png", REFERENCES.tooltip);
+const tooltipNegativePath = await cropRecordedWindowReference("tooltip-negative.png", REFERENCES.redSquiggle);
+const tooltipPositive = await visual.registerReference({ path: tooltipPositivePath });
+const tooltipNegative = await visual.registerReference({ path: tooltipNegativePath });
+const tooltipFlow = new ReplayFlow({
+  checkpoints: new VisualCheckpointDriver(visual),
+  emit: (event) => {
+    markCheckpoint(`flow.${event.kind}`, {
+      segmentId: event.segmentId,
+      phase: event.phase,
+      checkpointId: event.checkpointId,
+      checkCount: event.checkCount,
+      captureDurationMs: event.captureDurationMs,
+      settleDelayMs: event.settleDelayMs,
+      durationMs: event.durationMs,
+      status: event.checkpoint?.status,
+      actualMetrics: event.checkpoint?.actual.metrics,
+    });
+    if (event.kind !== "replay.checkpoint.checked" || !event.checkpoint) return;
+    const actual = event.checkpoint.actual;
+    screenshotCaptureCount += actual.metrics.captureCount;
+    screenshotCaptureDurationMs += actual.metrics.captureDurationMs;
+    visualEvaluationCount += actual.metrics.compareCount;
+    visualEvaluationDurationMs += actual.metrics.compareDurationMs;
+    const artifact = actual.frame?.artifactRef;
+    if (artifact) {
+      const relative = `screenshots/${artifact.split("/").at(-1)}`;
+      if (!screenshots.includes(relative)) screenshots.push(relative);
+    }
+  },
+});
 
 try {
   executionStarted = process.hrtime.bigint();
@@ -189,25 +251,47 @@ try {
       { x: hoverTarget.x, y: hoverTarget.y + 10 },
     ];
     for (let index = 0; index < candidates.length; index += 1) {
+      markCheckpoint("hover.started", { candidate: index + 1, point: candidates[index] });
       await mac.hover(candidates[index], 150);
-      const tooltipCheckpoint = await pollVisualCheckpoint(
-        index === 0 ? 1201 : 700,
-        index === 0 ? 61 : 100,
-        async () => {
-          const path = await capture(`tooltip-attempt-${index + 1}.png`);
-          return {
-            matched: await matchesRecordedCheckpoint(path, REFERENCES.tooltip, WINDOW_REGIONS.diagnostic, 0.03),
-            value: path,
-          };
+      markCheckpoint("hover.completed", { candidate: index + 1, point: candidates[index] });
+      markCheckpoint("checkpoint.wait.started", { candidate: index + 1 });
+      const tooltipCheckpoint = await tooltipFlow.waitForCheckpoint(
+        "hover-diagnostic",
+        "postcondition",
+        {
+          id: `tooltip-visible-${index + 1}`,
+          expected: {
+            referenceId: tooltipPositive.referenceId,
+            comparator: { type: "pixelDiff", mismatchThreshold: 0.03, channelTolerance: 16 },
+            contrast: {
+              referenceId: tooltipNegative.referenceId,
+              minimumSeparationRatio: 0.01,
+            },
+            persistCapture: true,
+          },
+          settle: {
+            timeoutMs: index === 0 ? 1201 : 700,
+            intervalMs: index === 0 ? 61 : 100,
+          },
         },
       );
-      if (tooltipCheckpoint.matched) {
+      markCheckpoint("checkpoint.wait.completed", {
+        candidate: index + 1,
+        status: tooltipCheckpoint.status,
+        differences: tooltipCheckpoint.differences,
+        actualMetrics: tooltipCheckpoint.actual.metrics,
+      });
+      if (tooltipCheckpoint.status === "matched") {
         tooltipVisible = true;
         tooltipMessage = EXPECTED_TOOLTIP;
         return;
       }
     }
   });
+  const tooltipDiagnostics = tooltipFlow.diagnostics();
+  checkpointPollCount += tooltipDiagnostics.checkpointPollCount;
+  checkpointWaitDurationMs += tooltipDiagnostics.checkpointWaitDurationMs;
+  checkpointTimeoutCount += tooltipDiagnostics.checkpointTimeoutCount;
   tooltipMessage = tooltipVisible ? EXPECTED_TOOLTIP : null;
   steps.push({
     id: "tooltip-message", kind: "query", status: tooltipVisible ? "passed" : "failed",
@@ -229,6 +313,8 @@ try {
     try { await restoreEditor(); } catch { /* preserve the primary failure */ }
   }
   if (executionStarted) executionCompleted = process.hrtime.bigint();
+  await visual.close();
+  await captureDevice.close();
   await mac.close();
 }
 
@@ -251,16 +337,21 @@ const result = {
   replayDiagnostics: {
     strategy: "deterministic", fallbackCount: 0, fallbackDurationMs: 0,
     checkpointPollCount, checkpointWaitDurationMs, checkpointTimeoutCount,
-    visualEvaluator: "recorded-screenshot-region-comparison",
+    visualEvaluator: "recorded-screenshot-contrastive-comparison",
     visualEvaluationCount, visualEvaluationDurationMs,
     screenshotBackend: "native-region", screenshotCaptureCount, screenshotCaptureDurationMs,
   },
   assertionDecision: "assertion-decision.json",
-  artifacts: { screenshots, assertionDecision: "assertion-decision.json" },
+  artifacts: {
+    screenshots,
+    assertionDecision: "assertion-decision.json",
+    checkpointTimeline: "checkpoint-timeline.json",
+  },
   cleanup: { saved: false, restored },
   fixture: { fixtureRoot, configPath: fixtureConfig, temporaryDirectory: fixtureTmp },
   error: failure,
 };
+await writeFile(join(outputDir, "checkpoint-timeline.json"), `${JSON.stringify(checkpointTimeline, null, 2)}\n`);
 await writeFile(join(outputDir, "result.json"), `${JSON.stringify(result, null, 2)}\n`);
 console.log(JSON.stringify(result, null, 2));
 if (!passed) process.exitCode = 2;
@@ -380,13 +471,34 @@ function assertionDecision(): Record<string, unknown> {
     schemaVersion: 1,
     recording: sourceRecording,
     selectedSequenceRange: { from: 1, to: 92 },
-    decisions: [
-      { observationTaskId: "c02ff4db-870f-46bb-8651-b0c83f756019", stepId: "precondition", recordedMode: "visual", evidence: [{ sequence: 6, artifact: "artifacts/d7/d71c8ee5684c5deba0bae0dc89ebd790ca71f7e57d6d778e2e98ff6815cd8fcd" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
-      { observationTaskId: "90fd9e5f-9df2-483b-ac2a-60eab12bc346", stepId: "error-source-applied", recordedMode: "visual", evidence: [{ sequence: 36, artifact: "artifacts/fb/fbc7efd47308ba8191db6d7ca915b22473c036fd3c424bd953f7a41ef5c681c6" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
-      { observationTaskId: "53f91017-cd68-4830-a9ac-70769c65f184", stepId: "red-squiggle", recordedMode: "visual", evidence: [{ sequence: 48, artifact: "artifacts/fb/fbc7efd47308ba8191db6d7ca915b22473c036fd3c424bd953f7a41ef5c681c6" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
-      { observationTaskId: "b323e910-bb5e-44f0-ae37-78ed9e527df4", stepId: "tooltip-message", recordedMode: "visual", evidence: [{ sequence: 76, artifact: "artifacts/0a/0a8f7862d3e65c669a1ddfa2f4918a54bdf3297e138c8df3635e8a682ded1bd6" }], compiledEvaluator: "recorded-screenshot-region-comparison", rejectedEvaluators: visualOnly },
-    ],
+    decisions: plannedObservations.map((observation, index) => ({
+      observationTaskId: observation.observationTaskId,
+      stepId: ["precondition", "error-source-applied", "red-squiggle", "tooltip-message"][index],
+      recordedMode: observation.recordedMode,
+      evidence: observation.evidence.screenshots,
+      compiledEvaluator: index === 3
+        ? "recorded-screenshot-contrastive-comparison"
+        : "recorded-screenshot-region-comparison",
+      rejectedEvaluators: visualOnly,
+    })),
   };
+}
+
+function observationScreenshot(index: number): string {
+  const evidence = plannedObservations[index]?.evidence.screenshots.at(-1);
+  if (!evidence) throw new Error(`Observation ${index} has no screenshot evidence`);
+  return recordedCheckpoint(evidence.artifact);
+}
+
+async function cropRecordedWindowReference(name: string, source: string): Promise<string> {
+  const path = join(referenceDirectory, name);
+  await sharp(source).extract({
+    left: RECORDED_WINDOW.x * DISPLAY.dpr,
+    top: RECORDED_WINDOW.y * DISPLAY.dpr,
+    width: RECORDED_WINDOW.width * DISPLAY.dpr,
+    height: RECORDED_WINDOW.height * DISPLAY.dpr,
+  }).png().toFile(path);
+  return path;
 }
 
 function requiredEnv(name: string): string {
@@ -424,4 +536,13 @@ function delay(ms: number): Promise<void> { return new Promise((resolveDelay) =>
 function elapsed(started: bigint): number { return Number(process.hrtime.bigint() - started) / 1_000_000; }
 function serializeError(error: unknown): { name: string; message: string; stack?: string } {
   return error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : { name: "Error", message: String(error) };
+}
+
+function markCheckpoint(kind: string, details: Record<string, unknown> = {}): void {
+  checkpointTimeline.push({
+    kind,
+    monotonicNs: process.hrtime.bigint().toString(),
+    wallTime: new Date().toISOString(),
+    ...details,
+  });
 }

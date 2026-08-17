@@ -1,5 +1,46 @@
 export { ReplayFlow } from "./flow.js";
 export { CheckpointMismatchError, FallbackFailedError } from "./errors.js";
+export { canonicalTreeHash, waitForTreeThenVisual } from "./observation.js";
+export { ObservationCheckpointDriver } from "./observation-checkpoint.js";
+export { VisualCheckpointDriver } from "./visual-checkpoint.js";
+export type {
+  DeviceCapabilities,
+  DeviceCapability,
+  DeviceCapabilityKind,
+  DeviceConnector,
+  DeviceIdentity,
+  DevicePlatform,
+  DeviceRect,
+  DeviceSession,
+  DeviceTarget,
+  TargetSelector,
+  VisualCaptureCapability,
+  VisualCaptureSession,
+  VisualComparator,
+  VisualCompareResult,
+  VisualFrame,
+  VisualRegion,
+} from "./device.js";
+export type {
+  SemanticNode,
+  SemanticSelector,
+  StagedCheckpointResult,
+  TreeMatcher,
+  TreeObservationSession,
+  TreeObserver,
+  TreeSnapshot,
+  TreeSourceDescriptor,
+  TreeSourceKind,
+} from "./observation.js";
+export type {
+  ObservationCheckpointActual,
+  ObservationCheckpointAdapter,
+  ObservationVisualExpectation,
+} from "./observation-checkpoint.js";
+export type {
+  VisualCheckpointActual,
+  VisualCheckpointExpectation,
+} from "./visual-checkpoint.js";
 export type {
   CheckpointDifference,
   CheckpointDriver,

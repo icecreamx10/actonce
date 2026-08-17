@@ -6,6 +6,7 @@
     "@byted-lynx/actonce",
     "@byted-lynx/actonce-recorder",
     "@byted-lynx/actonce-replay",
+    "@byted-lynx/actonce-cdp",
     "@byted-lynx/actonce-macos",
     "@byted-lynx/actonce-ios",
     "@byted-lynx/actonce-android",

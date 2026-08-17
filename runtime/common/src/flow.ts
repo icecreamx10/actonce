@@ -63,6 +63,19 @@ export class ReplayFlow<TExpectation, TActual> {
     return result;
   }
 
+  /**
+   * Wait for a standalone checkpoint using the same settle scheduler and
+   * diagnostics as segment pre/postconditions. This is useful for externally
+   * driven E2E actions whose execution remains outside ActOnce.
+   */
+  async waitForCheckpoint(
+    segmentId: string,
+    phase: "precondition" | "postcondition",
+    spec: CheckpointSpec<TExpectation>,
+  ): Promise<CheckpointResult<TActual>> {
+    return this.settleCheckpoint(segmentId, phase, spec);
+  }
+
   async segment(segment: ReplaySegment<TExpectation>): Promise<void> {
     const idempotency = segment.idempotency ?? "safe";
     await this.emit({ kind: "replay.segment.started", segmentId: segment.id });
