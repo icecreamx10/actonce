@@ -54,7 +54,9 @@ def main():
       task_class = get_task_class(args.task)
       params = load_or_create_params(task_class, args.task, args.state_dir, args.seed)
       task = task_class(params)
+      clear_validator_state(args.state_dir)
       task.initialize_task(env)
+      save_validator_state(task, args.state_dir)
       output = {
           "status": "initialized",
           "task": task.name,
@@ -67,9 +69,7 @@ def main():
       task_class = get_task_class(args.task)
       params = load_params(args.task, args.state_dir)
       task = task_class(params)
-      # AndroidWorld keeps this bit on the task object between initialize and
-      # validation. The CLI phases are separate processes but target one device.
-      task.initialized = True
+      restore_validator_state(task, args.state_dir)
       reward = task.is_successful(env)
       output = {
           "status": "passed" if reward == 1.0 else "failed",
@@ -138,6 +138,46 @@ def load_params(task_name: str, state_dir: Path | None):
 
 def params_path(state_dir: Path):
   return state_dir / "params.pickle"
+
+
+def validator_state_path(state_dir: Path):
+  return state_dir / "validator-state.pickle"
+
+
+def clear_validator_state(state_dir: Path | None) -> None:
+  if state_dir is None:
+    return
+  validator_state_path(state_dir).unlink(missing_ok=True)
+
+
+def save_validator_state(task, state_dir: Path | None) -> None:
+  """Persist state AndroidWorld validators expect from initialize_task()."""
+  if state_dir is None:
+    return
+  state_dir.mkdir(parents=True, exist_ok=True)
+  destination = validator_state_path(state_dir)
+  temporary = destination.with_suffix(".tmp")
+  with temporary.open("wb") as output:
+    pickle.dump(task.__dict__, output)
+  temporary.replace(destination)
+
+
+def restore_validator_state(task, state_dir: Path | None) -> None:
+  """Restore the initialized task lifecycle across CLI process boundaries."""
+  if state_dir is None:
+    # The fixed SystemBrightnessMax canary has no generated state directory.
+    task.initialized = True
+    return
+  source = validator_state_path(state_dir)
+  if not source.exists():
+    raise RuntimeError(
+        f"Missing validator state at {source}. Run initialize before evaluate."
+    )
+  with source.open("rb") as input_file:
+    state = pickle.load(input_file)
+  if not isinstance(state, dict):
+    raise TypeError(f"Invalid validator state in {source}: expected a dict.")
+  task.__dict__.update(state)
 
 
 def jsonable(value: Any):
