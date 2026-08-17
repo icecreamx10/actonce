@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHROME_TERMS_ACCEPT_ID,
+  CHROME_SIGNIN_DISMISS_ID,
   findEnabledNodeCenterByResourceId,
   isChromeReady,
   nextChromeFixtureAction,
@@ -26,8 +27,10 @@ describe("AndroidWorld Chrome fixture", () => {
   });
 
   it("selects only known package-wide onboarding controls", () => {
+    const accountChoice = `<node resource-id="${CHROME_SIGNIN_DISMISS_ID}" clickable="true" enabled="true" bounds="[326,2148][754,2274]" />`;
     const sync = '<node resource-id="com.android.chrome:id/negative_button" clickable="true" enabled="true" bounds="[42,2169][273,2295]" />';
     const regionalPromo = '<node resource-id="com.android.chrome:id/button_secondary" clickable="true" enabled="true" bounds="[441,1531][708,1657]" />';
+    expect(nextChromeFixtureAction(accountChoice)?.resourceId).toBe(CHROME_SIGNIN_DISMISS_ID);
     expect(nextChromeFixtureAction(sync)).toEqual({
       resourceId: "com.android.chrome:id/negative_button",
       point: { x: 158, y: 2232 },

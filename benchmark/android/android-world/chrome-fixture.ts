@@ -1,5 +1,6 @@
 export const CHROME_PACKAGE = "com.android.chrome";
 export const CHROME_TERMS_ACCEPT_ID = `${CHROME_PACKAGE}:id/terms_accept`;
+export const CHROME_SIGNIN_DISMISS_ID = `${CHROME_PACKAGE}:id/signin_fre_dismiss_button`;
 export const CHROME_NEGATIVE_BUTTON_ID = `${CHROME_PACKAGE}:id/negative_button`;
 export const CHROME_PROMO_SECONDARY_ID = `${CHROME_PACKAGE}:id/button_secondary`;
 const CHROME_READY_IDS = [
@@ -28,7 +29,12 @@ export function isChromeReady(xml: string) {
 }
 
 export function nextChromeFixtureAction(xml: string) {
-  for (const resourceId of [CHROME_TERMS_ACCEPT_ID, CHROME_NEGATIVE_BUTTON_ID, CHROME_PROMO_SECONDARY_ID]) {
+  for (const resourceId of [
+    CHROME_TERMS_ACCEPT_ID,
+    CHROME_SIGNIN_DISMISS_ID,
+    CHROME_NEGATIVE_BUTTON_ID,
+    CHROME_PROMO_SECONDARY_ID,
+  ]) {
     const point = findEnabledNodeCenterByResourceId(xml, resourceId);
     if (point) return { resourceId, point };
   }
