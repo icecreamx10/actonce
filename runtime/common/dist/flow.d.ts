@@ -13,7 +13,6 @@ export declare class ReplayFlow<TExpectation, TActual> {
     constructor(options: ReplayFlowOptions<TExpectation, TActual>);
     diagnostics(): ReplayDiagnostics;
     private profileFor;
-    private reportSegmentProfile;
     checkpoint(segmentId: string, phase: "precondition" | "postcondition", spec: CheckpointSpec<TExpectation>, context?: {
         deadlineMs: number;
         signal: AbortSignal;

@@ -48,11 +48,6 @@ export class ReplayFlow {
         }
         return profile;
     }
-    async reportSegmentProfile(profile) {
-        if (!this.options.onSegmentProfiled)
-            return;
-        await this.options.onSegmentProfiled(finalizeProfile(profile), [...profile.correctives]);
-    }
     async checkpoint(segmentId, phase, spec, context) {
         const now = this.options.now ?? Date.now;
         const started = now();
@@ -124,7 +119,6 @@ export class ReplayFlow {
             profile.outcome = recovered ? "recovered" : "matched";
             profile.matchedCleanly = !recovered;
             await this.emit({ kind: "replay.segment.completed", segmentId: segment.id });
-            await this.reportSegmentProfile(profile);
         }
         catch (error) {
             profile.outcome = classifyFailureOutcome(error, deterministicFailure);
@@ -134,7 +128,6 @@ export class ReplayFlow {
                 segmentId: segment.id,
                 error: serializeError(error),
             });
-            await this.reportSegmentProfile(profile);
             throw error;
         }
     }

@@ -86,21 +86,14 @@ const replay: MacReplayScript = async ({ mac, flow }) => {
       },
       settle: { timeoutMs: 2_500, intervalMs: 125, consecutiveMatches: 2 },
     },
-    fallback: {
-      goal: "Make main.js contain exactly the recorded probe without saving.",
-      maxAttempts: 1,
-      maxActions: 5,
-    },
     idempotency: "safe",
   });
 };
 ```
 
-The presence of fallback metadata does not enable AI. Hybrid runners must inject a
-fallback driver and select `policy: "recover"`. A benchmark may measure deterministic
-or hybrid replay. Record which strategy ran; when fallback occurs, include its full
-latency and actions inside the scored replay duration. Correct hybrid results remain
-eligible for replay performance comparison.
+Compile deterministic fail-closed segments. When a checkpoint fails, preserve the
+failure for the separate `hybrid-replay` agent workflow; do not embed AI fallback in
+the generated replay.
 
 Use the same concrete `flow.segment` command for assertions. An assertion is an
 observation-only segment: its precondition waits for the recorded evidence checkpoint,
@@ -140,31 +133,6 @@ settle timeout is a checkpoint failure; it is not an observed `false` result. A
 postcondition mismatch means the assertion was not accepted even if a separate
 read-only evaluator call returned successfully.
 
-For a hybrid CLI run, emit a separate fallback plugin module. It must create a
-Midscene Agent on the recorded macOS device adapter so AI actions append to the same
-ActOnce timeline, then return a `MidsceneFallbackDriver` and recorder cleanup:
-
-```ts
-import { MidsceneFallbackDriver } from "@byted-lynx/actonce-midscene-fallback";
-
-export async function createFallback() {
-  const recorded = await createRecordedComputerAgent();
-  return {
-    driver: new MidsceneFallbackDriver(recorded.agent),
-    close: () => recorded.close(),
-  };
-}
-```
-
-Keep environment-specific agent construction in the plugin, not generated fragments:
-
-```bash
-actonce-macos run --fallback-module ./fallback.js 01-setup.js 02-edit.js 03-assert.js
-```
-
-Omit `--fallback-module` for deterministic validation. A hybrid benchmark supplies it
-and records fallback count and duration inside the measured boundary.
-
 Do not call `MacSession.connect`, `mac.close`, or start Appium inside a fragment. The runner guarantees cleanup and shares one session across fragments:
 
 ```bash
@@ -184,6 +152,6 @@ Choose locators in this order when supported by recorded AX evidence:
 6. XPath only when no stable native locator exists
 7. guarded coordinates as the final deterministic fallback
 
-Use checkpoint `settle` instead of a fixed sleep whenever the next recorded state is independently checkable. `plan-observations` supplies a recommended interval and preserves the original wait as the timeout ceiling. For screenshot evidence, use a narrowly scoped `visual` reference; the runtime takes repeated low-resolution comparisons and advances after the configured consecutive matches. If settling times out, the regular deterministic/hybrid policy applies. Use `mac.waitFor`, `waitForDisplayed`, or `waitForText` for live properties that are not segment checkpoints. Use `mac.driver` only for a Mac2 command that the thin API does not expose. Record that escape hatch and its evidence in a comment so it can later be promoted into the runtime.
+Use checkpoint `settle` instead of a fixed sleep whenever the next recorded state is independently checkable. `plan-observations` supplies a recommended interval and preserves the original wait as the timeout ceiling. For screenshot evidence, use a narrowly scoped `visual` reference; the runtime takes repeated low-resolution comparisons and advances after the configured consecutive matches. If settling times out, fail closed and return the checkpoint failure. Use `mac.waitFor`, `waitForDisplayed`, or `waitForText` for live properties that are not segment checkpoints. Use `mac.driver` only for a Mac2 command that the thin API does not expose. Record that escape hatch and its evidence in a comment so it can later be promoted into the runtime.
 
 Put shared fixture setup in an early fragment and outcome assertions in a final fragment. Each fragment must retain its own recording ID and sequence provenance. Run the full ordered fragment list twice; running each fragment in a separate session does not validate the intended contract.

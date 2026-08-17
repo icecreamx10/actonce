@@ -2,6 +2,7 @@
 import { compileAndroidPrimitivesFile } from "./primitive-compiler.js";
 import { runAndroidScripts } from "./runner.js";
 import { AndroidSession } from "./session.js";
+import { executeAndroidPlan, loadAndroidPlan } from "./executor.js";
 
 const args = process.argv.slice(2);
 const command = args.shift();
@@ -53,12 +54,28 @@ if (command === "doctor") {
     args: separator < 0 ? [] : args.slice(separator + 1),
     session: parseSession(args),
   });
+} else if (command === "replay") {
+  // Execute a compiled plan.json many times over. Result is checkpoint-centric:
+  // a pass says nothing; a failure names the important checkpoint not reached.
+  const planPath = args.find((value) => !value.startsWith("--"));
+  if (!planPath) throw new Error("replay requires <plan.json> [--from-segment <id>]");
+  const plan = await loadAndroidPlan(planPath);
+  const report = await executeAndroidPlan(plan, {
+    fromSegmentId: optionValue("--from-segment"),
+    session: parseSession(args),
+  });
+  console.log(JSON.stringify(report.result, null, 2));
+  if (report.result.status === "failed") process.exitCode = 2;
 } else {
   console.log(
-    "Usage: actonce-android doctor|source [--serial id] [--adb-path path]\n       actonce-android compile-primitives <recording> --output <file>\n       actonce-android run <script...> [-- args...]",
+    "Usage: actonce-android doctor|source [--serial id] [--adb-path path]\n       actonce-android compile-primitives <recording> --output <file>\n       actonce-android run <script...> [-- args...]\n       actonce-android replay <plan.json> [--from-segment <id>]",
   );
   if (command && command !== "help" && command !== "--help")
     process.exitCode = 2;
+}
+function optionValue(name: string): string | undefined {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
 }
 function parseSession(values: string[]) {
   const options: { serial?: string; androidAdbPath?: string } = {};

@@ -1,0 +1,9 @@
+{
+  "name": "@byted-lynx/actonce-skill-hybrid-replay",
+  "version": "0.2.0",
+  "description": "ActOnce agent skill for checkpoint-driven hybrid replay recovery.",
+  "license": "Apache-2.0",
+  "publishConfig": { "registry": "http://bnpm.byted.org" },
+  "files": ["SKILL.md", "agents"],
+  "exports": { "./SKILL.md": "./SKILL.md" }
+}

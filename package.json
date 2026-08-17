@@ -14,7 +14,8 @@
     "runtime/android",
     "runtime/midscene-fallback",
     "skills/record-device-use",
-    "skills/compile-device-recording"
+    "skills/compile-device-recording",
+    "skills/hybrid-replay"
   ],
   "scripts": {
     "changeset": "changeset",

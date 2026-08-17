@@ -32,7 +32,8 @@
     "@byted-lynx/actonce-android": "^0.2.0",
     "@byted-lynx/actonce-midscene-fallback": "^0.2.0",
     "@byted-lynx/actonce-skill-record-device-use": "^0.2.0",
-    "@byted-lynx/actonce-skill-compile-device-recording": "^0.2.0"
+    "@byted-lynx/actonce-skill-compile-device-recording": "^0.2.0",
+    "@byted-lynx/actonce-skill-hybrid-replay": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

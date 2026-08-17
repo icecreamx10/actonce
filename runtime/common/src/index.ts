@@ -1,6 +1,7 @@
 export { ReplayFlow } from "./flow.js";
 export { CheckpointMismatchError, FallbackFailedError } from "./errors.js";
-export { ProfileStore } from "./profile-store.js";
+export { parseReplayPlan, ReplayPlanError } from "./replay-plan.js";
+export { runReplayPlan } from "./plan-runner.js";
 export { canonicalTreeHash, waitForTreeThenVisual } from "./observation.js";
 export { ObservationCheckpointDriver } from "./observation-checkpoint.js";
 export { VisualCheckpointDriver } from "./visual-checkpoint.js";
@@ -38,11 +39,14 @@ export type {
   ObservationCheckpointAdapter,
   ObservationVisualExpectation,
 } from "./observation-checkpoint.js";
+export type { RunReplayPlanOptions } from "./plan-runner.js";
 export type {
-  ProfileStoreFile,
-  ProfileStoreOptions,
-  SegmentProfileRecord,
-} from "./profile-store.js";
+  FailedCheckpoint,
+  ReplayPlanFile,
+  ReplayPlanSegment,
+  ReplayResult,
+  SerializablePrimitive,
+} from "./replay-plan.js";
 export type {
   VisualCheckpointActual,
   VisualCheckpointExpectation,

@@ -4,11 +4,9 @@ import type {
   CheckpointResult,
   CheckpointSpec,
   CheckpointVerificationContext,
-  CorrectiveDemonstration,
   FallbackDriver,
   FallbackPolicy,
   ReplayEvent,
-  SegmentProfile,
 } from "@byted-lynx/actonce-replay";
 import { ReplayFlow } from "@byted-lynx/actonce-replay";
 import type { AndroidSession } from "./session.js";
@@ -45,10 +43,6 @@ export type AndroidReplayFlowOptions = {
     AndroidCheckpointActual
   >;
   emit?: (event: ReplayEvent<AndroidCheckpointActual>) => void | Promise<void>;
-  onSegmentProfiled?: (
-    profile: SegmentProfile,
-    correctives: CorrectiveDemonstration[],
-  ) => void | Promise<void>;
 };
 
 export function createAndroidReplayFlow(
@@ -60,7 +54,6 @@ export function createAndroidReplayFlow(
     policy: options.policy,
     fallback: options.fallback,
     emit: options.emit,
-    onSegmentProfiled: options.onSegmentProfiled,
   });
 }
 export class AndroidCheckpointDriver

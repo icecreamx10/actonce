@@ -42,7 +42,7 @@ When two actions share state, either include the setup action or make its result
 | WDA endpoint | WDA/Appium command with accessibility selector | normalized coordinates with device guards |
 | macOS AX | `@byted-lynx/actonce-macos` accessibility/id/name/predicate/class-chain locator | guarded `mac.driver` Mac2 call |
 | macOS input | `@byted-lynx/actonce-macos` element or input primitive | guarded coordinate input |
-| Midscene logical action | test name/comment plus compiled primitives | bounded segment-local AI recovery in explicitly hybrid runs |
+| Midscene logical action | test name/comment plus compiled primitives | fail closed when no evidenced primitive exists |
 
 Map observations independently from actions:
 
@@ -88,10 +88,9 @@ An online visual model used only to decide an assertion is read-only evaluation,
 action recovery. Record and time it. If evaluation is deferred to benchmark review,
 emit pending evidence rather than inventing a live observed value.
 
-Avoid model calls in a deterministic replay benchmark. If AI remains necessary, classify the output as a hybrid replay rather than deterministic replay.
-
-Do not use fallback to compensate for a segment that lacks a meaningful postcondition.
-Fallback repairs drift; it does not replace evidence or define correctness.
+Avoid model calls in a deterministic replay benchmark. If a checkpoint fails,
+preserve `failedCheckpoint` for the separate `hybrid-replay` agent workflow.
+Agent recovery does not replace evidence or define correctness.
 
 ## Generated script structure
 
@@ -109,10 +108,10 @@ Fallback repairs drift; it does not replace evidence or define correctness.
 // 6. Restore state in finally.
 ```
 
-Compile state-changing actions as `flow.segment` units whenever independent pre- and
-post-checkpoints exist. A mismatch must fail closed unless the caller explicitly runs
-in hybrid recovery mode. In hybrid mode, fallback may repair only the current segment;
-the runtime must recapture and match its checkpoint before deterministic replay resumes.
+Compile state-changing actions as ordered plan segments whenever independent pre- and
+post-checkpoints exist. A mismatch must fail closed. The runtime returns the failed
+checkpoint; a separate agent workflow may reach it manually and resume from the
+current or next segment.
 
 Compile assertions as observation-only `flow.segment` units using the same concrete
 checkpoint contract as actions. Put the last independently evidenced state required
@@ -144,8 +143,8 @@ await flow.segment({
 });
 ```
 
-Mark non-idempotent segments as `observe-before-retry` or `never-retry`. Never allow
-an AI fallback to repeat a `never-retry` postcondition action.
+Mark non-idempotent segments as `observe-before-retry` or `never-retry`. Never repeat
+a `never-retry` action during agent recovery; observe its postcondition instead.
 
 Treat mechanically lowered calls as immutable implementations, not an unconditional
 schedule. Before every retry or cleanup call, observe its recorded postcondition. If
@@ -164,7 +163,7 @@ recorded driver behavior.
 - Never enter an execute/fix retry loop without a fresh-fixture validation environment. Do not loop on launch/connection failures that merely restate the same missing environment, and do not claim correctness, stability, or two-pass validation from offline evidence.
 - Build the replay oracle before execution: action order, independently evidenced observations, equivalent checkpoint boundaries, cleanup, and final state. Compare semantic state, not timestamps, event counts, or raw artifact identity.
 - Require evidence on both sides of each state change. Event dispatch, protocol success, or an AX notification alone does not prove application state.
-- Preserve every failure. Classify the first mismatch as compiler, runtime, selector/coordinate, evaluator, fixture/environment, or fallback; fix the narrowest layer, reset, and rerun the complete case.
+- Preserve every failure. Classify the first mismatch as compiler, runtime, selector/coordinate, evaluator, or fixture/environment; fix the narrowest layer, reset, and rerun the complete case.
 - Require two consecutive fresh-fixture passes. Do not delete assertions, weaken values/modalities, enlarge recorded timeout bounds, exclude failures, or resume from contaminated state.
 - Stop only for unavailable authority, credentials, platform capability, external state, or irrecoverable source evidence. Report the exact boundary, expected/actual evidence, attempted fixes, artifacts, and smallest unblock action.
 
@@ -181,10 +180,10 @@ implementation from the recording and public runtime support.
 ## Output contract
 
 Return generated replay and decision files; range/exclusions; fixture requirements;
-deterministic/hybrid mode and bounded fallback; oracle; execution-environment
-assessment and validation level; and complete attempt history (including zero live
-attempts) with diagnoses, fixes, consecutive pass count, fallback diagnostics,
-residual risks, or exact blocker evidence and the smallest unblock action.
+oracle; execution-environment assessment and validation level; and complete attempt
+history (including zero live attempts) with diagnoses, fixes, consecutive pass count,
+residual risks, or exact blocker evidence and the smallest unblock action. Preserve
+`failedCheckpoint` for `hybrid-replay` when deterministic execution fails.
 
 For platform fragments and shared-session execution, read [macos-runtime.md](macos-runtime.md)
 or [ios-runtime.md](ios-runtime.md), or [android-runtime.md](android-runtime.md).

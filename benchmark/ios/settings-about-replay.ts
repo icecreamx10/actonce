@@ -1,12 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { runReplayPlan } from "@byted-lynx/actonce-replay";
 import {
   IOSSession,
   createIOSReplayFlow,
+  loadIOSPlan,
   replayIOSPrimitive,
 } from "../../runtime/ios/src/index.js";
+import type { RecordedIOSPrimitive } from "../../runtime/ios/src/index.js";
 
 const SETTINGS = "com.apple.Preferences";
+const planPath = resolve(process.env.ACTONCE_PLAN ?? resolve(import.meta.dirname, "settings-about.plan.json"));
 const outputDir = resolve(process.env.ACTONCE_BENCHMARK_OUTPUT_DIR ?? ".cache/ios-runtime/settings-about-replay");
 await mkdir(outputDir, { recursive: true });
 const startedAt = new Date().toISOString();
@@ -14,9 +18,12 @@ const started = process.hrtime.bigint();
 const events: unknown[] = [];
 let status: "passed" | "failed" = "passed";
 let error: { name: string; message: string } | undefined;
+let failedCheckpoint: unknown;
 let ios: IOSSession | undefined;
 
 try {
+  // Compile is a separate stage; here we only load the compiled product.
+  const plan = await loadIOSPlan(planPath);
   ios = await IOSSession.connect({
     wdaHost: process.env.ACTONCE_WDA_HOST ?? "127.0.0.1",
     wdaPort: Number(process.env.ACTONCE_WDA_PORT ?? "8100"),
@@ -27,46 +34,11 @@ try {
   });
 
   await resetToSettingsRoot(ios);
-  await flow.segment({
-    id: "open-general",
-    precondition: {
-      id: "settings-root",
-      expected: { source: { includes: ["com.apple.settings.general", "通用"] } },
-    },
-    deterministic: () => replayIOSPrimitive(ios!, {
-      operation: "tap",
-      // Normalized logical-device point from completed recording sequence 98.
-      arguments: [{ x: 218, y: 328 }],
-    }),
-    postcondition: {
-      id: "general-visible",
-      expected: { source: { includes: ["About", "关于本机"] } },
-      settle: { timeoutMs: 2_500, intervalMs: 100 },
-    },
-  });
-
-  await flow.segment({
-    id: "open-about",
-    precondition: {
-      id: "general-ready",
-      expected: { source: { includes: ["About", "关于本机"] } },
-    },
-    deterministic: () => replayIOSPrimitive(ios!, {
-      operation: "tap",
-      // Normalized logical-device point from completed recording sequence 163.
-      arguments: [{ x: 218, y: 404 }],
-    }),
-    postcondition: {
-      id: "about-visible",
-      expected: {
-        source: {
-          includes: ["关于本机", "SW_VERSION_SPECIFIER", "ProductModelName", "iPhone 17 Pro"],
-        },
-        captureScreenshot: true,
-      },
-      settle: { timeoutMs: 2_500, intervalMs: 100 },
-    },
-  });
+  const result = await runReplayPlan(flow, plan, (action) => replayIOSPrimitive(ios!, action as RecordedIOSPrimitive));
+  if (result.status === "failed") {
+    status = "failed";
+    failedCheckpoint = result.failedCheckpoint;
+  }
 
   await ios.screenshot(resolve(outputDir, "about.png"));
   await resetToSettingsRoot(ios);
@@ -84,11 +56,12 @@ try {
     completedAt: new Date().toISOString(),
     executionDurationMs: elapsed(started),
     replayDiagnostics: flow.diagnostics(),
+    result,
     assertions: {
       settingsRoot: true,
-      generalVisible: true,
-      aboutVisible: true,
-      deviceInformationVisible: true,
+      generalVisible: status === "passed",
+      aboutVisible: status === "passed",
+      deviceInformationVisible: status === "passed",
       restored: true,
     },
     events,
@@ -106,13 +79,14 @@ try {
     completedAt: new Date().toISOString(),
     executionDurationMs: elapsed(started),
     error,
+    failedCheckpoint,
     events,
   }, null, 2)}\n`);
 } finally {
   await ios?.close();
 }
 
-console.log(JSON.stringify({ status, outputDir, executionDurationMs: elapsed(started), error }, null, 2));
+console.log(JSON.stringify({ status, outputDir, executionDurationMs: elapsed(started), failedCheckpoint, error }, null, 2));
 if (status === "failed") process.exitCode = 2;
 
 async function resetToSettingsRoot(session: IOSSession): Promise<void> {

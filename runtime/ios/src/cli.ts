@@ -2,6 +2,7 @@
 import { IOSSession } from "./session.js";
 import { runIOSScripts } from "./runner.js";
 import { compileIOSPrimitivesFile } from "./primitive-compiler.js";
+import { executeIOSPlan, loadIOSPlan } from "./executor.js";
 
 const args = process.argv.slice(2); const command = args.shift();
 const host = option("--host") ?? process.env.ACTONCE_WDA_HOST ?? "127.0.0.1";
@@ -21,8 +22,22 @@ if (command === "compile-primitives") {
 } else if (command === "run") {
   const files = args.filter((value, index) => !["--host", "--port"].includes(value) && !(["--host", "--port"].includes(args[index - 1] ?? "")));
   await runIOSScripts(files, { session: { wdaHost: host, wdaPort: port }, replay: { policy: "disabled" } });
+} else if (command === "replay") {
+  // Execute a compiled plan.json many times over. Result is checkpoint-centric:
+  // a pass says nothing; a failure names the important checkpoint not reached.
+  const planPath = args.find((value) => !value.startsWith("--"));
+  if (!planPath) throw new Error("replay requires <plan.json> [--from-segment <id>]");
+  const plan = await loadIOSPlan(planPath);
+  const report = await executeIOSPlan(plan, {
+    fromSegmentId: option("--from-segment"),
+    session: { wdaHost: host, wdaPort: port },
+  });
+  console.log(JSON.stringify(report.result, null, 2));
+  if (report.result.status === "failed") process.exitCode = 2;
 } else {
-  console.log("actonce-ios <compile-primitives|doctor|source|run> [options] [scripts...]");
+  console.log(
+    "Usage: actonce-ios compile-primitives <recording> --output <file>\n       actonce-ios doctor|source [--host host] [--port port]\n       actonce-ios run <script...> [--host host] [--port port]\n       actonce-ios replay <plan.json> [--from-segment <id>] [--host host] [--port port]",
+  );
   if (command && command !== "help" && command !== "--help") process.exitCode = 2;
 }
 function option(name: string): string | undefined { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; }

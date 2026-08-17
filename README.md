@@ -72,6 +72,7 @@ Midscene is quarantined behind `@byted-lynx/actonce-midscene-adapter`: original 
 | --- | --- |
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published recording Skill; its macOS path is validated, while iOS support remains foundational |
 | [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
+| [`skills/hybrid-replay`](skills/hybrid-replay/SKILL.md) | Agent workflow for recovering a failed checkpoint and resuming the remaining deterministic plan |
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
 | [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | The sole package boundary for Midscene dependencies used by AI recording |
 | [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos`, the deterministic macOS replay SDK and CLI |
@@ -94,6 +95,7 @@ Install the complete synchronized distribution from BNPM:
 npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
 npx actonce skill install record-device-use
 npx actonce skill install compile-device-recording
+npx actonce skill install hybrid-replay
 ```
 
 The installer copies each complete Skill directory into `${CODEX_HOME}/skills` when `CODEX_HOME` is set, otherwise `~/.codex/skills`. Use `--target <directory>` for another agent. APIs are exposed through platform subpaths:

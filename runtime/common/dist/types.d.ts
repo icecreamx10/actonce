@@ -11,6 +11,21 @@ export type CheckpointSpec<TExpectation> = {
     id: string;
     expected: TExpectation;
     settle?: CheckpointSettlePolicy;
+    /**
+     * Marks this checkpoint as a frozen state contract == a segment boundary.
+     * Defaults to true for segment pre/postconditions. An important checkpoint is
+     * the sole acceptance oracle; only it decides whether a step succeeded. Its
+     * `expected` assertion is immutable across recompilations (the *what*); how the
+     * app reaches it (the deterministic action) is replaceable (the *how*).
+     */
+    important?: boolean;
+    /**
+     * Optional human label for the app state this checkpoint asserts arrival at,
+     * e.g. "settings.about". Surfaced in the executor's checkpoint-centric result
+     * so a failure names *which* state was not reached, and becomes the StateNode
+     * id in the state-graph extension (design §11).
+     */
+    state?: string;
 };
 export type CheckpointSettlePolicy = {
     timeoutMs: number;
@@ -57,11 +72,7 @@ export type CorrectiveAction = {
     target?: string;
     atMonotonicNs?: string;
 };
-/**
- * The captured demonstration of one agent fallback ("deopt result"). Threaded
- * through the event stream and to onSegmentProfiled so offline tooling can
- * reason about how a segment was recovered without re-running the agent.
- */
+/** The captured demonstration of one script-level agent fallback. */
 export type CorrectiveDemonstration = {
     segmentId: string;
     phase: "precondition" | "postcondition";
@@ -162,12 +173,5 @@ export type ReplayFlowOptions<TExpectation, TActual> = {
     emit?: (event: ReplayEvent<TActual>) => void | Promise<void>;
     now?: () => number;
     delay?: (durationMs: number) => Promise<void>;
-    /**
-     * Called after each segment resolves (both on success and before a failure
-     * rethrows), with the finalized per-segment profile and any non-empty
-     * corrective demonstrations captured during fallback. Injected so the flow
-     * never touches a store or `fs` directly; runtime/common stays Midscene-free.
-     */
-    onSegmentProfiled?: (profile: SegmentProfile, correctives: CorrectiveDemonstration[]) => void | Promise<void>;
 };
 //# sourceMappingURL=types.d.ts.map

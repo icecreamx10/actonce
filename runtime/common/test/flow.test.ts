@@ -334,7 +334,7 @@ describe("ReplayFlow", () => {
     expect(segments[0].guard.postcondition.captureDurationMs).toBe(10);
   });
 
-  it("marks a recovered segment and forwards its profile to onSegmentProfiled", async () => {
+  it("marks a recovered segment in single-run diagnostics", async () => {
     const verify = vi.fn()
       .mockResolvedValueOnce(matched("ready"))
       .mockResolvedValueOnce(mismatched("unchanged", "done"))
@@ -349,14 +349,10 @@ describe("ReplayFlow", () => {
         actions: [{ kind: "tap", target: "Save" }],
       },
     });
-    const profiled: Array<{ id: string; outcome: string; correctives: number }> = [];
     const flow = new ReplayFlow<Expectation, Actual>({
       checkpoints: { verify },
       policy: "recover",
       fallback: { recover },
-      onSegmentProfiled: (profile, correctives) => {
-        profiled.push({ id: profile.segmentId, outcome: profile.outcome, correctives: correctives.length });
-      },
     });
 
     await flow.segment({
@@ -367,7 +363,6 @@ describe("ReplayFlow", () => {
       fallback: { goal: "Recover" },
     });
 
-    expect(profiled).toEqual([{ id: "edit", outcome: "recovered", correctives: 1 }]);
     const segment = flow.diagnostics().segments[0];
     expect(segment).toMatchObject({
       outcome: "recovered",
@@ -376,17 +371,15 @@ describe("ReplayFlow", () => {
     });
   });
 
-  it("reports a fallback-failed profile before rethrowing", async () => {
+  it("records a fallback-failed outcome before rethrowing", async () => {
     const verify = vi.fn()
       .mockResolvedValueOnce(matched("ready"))
       .mockResolvedValue(mismatched("unchanged", "done"));
     const recover = vi.fn().mockResolvedValue({ status: "failed", reason: "gave up" });
-    const profiled: string[] = [];
     const flow = new ReplayFlow<Expectation, Actual>({
       checkpoints: { verify },
       policy: "recover",
       fallback: { recover },
-      onSegmentProfiled: (profile) => { profiled.push(profile.outcome); },
     });
 
     await expect(flow.segment({
@@ -397,6 +390,6 @@ describe("ReplayFlow", () => {
       fallback: { goal: "Recover", maxAttempts: 1 },
     })).rejects.toBeInstanceOf(FallbackFailedError);
 
-    expect(profiled).toEqual(["fallback-failed"]);
+    expect(flow.diagnostics().segments[0].outcome).toBe("fallback-failed");
   });
 });

@@ -28,4 +28,8 @@ actonce-android doctor --serial emulator-5554
 actonce-android run setup.js actions.js assertions.js --serial emulator-5554
 ```
 
-Reset the app before every attempt. Require the recorded semantic outcome, final screenshot/native state, fallback count, and cleanup state to pass. Preserve failures and repeat the complete fresh-state case until two consecutive runs pass or a concrete blocker is established.
+Reset the app before every attempt. Require the recorded semantic outcome, final
+screenshot/native state, and cleanup state to pass. Preserve failures and repeat
+the complete fresh-state case until two consecutive runs pass or a concrete
+blocker is established. Hand a checkpoint failure to `hybrid-replay` only when an
+agent should recover the live device state.

@@ -78,11 +78,6 @@ export class ReplayFlow<TExpectation, TActual> {
     return profile;
   }
 
-  private async reportSegmentProfile(profile: MutableSegmentProfile): Promise<void> {
-    if (!this.options.onSegmentProfiled) return;
-    await this.options.onSegmentProfiled(finalizeProfile(profile), [...profile.correctives]);
-  }
-
   async checkpoint(
     segmentId: string,
     phase: "precondition" | "postcondition",
@@ -170,7 +165,6 @@ export class ReplayFlow<TExpectation, TActual> {
       profile.outcome = recovered ? "recovered" : "matched";
       profile.matchedCleanly = !recovered;
       await this.emit({ kind: "replay.segment.completed", segmentId: segment.id });
-      await this.reportSegmentProfile(profile);
     } catch (error) {
       profile.outcome = classifyFailureOutcome(error, deterministicFailure);
       profile.matchedCleanly = false;
@@ -179,7 +173,6 @@ export class ReplayFlow<TExpectation, TActual> {
         segmentId: segment.id,
         error: serializeError(error),
       });
-      await this.reportSegmentProfile(profile);
       throw error;
     }
   }

@@ -2,6 +2,8 @@ export { IOSSession } from "./session.js";
 export { replayIOSPrimitive, SUPPORTED_IOS_PRIMITIVES } from "./primitives.js";
 export { IOSCheckpointDriver, compareIOSCheckpoint, compareIOSVisualScreenshot, createIOSReplayFlow } from "./checkpoint.js";
 export { runIOSScripts, mergeIOSConfigs } from "./runner.js";
+export { executeIOSPlan, loadIOSPlan } from "./executor.js";
+export type { IOSExecuteOptions, IOSExecuteReport } from "./executor.js";
 export { compileIOSPrimitives, compileIOSPrimitivesFile } from "./primitive-compiler.js";
 export type { CompileIOSPrimitivesResult } from "./primitive-compiler.js";
 export type { IOSPrimitiveOperation, IOSPrimitiveSession, RecordedIOSPrimitive } from "./primitives.js";
