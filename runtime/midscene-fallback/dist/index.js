@@ -16,10 +16,12 @@ export class MidsceneFallbackDriver {
         const timeoutMs = request.constraints.timeoutMs ?? 30_000;
         const maxActions = request.constraints.maxActions ?? 5;
         let actionCount = 0;
+        const actions = [];
         const removeProgressListener = this.agent.addProgressListener?.((event) => {
             if (event.scope !== "aiAct" || event.phase !== "action_running")
                 return;
             actionCount += 1;
+            actions.push(normalizeCorrectiveAction(event));
             if (actionCount > maxActions) {
                 controller.abort(new Error(`Midscene fallback exceeded ${maxActions} UI actions`));
             }
@@ -33,7 +35,16 @@ export class MidsceneFallbackDriver {
             });
             if (controller.signal.aborted)
                 throw controller.signal.reason;
-            return { status: "completed", actionCount };
+            const result = { status: "completed", actionCount };
+            if (actions.length > 0) {
+                result.corrective = {
+                    segmentId: request.segmentId,
+                    phase: request.phase,
+                    attempt: request.attempt,
+                    actions,
+                };
+            }
+            return result;
         }
         catch (error) {
             return {
@@ -68,6 +79,28 @@ export function buildMidsceneFallbackPrompt(request, options = {}) {
         "Stop as soon as the local goal is visibly satisfied. The runtime will independently verify the checkpoint.",
         `Checkpoint evidence: ${details}`,
     ].join("\n");
+}
+/**
+ * Reduce a Midscene progress event to a normalized corrective action. Only the
+ * action kind and a normalized element description are kept — never typed text,
+ * clipboard contents, coordinates, screenshots, or model reasoning
+ * (skills/compile-device-recording/SKILL.md:46).
+ */
+function normalizeCorrectiveAction(event) {
+    const kind = normalizeKind(event.actionType ?? event.type);
+    const target = event.element?.description ?? event.element?.id;
+    const action = { kind };
+    if (target)
+        action.target = target;
+    return action;
+}
+function normalizeKind(raw) {
+    if (!raw)
+        return "action";
+    return raw
+        .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+        .replace(/[_\s]+/g, "-")
+        .toLowerCase();
 }
 function compactJson(value, maxLength) {
     const serialized = JSON.stringify(value, (_key, nested) => {

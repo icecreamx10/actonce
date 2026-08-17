@@ -1,6 +1,7 @@
 import type {
   CheckpointDifference, CheckpointDriver, CheckpointResult, CheckpointSpec,
-  CheckpointVerificationContext, FallbackDriver, FallbackPolicy, ReplayEvent,
+  CheckpointVerificationContext, CorrectiveDemonstration, FallbackDriver, FallbackPolicy,
+  ReplayEvent, SegmentProfile,
 } from "@byted-lynx/actonce-replay";
 import { ReplayFlow } from "@byted-lynx/actonce-replay";
 import type { IOSSession } from "./session.js";
@@ -28,12 +29,17 @@ export type IOSReplayFlowOptions = {
   policy?: FallbackPolicy;
   fallback?: FallbackDriver<IOSCheckpointExpectation, IOSCheckpointActual>;
   emit?: (event: ReplayEvent<IOSCheckpointActual>) => void | Promise<void>;
+  onSegmentProfiled?: (
+    profile: SegmentProfile,
+    correctives: CorrectiveDemonstration[],
+  ) => void | Promise<void>;
 };
 
 export function createIOSReplayFlow(ios: IOSSession, options: IOSReplayFlowOptions = {}) {
   return new ReplayFlow({
     checkpoints: new IOSCheckpointDriver(ios), policy: options.policy,
     fallback: options.fallback, emit: options.emit,
+    onSegmentProfiled: options.onSegmentProfiled,
   });
 }
 

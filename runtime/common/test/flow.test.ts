@@ -123,6 +123,7 @@ describe("ReplayFlow", () => {
       checkpointSettleDelayMs: 0,
       checkpointWaitDurationMs: 0,
       checkpointTimeoutCount: 0,
+      segments: [],
     });
   });
 
@@ -293,5 +294,109 @@ describe("ReplayFlow", () => {
     })).rejects.toBeInstanceOf(FallbackFailedError);
 
     expect(recover.mock.calls[0][0].constraints.observationOnly).toBe(true);
+  });
+
+  it("attributes per-segment guard and outcome in diagnostics", async () => {
+    let now = 0;
+    const verify = vi.fn(async () => {
+      now += 10;
+      return matched("done");
+    });
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify },
+      now: () => now,
+    });
+
+    await flow.segment({
+      id: "step-a",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic: vi.fn(),
+      postcondition: { id: "done", expected: { state: "done" } },
+    });
+    await flow.segment({
+      id: "step-b",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic: vi.fn(),
+      postcondition: { id: "done", expected: { state: "done" } },
+    });
+
+    const segments = flow.diagnostics().segments;
+    expect(segments.map((segment) => segment.segmentId)).toEqual(["step-a", "step-b"]);
+    expect(segments[0]).toMatchObject({
+      runs: 1,
+      attempts: 2,
+      deterministicFailures: 0,
+      outcome: "matched",
+      matchedCleanly: true,
+      fallback: { count: 0, outcomes: { completed: 0, declined: 0, failed: 0 } },
+    });
+    expect(segments[0].guard.precondition.captureDurationMs).toBe(10);
+    expect(segments[0].guard.postcondition.captureDurationMs).toBe(10);
+  });
+
+  it("marks a recovered segment and forwards its profile to onSegmentProfiled", async () => {
+    const verify = vi.fn()
+      .mockResolvedValueOnce(matched("ready"))
+      .mockResolvedValueOnce(mismatched("unchanged", "done"))
+      .mockResolvedValueOnce(matched("done"));
+    const recover = vi.fn().mockResolvedValue({
+      status: "completed",
+      actionCount: 1,
+      corrective: {
+        segmentId: "edit",
+        phase: "postcondition",
+        attempt: 1,
+        actions: [{ kind: "tap", target: "Save" }],
+      },
+    });
+    const profiled: Array<{ id: string; outcome: string; correctives: number }> = [];
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify },
+      policy: "recover",
+      fallback: { recover },
+      onSegmentProfiled: (profile, correctives) => {
+        profiled.push({ id: profile.segmentId, outcome: profile.outcome, correctives: correctives.length });
+      },
+    });
+
+    await flow.segment({
+      id: "edit",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic: vi.fn(),
+      postcondition: { id: "done", expected: { state: "done" } },
+      fallback: { goal: "Recover" },
+    });
+
+    expect(profiled).toEqual([{ id: "edit", outcome: "recovered", correctives: 1 }]);
+    const segment = flow.diagnostics().segments[0];
+    expect(segment).toMatchObject({
+      outcome: "recovered",
+      matchedCleanly: false,
+      fallback: { count: 1, outcomes: { completed: 1, declined: 0, failed: 0 } },
+    });
+  });
+
+  it("reports a fallback-failed profile before rethrowing", async () => {
+    const verify = vi.fn()
+      .mockResolvedValueOnce(matched("ready"))
+      .mockResolvedValue(mismatched("unchanged", "done"));
+    const recover = vi.fn().mockResolvedValue({ status: "failed", reason: "gave up" });
+    const profiled: string[] = [];
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify },
+      policy: "recover",
+      fallback: { recover },
+      onSegmentProfiled: (profile) => { profiled.push(profile.outcome); },
+    });
+
+    await expect(flow.segment({
+      id: "edit",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic: vi.fn(),
+      postcondition: { id: "done", expected: { state: "done" } },
+      fallback: { goal: "Recover", maxAttempts: 1 },
+    })).rejects.toBeInstanceOf(FallbackFailedError);
+
+    expect(profiled).toEqual(["fallback-failed"]);
   });
 });

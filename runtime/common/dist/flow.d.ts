@@ -9,8 +9,11 @@ export declare class ReplayFlow<TExpectation, TActual> {
     private checkpointSettleDelayMs;
     private checkpointWaitDurationMs;
     private checkpointTimeoutCount;
+    private readonly segmentProfiles;
     constructor(options: ReplayFlowOptions<TExpectation, TActual>);
     diagnostics(): ReplayDiagnostics;
+    private profileFor;
+    private reportSegmentProfile;
     checkpoint(segmentId: string, phase: "precondition" | "postcondition", spec: CheckpointSpec<TExpectation>, context?: {
         deadlineMs: number;
         signal: AbortSignal;

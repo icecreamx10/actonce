@@ -1,5 +1,6 @@
 export { ReplayFlow } from "./flow.js";
 export { CheckpointMismatchError, FallbackFailedError } from "./errors.js";
+export { ProfileStore } from "./profile-store.js";
 export { canonicalTreeHash, waitForTreeThenVisual } from "./observation.js";
 export { ObservationCheckpointDriver } from "./observation-checkpoint.js";
 export { VisualCheckpointDriver } from "./visual-checkpoint.js";
@@ -38,6 +39,11 @@ export type {
   ObservationVisualExpectation,
 } from "./observation-checkpoint.js";
 export type {
+  ProfileStoreFile,
+  ProfileStoreOptions,
+  SegmentProfileRecord,
+} from "./profile-store.js";
+export type {
   VisualCheckpointActual,
   VisualCheckpointExpectation,
 } from "./visual-checkpoint.js";
@@ -49,6 +55,8 @@ export type {
   CheckpointSpec,
   CheckpointStatus,
   CheckpointVerificationContext,
+  CorrectiveAction,
+  CorrectiveDemonstration,
   FallbackDriver,
   FallbackPolicy,
   FallbackRequest,
@@ -58,5 +66,9 @@ export type {
   ReplayFallback,
   ReplayFlowOptions,
   ReplaySegment,
+  SegmentFallbackOutcomes,
+  SegmentGuardCost,
   SegmentIdempotency,
+  SegmentOutcome,
+  SegmentProfile,
 } from "./types.js";

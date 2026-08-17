@@ -57,10 +57,68 @@ export type FallbackRequest<TExpectation, TActual> = {
   };
 };
 
+/**
+ * A single normalized action the agent took while recovering a segment.
+ * Carries only the action kind and a normalized target — never raw values,
+ * clipboard contents, screenshot bytes, or model reasoning
+ * (skills/compile-device-recording/SKILL.md:46).
+ */
+export type CorrectiveAction = {
+  kind: string;        // normalized: "tap" | "type" | "scroll" | "key" | ...
+  target?: string;     // normalized selector/description; never raw secrets
+  atMonotonicNs?: string;
+};
+
+/**
+ * The captured demonstration of one agent fallback ("deopt result"). Threaded
+ * through the event stream and to onSegmentProfiled so offline tooling can
+ * reason about how a segment was recovered without re-running the agent.
+ */
+export type CorrectiveDemonstration = {
+  segmentId: string;
+  phase: "precondition" | "postcondition";
+  attempt: number;
+  actions: CorrectiveAction[];
+  evidenceRefs?: string[]; // artifact path / sha references only, never bytes
+  summary?: string;        // sanitized recap, NOT raw model reasoning
+};
+
 export type FallbackResult = {
   status: "completed" | "declined" | "failed";
   actionCount?: number;
   reason?: string;
+  corrective?: CorrectiveDemonstration;
+};
+
+export type SegmentOutcome =
+  | "matched"              // postcondition matched cleanly, no deopt
+  | "recovered"            // matched only after fallback
+  | "deterministic-failed" // deterministic() threw (and did not recover)
+  | "fallback-failed"      // fallback ran but postcondition never matched
+  | "mismatched";          // failed closed (policy disabled / no fallback)
+
+export type SegmentGuardCost = {
+  captureDurationMs: number;
+  settleDelayMs: number;
+  pollCount: number;
+  timeoutCount: number;
+};
+
+export type SegmentFallbackOutcomes = {
+  completed: number;
+  declined: number;
+  failed: number;
+};
+
+export type SegmentProfile = {
+  segmentId: string;
+  runs: number;
+  attempts: number;
+  deterministicFailures: number;
+  guard: { precondition: SegmentGuardCost; postcondition: SegmentGuardCost };
+  fallback: { count: number; durationMs: number; outcomes: SegmentFallbackOutcomes };
+  outcome: SegmentOutcome;   // final outcome of the most recent run
+  matchedCleanly: boolean;   // postcondition matched with zero deopts
 };
 
 export type ReplayDiagnostics = {
@@ -73,6 +131,8 @@ export type ReplayDiagnostics = {
   /** @deprecated Use checkpointCaptureDurationMs and checkpointSettleDelayMs. */
   checkpointWaitDurationMs: number;
   checkpointTimeoutCount: number;
+  /** Per-segment attribution, empty when no segment ran (e.g. bare checkpoints). */
+  segments: SegmentProfile[];
 };
 
 export interface FallbackDriver<TExpectation, TActual> {
@@ -132,4 +192,14 @@ export type ReplayFlowOptions<TExpectation, TActual> = {
   emit?: (event: ReplayEvent<TActual>) => void | Promise<void>;
   now?: () => number;
   delay?: (durationMs: number) => Promise<void>;
+  /**
+   * Called after each segment resolves (both on success and before a failure
+   * rethrows), with the finalized per-segment profile and any non-empty
+   * corrective demonstrations captured during fallback. Injected so the flow
+   * never touches a store or `fs` directly; runtime/common stays Midscene-free.
+   */
+  onSegmentProfiled?: (
+    profile: SegmentProfile,
+    correctives: CorrectiveDemonstration[],
+  ) => void | Promise<void>;
 };

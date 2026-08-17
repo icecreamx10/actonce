@@ -2,13 +2,30 @@ import { CheckpointMismatchError, FallbackFailedError } from "./errors.js";
 import type {
   CheckpointResult,
   CheckpointSpec,
+  CorrectiveDemonstration,
   FallbackRequest,
   ReplayEvent,
   ReplayDiagnostics,
   ReplayFlowOptions,
   ReplaySegment,
+  SegmentFallbackOutcomes,
+  SegmentGuardCost,
+  SegmentOutcome,
+  SegmentProfile,
   SegmentIdempotency,
 } from "./types.js";
+
+type MutableSegmentProfile = {
+  segmentId: string;
+  runs: number;
+  attempts: number;
+  deterministicFailures: number;
+  guard: { precondition: SegmentGuardCost; postcondition: SegmentGuardCost };
+  fallback: { count: number; durationMs: number; outcomes: SegmentFallbackOutcomes };
+  outcome: SegmentOutcome;
+  matchedCleanly: boolean;
+  correctives: CorrectiveDemonstration[];
+};
 
 export class ReplayFlow<TExpectation, TActual> {
   private readonly policy;
@@ -19,6 +36,7 @@ export class ReplayFlow<TExpectation, TActual> {
   private checkpointSettleDelayMs = 0;
   private checkpointWaitDurationMs = 0;
   private checkpointTimeoutCount = 0;
+  private readonly segmentProfiles = new Map<string, MutableSegmentProfile>();
 
   constructor(private readonly options: ReplayFlowOptions<TExpectation, TActual>) {
     this.policy = options.policy ?? "disabled";
@@ -37,7 +55,32 @@ export class ReplayFlow<TExpectation, TActual> {
       checkpointSettleDelayMs: this.checkpointSettleDelayMs,
       checkpointWaitDurationMs: this.checkpointWaitDurationMs,
       checkpointTimeoutCount: this.checkpointTimeoutCount,
+      segments: [...this.segmentProfiles.values()].map(finalizeProfile),
     };
+  }
+
+  private profileFor(id: string): MutableSegmentProfile {
+    let profile = this.segmentProfiles.get(id);
+    if (!profile) {
+      profile = {
+        segmentId: id,
+        runs: 0,
+        attempts: 0,
+        deterministicFailures: 0,
+        guard: { precondition: emptyGuardCost(), postcondition: emptyGuardCost() },
+        fallback: { count: 0, durationMs: 0, outcomes: { completed: 0, declined: 0, failed: 0 } },
+        outcome: "matched",
+        matchedCleanly: false,
+        correctives: [],
+      };
+      this.segmentProfiles.set(id, profile);
+    }
+    return profile;
+  }
+
+  private async reportSegmentProfile(profile: MutableSegmentProfile): Promise<void> {
+    if (!this.options.onSegmentProfiled) return;
+    await this.options.onSegmentProfiled(finalizeProfile(profile), [...profile.correctives]);
   }
 
   async checkpoint(
@@ -52,6 +95,9 @@ export class ReplayFlow<TExpectation, TActual> {
     const captureDurationMs = Math.max(0, now() - started);
     this.checkpointCaptureDurationMs += captureDurationMs;
     this.checkpointWaitDurationMs += captureDurationMs;
+    const profile = this.profileFor(segmentId);
+    profile.attempts += 1;
+    profile.guard[phase].captureDurationMs += captureDurationMs;
     await this.emit({
       kind: "replay.checkpoint.checked",
       segmentId,
@@ -78,6 +124,9 @@ export class ReplayFlow<TExpectation, TActual> {
 
   async segment(segment: ReplaySegment<TExpectation>): Promise<void> {
     const idempotency = segment.idempotency ?? "safe";
+    const profile = this.profileFor(segment.id);
+    profile.runs += 1;
+    let deterministicFailure: { name: string; message: string } | undefined;
     await this.emit({ kind: "replay.segment.started", segmentId: segment.id });
     try {
       await this.ensure(segment, "precondition", segment.precondition, idempotency);
@@ -86,7 +135,6 @@ export class ReplayFlow<TExpectation, TActual> {
         segmentId: segment.id,
         phase: "deterministic",
       });
-      let deterministicFailure: { name: string; message: string } | undefined;
       try {
         await segment.deterministic();
         await this.emit({
@@ -96,6 +144,7 @@ export class ReplayFlow<TExpectation, TActual> {
         });
       } catch (error) {
         deterministicFailure = serializeError(error);
+        profile.deterministicFailures += 1;
         await this.emit({
           kind: "replay.deterministic.failed",
           segmentId: segment.id,
@@ -103,6 +152,7 @@ export class ReplayFlow<TExpectation, TActual> {
           error: deterministicFailure,
         });
       }
+      const fallbackBefore = profile.fallback.count;
       await this.ensure(
         segment,
         "postcondition",
@@ -116,13 +166,20 @@ export class ReplayFlow<TExpectation, TActual> {
             }]
           : [],
       );
+      const recovered = profile.fallback.count > fallbackBefore;
+      profile.outcome = recovered ? "recovered" : "matched";
+      profile.matchedCleanly = !recovered;
       await this.emit({ kind: "replay.segment.completed", segmentId: segment.id });
+      await this.reportSegmentProfile(profile);
     } catch (error) {
+      profile.outcome = classifyFailureOutcome(error, deterministicFailure);
+      profile.matchedCleanly = false;
       await this.emit({
         kind: "replay.segment.failed",
         segmentId: segment.id,
         error: serializeError(error),
       });
+      await this.reportSegmentProfile(profile);
       throw error;
     }
   }
@@ -169,6 +226,11 @@ export class ReplayFlow<TExpectation, TActual> {
       const fallbackDurationMs = Number(process.hrtime.bigint() - fallbackStarted) / 1_000_000;
       this.fallbackCount += 1;
       this.fallbackDurationMs += fallbackDurationMs;
+      const profile = this.profileFor(segment.id);
+      profile.fallback.count += 1;
+      profile.fallback.durationMs += fallbackDurationMs;
+      profile.fallback.outcomes[fallbackResult.status] += 1;
+      if (fallbackResult.corrective) profile.correctives.push(fallbackResult.corrective);
       await this.emit({
         kind: "replay.fallback.completed",
         segmentId: segment.id,
@@ -232,9 +294,11 @@ export class ReplayFlow<TExpectation, TActual> {
         const capturedDelayMs = Math.max(0, now() - delayStarted);
         this.checkpointSettleDelayMs += capturedDelayMs;
         this.checkpointWaitDurationMs += capturedDelayMs;
+        this.profileFor(segmentId).guard[phase].settleDelayMs += capturedDelayMs;
         settleDelayMs += capturedDelayMs;
         if (now() >= deadline || controller.signal.aborted) break;
         this.checkpointPollCount += 1;
+        this.profileFor(segmentId).guard[phase].pollCount += 1;
         checkCount += 1;
         result = await this.checkpoint(segmentId, phase, spec, {
           deadlineMs: deadline,
@@ -248,6 +312,7 @@ export class ReplayFlow<TExpectation, TActual> {
 
       const durationMs = Math.max(0, now() - started);
       this.checkpointTimeoutCount += 1;
+      this.profileFor(segmentId).guard[phase].timeoutCount += 1;
       await this.emit({
         kind: "replay.checkpoint.settle.timed-out",
         segmentId,
@@ -307,4 +372,38 @@ function serializeError(error: unknown): { name: string; message: string } {
   return error instanceof Error
     ? { name: error.name, message: error.message }
     : { name: "Error", message: String(error) };
+}
+
+function emptyGuardCost(): SegmentGuardCost {
+  return { captureDurationMs: 0, settleDelayMs: 0, pollCount: 0, timeoutCount: 0 };
+}
+
+function finalizeProfile(profile: MutableSegmentProfile): SegmentProfile {
+  return {
+    segmentId: profile.segmentId,
+    runs: profile.runs,
+    attempts: profile.attempts,
+    deterministicFailures: profile.deterministicFailures,
+    guard: {
+      precondition: { ...profile.guard.precondition },
+      postcondition: { ...profile.guard.postcondition },
+    },
+    fallback: {
+      count: profile.fallback.count,
+      durationMs: profile.fallback.durationMs,
+      outcomes: { ...profile.fallback.outcomes },
+    },
+    outcome: profile.outcome,
+    matchedCleanly: profile.matchedCleanly,
+  };
+}
+
+function classifyFailureOutcome(
+  error: unknown,
+  deterministicFailure: { name: string; message: string } | undefined,
+): SegmentOutcome {
+  if (error instanceof FallbackFailedError) return "fallback-failed";
+  if (error instanceof CheckpointMismatchError) return "mismatched";
+  if (deterministicFailure) return "deterministic-failed";
+  return "mismatched";
 }
