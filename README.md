@@ -10,7 +10,7 @@ When the live UI still matches the recording, replay stays deterministic. When i
 
 > The recording is evidence. The compiled, state-aware replay is the executable artifact.
 
-> **Platform status:** macOS has a three-case desktop suite, iOS has its first formal checkout benchmark, and Android now has an end-to-end recorded checkout smoke plus deterministic replay. Windows support is planned.
+> **Platform status:** macOS has a three-case desktop suite, while iOS and Android each have a reproducible checkout benchmark with native deterministic replay. Windows support is planned.
 
 ## Current result
 
@@ -33,13 +33,30 @@ including `3.008 s` of accessibility capture and no settle delay or fallback.
 See the [iOS benchmark guide](benchmark/ios/README.md).
 
 Android records the matching My Demo App checkout through a fixed
-`midscene-android` profile and mechanically compiles nine normalized tap
-primitives. Its formal baseline passed with an original median of `140.446 s`
+`midscene-android` profile and replays nine normalized tap primitives through
+the native Android runtime. Its formal baseline passed with an original median of `140.446 s`
 and replay median of `17.412 s` (`8.07×` speedup), two of two replays correct,
-and no fallback. After replacing cold UI dumps with a persistent UIAutomator2
-backend, a one-pass development validation completed correctly in `6.927 s`:
-`4.200 s` was accessibility capture and only `0.203 s` was actual settle delay.
+and no fallback. The repository now provides one CLI that resets the fixture,
+runs both sides, and applies the same live accessibility and exact-screenshot
+oracle. Its latest one-pass development run completed correctly in `151.285 s`
+versus `6.738 s` (`22.45×`), with zero fallback and byte-identical final
+screenshots. Replay spent `4.274 s` capturing accessibility checkpoints and
+only `0.201 s` in actual settle delay.
 See the [Android benchmark guide](benchmark/android/README.md).
+
+The AndroidWorld harness now pins Midscene's published 116-task catalog and
+targets all 113 tasks that passed by round 3. Its resumable CLI performs
+official initialization, Midscene recording, native replay, and official
+validation per case; the published `compile-device-recording` Skill owns
+evidence-backed compilation between recording and replay. The formal run is
+single-device and single-sample, with a repository-pinned `codex-luna` profile
+through the local Codex app server. Midscene and the recorder share one
+persistent UIAutomator2 source for accessibility checkpoints. Full-suite formal
+scoring remains in progress. The current zero-context formal slice has four of
+113 target cases correct, with 679.038 s of original execution replayed in
+39.135 s (17.35×) and no fallback. Results produced by the removed automatic
+AndroidWorld compiler are not current benchmark evidence. See the
+[AndroidWorld benchmark guide](benchmark/android/android-world/README.md).
 
 ## How it works
 
@@ -80,7 +97,8 @@ Midscene is quarantined behind `@byted-lynx/actonce-midscene-adapter`: original 
 | [`runtime/common/`](runtime/common/README.md) | Shared checkpoint-gated replay flow |
 | [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | Optional bounded Midscene recovery adapter |
 | [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.md) | Pinned desktop fixture, natural-language cases, runners, evidence, and evaluator |
-| [`benchmark/android/`](benchmark/android/README.md) | Android emulator and Markor benchmark setup |
+| [`benchmark/android/`](benchmark/android/README.md) | Android emulator and reproducible Midscene-versus-ActOnce checkout benchmark |
+| [`benchmark/android/android-world/`](benchmark/android/android-world/README.md) | Pinned 113-case Midscene PASS catalog, official AndroidWorld bridge, skill handoff, resumable suite, and evaluator |
 | [`benchmark/ios/`](benchmark/ios/README.md) | iOS Simulator, WDA, and Midscene smoke setup |
 | [`.agents/skills/benchmark-lynxtron-fiddle`](.agents/skills/benchmark-lynxtron-fiddle/SKILL.md) | Repository-internal benchmark procedure; not a published Skill |
 

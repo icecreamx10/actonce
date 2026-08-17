@@ -42,4 +42,42 @@ describe("compileAndroidPrimitives", () => {
       ]),
     ).toThrow("Unsupported recorded Android action");
   });
+
+  it("lowers app lifecycle actions and focused replace input", () => {
+    const result = compileAndroidPrimitives([
+      {
+        kind: "logical.action.completed",
+        sequence: 1,
+        actionId: "launch",
+        operation: "Launch",
+        normalizedArguments: { uri: "com.example.app" },
+      },
+      {
+        kind: "logical.action.completed",
+        sequence: 2,
+        actionId: "input",
+        operation: "Input",
+        normalizedArguments: { value: "hello", mode: "replace" },
+      },
+    ]);
+
+    expect(result.source).toContain('"operation": "launchApp"');
+    expect(result.source).toContain('"com.example.app"');
+    expect(result.source).toContain('"operation": "typeText"');
+    expect(result.source).toContain('"replace": true');
+  });
+
+  it("fails closed when a lifecycle action lacks a package name", () => {
+    expect(() =>
+      compileAndroidPrimitives([
+        {
+          kind: "logical.action.completed",
+          sequence: 1,
+          actionId: "launch",
+          operation: "Launch",
+          normalizedArguments: {},
+        },
+      ]),
+    ).toThrow("missing package name");
+  });
 });

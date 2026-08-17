@@ -54,9 +54,16 @@ function parseOptions(values: string[]): RecordingRunOptions {
     else if (name === "--upstream-port") options.upstreamPort = port(value, name);
     else if (name === "--serial") options.serial = value;
     else if (name === "--adb-path") options.adbPath = value;
+    else if (name === "--expose-adb-shell") options.exposeAdbShellAction = boolean(value, name);
     else throw new Error(`Unknown option: ${name}`);
   }
   return options;
+}
+
+function boolean(value: string, name: string): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${name} must be true or false`);
 }
 
 function port(value: string, name: string): number {
@@ -74,7 +81,7 @@ Usage:
   npm run interceptor:start -- profiles [--json]
   npm run interceptor:start -- record midscene-macos --entry <task.ts> [--display-id 0]
   npm run interceptor:start -- record midscene-ios --entry <task.ts> [WDA options]
-  npm run interceptor:start -- record midscene-android --entry <task.ts> [--serial <adb-serial>] [--adb-path <path>]
+  npm run interceptor:start -- record midscene-android --entry <task.ts> [--serial <adb-serial>] [--adb-path <path>] [--expose-adb-shell <true|false>]
   npm run interceptor:start -- record ios-wda [WDA options]
 
 Common options:

@@ -5,13 +5,18 @@ import type {
   RecordedAndroidPrimitive,
 } from "./primitives.js";
 
-type Event = {
+export type RecordedAndroidEvent = {
   kind?: string;
   sequence?: number;
   recordingId?: string;
   actionId?: string;
   operation?: string;
   normalizedArguments?: Record<string, unknown>;
+};
+export type CompiledAndroidPrimitive = {
+  sequence: number;
+  actionId: string;
+  primitive: RecordedAndroidPrimitive;
 };
 export type CompileAndroidPrimitivesResult = {
   source: string;
@@ -21,27 +26,17 @@ export type CompileAndroidPrimitivesResult = {
 };
 
 export function compileAndroidPrimitives(
-  events: Event[],
+  events: RecordedAndroidEvent[],
   provenance: {
     recordingId?: string;
     sequenceRange?: { from: number; to: number };
   } = {},
 ): CompileAndroidPrimitivesResult {
-  const completed = events.filter(
-    (event) => event.kind === "logical.action.completed",
-  );
+  const completed = events.filter((event) => event.kind === "logical.action.completed");
   const omittedWaitCount = completed.filter(
     (event) => event.operation === "Sleep",
   ).length;
-  const actions = completed
-    .filter((event) => event.operation !== "Sleep")
-    .map((event) => {
-      if (!event.actionId || !Number.isInteger(event.sequence))
-        throw new Error(
-          "A completed Android action is missing actionId or sequence",
-        );
-      return { sequence: event.sequence!, primitive: lower(event) };
-    });
+  const actions = extractAndroidPrimitives(events);
   const range =
     provenance.sequenceRange ??
     (actions.length
@@ -72,13 +67,34 @@ export function compileAndroidPrimitives(
     sequenceRange: range,
   };
 }
+
+export function extractAndroidPrimitives(
+  events: RecordedAndroidEvent[],
+): CompiledAndroidPrimitive[] {
+  return events
+    .filter(
+      (event) =>
+        event.kind === "logical.action.completed" && event.operation !== "Sleep",
+    )
+    .map((event) => {
+      if (!event.actionId || !Number.isInteger(event.sequence))
+        throw new Error(
+          "A completed Android action is missing actionId or sequence",
+        );
+      return {
+        sequence: event.sequence!,
+        actionId: event.actionId,
+        primitive: lower(event),
+      };
+    });
+}
 export async function compileAndroidPrimitivesFile(
   input: string,
   output: string,
 ) {
   const path = resolve(input);
   const info = await stat(path);
-  let events: Event[];
+  let events: RecordedAndroidEvent[];
   let provenance = {};
   if (info.isDirectory()) {
     const manifest = JSON.parse(
@@ -104,9 +120,11 @@ export async function compileAndroidPrimitivesFile(
   await writeFile(resolve(output), result.source, "utf8");
   return { ...result, output: resolve(output) };
 }
-function lower(event: Event): RecordedAndroidPrimitive {
+function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
   const args = event.normalizedArguments ?? {};
   const mapping: Record<string, AndroidPrimitiveOperation> = {
+    Launch: "launchApp",
+    Terminate: "terminateApp",
     Tap: "tap",
     DoubleClick: "doubleClick",
     LongPress: "longPress",
@@ -127,6 +145,14 @@ function lower(event: Event): RecordedAndroidPrimitive {
     );
   if (["back", "home", "recentApps"].includes(operation))
     return { operation, arguments: [] };
+  if (["launchApp", "terminateApp"].includes(operation)) {
+    const packageName = args.uri ?? args.packageName ?? args.package;
+    if (typeof packageName !== "string" || packageName.length === 0)
+      throw new Error(
+        `Recorded Android ${event.operation} action is missing package name`,
+      );
+    return { operation, arguments: [packageName] };
+  }
   if (["tap", "doubleClick", "longPress"].includes(operation))
     return { operation, arguments: [targetPoint(args.locate)] };
   if (operation === "typeText") {
@@ -136,7 +162,10 @@ function lower(event: Event): RecordedAndroidPrimitive {
       operation,
       arguments: [
         args.value,
-        { target: args.locate, replace: args.replace !== false },
+        {
+          target: args.locate,
+          replace: args.mode === "replace" || args.replace !== false,
+        },
       ],
     };
   }
@@ -180,7 +209,7 @@ function targetPoint(value: unknown): { x: number; y: number } {
     );
   return { x: center[0], y: center[1] };
 }
-function ndjson(value: string): Event[] {
+function ndjson(value: string): RecordedAndroidEvent[] {
   return value
     .split(/\r?\n/)
     .filter(Boolean)

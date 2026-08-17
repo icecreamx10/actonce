@@ -1,0 +1,39 @@
+diff --git a/android_world/env/setup_device/apps.py b/android_world/env/setup_device/apps.py
+--- a/android_world/env/setup_device/apps.py
++++ b/android_world/env/setup_device/apps.py
+@@ -667,11 +667,15 @@ class VlcApp(AppSetup):
+     adb_utils.issue_generic_request(
+         [
+             "shell",
+-            "monkey",
++            "am",
++            "start",
++            "-W",
++            "-a",
++            "android.intent.action.MAIN",
++            "-c",
++            "android.intent.category.LAUNCHER",
+             "-p",
+             package,
+-            "-candroid.intent.category.LAUNCHER",
+-            "1",
+         ],
+         env.controller,
+     )
+@@ -718,11 +722,11 @@ class JoplinApp(AppSetup):
+     adb_utils.issue_generic_request(
+         [
+             "shell",
+-            "monkey",
+-            "-p",
+-            joplin_package,
++            "am",
++            "start",
++            "-W",
++            "-n",
++            f"{joplin_package}/.MainActivity",
+-            "-candroid.intent.category.LAUNCHER",
+-            "1",
+         ],
+         env.controller,
+     )
