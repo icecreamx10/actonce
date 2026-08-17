@@ -23,6 +23,10 @@ The compile Skill may emit `tapUniqueNode` only after proving a selector unique
 and semantically aligned from recorded evidence; the primitive performs a native
 UIAutomator2 element click and retains the normalized recorded coordinate as its
 fallback. Mechanical primitive compilation never invents this mapping.
+For an `observe-before-retry` selector segment, the common replay flow can execute
+the recorded coordinate once as `deterministicRetry` only after the selector action's
+postcondition times out. Retry count and duration are reported separately from AI
+fallback.
 
 `replayCheckpointGatedAndroidRecording` executes mechanically compiled steps
 with screenshot-first settling and recorded native-node evidence when raster

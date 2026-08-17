@@ -17,6 +17,9 @@ native artifact that proves the selector has exactly one match, include class pl
 semantic field where possible, and pass the normalized recorded coordinate as its
 fallback. `tapUniqueNode` performs a real UIAutomator2 element click; do not emulate
 it by finding node bounds and sending another coordinate event.
+When the selector click can report success without satisfying its recorded
+postcondition, mark the segment `observe-before-retry` and register the original
+coordinate as its single `deterministicRetry`; let `ReplayFlow` gate and diagnose it.
 
 Treat Android `Input` as a compound recorded primitive. Midscene's default replace
 mode deletes on both sides of an unknown cursor position (up to 100 characters), and
