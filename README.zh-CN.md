@@ -46,8 +46,10 @@ Midscene 录制、原生 replay 和官方校验；录制与 replay 之间基于�
 `compile-device-recording` Skill 负责。正式执行采用单设备、
 每 case 单 sample，并通过本机 Codex app server 使用仓库固定的 `codex-luna`
 profile；Midscene 与 recorder 共用一个常驻 UIAutomator2 source 获取 accessibility
-checkpoint。全量正式评分等待 Skill 编译 replay 的验证；由已删除的 AndroidWorld
-自动 compiler 生成的结果不再作为当前 benchmark 证据。
+checkpoint。全量正式评分仍在推进；当前零上下文正式切片已有 113 个目标 case 中
+的 4 个正确通过，original 合计 679.038 秒，replay 合计 39.135 秒（17.35×），
+fallback 为 0。由已删除的 AndroidWorld 自动 compiler 生成的结果不再作为当前
+benchmark 证据。
 详情见 [AndroidWorld benchmark 指南](benchmark/android/android-world/README.md)。
 
 ## 工作原理

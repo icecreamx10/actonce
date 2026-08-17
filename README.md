@@ -52,8 +52,10 @@ evidence-backed compilation between recording and replay. The formal run is
 single-device and single-sample, with a repository-pinned `codex-luna` profile
 through the local Codex app server. Midscene and the recorder share one
 persistent UIAutomator2 source for accessibility checkpoints. Full-suite formal
-scoring is pending Skill-compiled replay validation; results produced by the
-removed automatic AndroidWorld compiler are not current benchmark evidence. See the
+scoring remains in progress. The current zero-context formal slice has four of
+113 target cases correct, with 679.038 s of original execution replayed in
+39.135 s (17.35×) and no fallback. Results produced by the removed automatic
+AndroidWorld compiler are not current benchmark evidence. See the
 [AndroidWorld benchmark guide](benchmark/android/android-world/README.md).
 
 ## How it works

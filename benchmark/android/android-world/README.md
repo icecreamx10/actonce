@@ -19,7 +19,25 @@ npm run android-world:catalog -- --selection pass@1 --format lines
 npm run android-world:catalog -- --selection pass@3 --format lines
 ```
 
-`SystemBrightnessMax` is the first completed case, not the whole suite.
+## Current formal snapshot
+
+The current zero-context, one-sample formal slice covers four of the 113 target
+tasks. Every replay passed the official AndroidWorld reward gate with no AI
+fallback or replay retry:
+
+| Task | Original | Replay | Speedup |
+| --- | ---: | ---: | ---: |
+| `BrowserMaze` | 478.567 s | 18.282 s | 26.18× |
+| `ClockStopWatchPausedVerify` | 26.081 s | 6.919 s | 3.77× |
+| `ClockStopWatchRunning` | 48.110 s | 5.889 s | 8.17× |
+| `ClockTimerEntry` | 126.280 s | 8.045 s | 15.70× |
+| **Comparable total** | **679.038 s** | **39.135 s** | **17.35×** |
+
+This is a correctness-gated partial result, not a claim of full-suite coverage.
+The remaining catalog cases stay visible until they have a complete,
+officially successful original and a Skill-compiled replay that passes the same
+official validator.
+
 Full-suite app installation and snapshots are measurement-external setup:
 
 ```bash

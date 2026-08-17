@@ -18,7 +18,23 @@ npm run android-world:catalog -- --selection pass@1 --format lines
 npm run android-world:catalog -- --selection pass@3 --format lines
 ```
 
-`SystemBrightnessMax` 只是第一个已完成 case，并不代表完整 suite。
+## 当前正式快照
+
+当前零上下文、单 sample 的正式切片覆盖 113 个目标任务中的 4 个。每个 replay
+都通过 AndroidWorld 官方 reward 门禁，AI fallback 与 replay retry 均为 0：
+
+| 任务 | Original | Replay | 加速比 |
+| --- | ---: | ---: | ---: |
+| `BrowserMaze` | 478.567 秒 | 18.282 秒 | 26.18× |
+| `ClockStopWatchPausedVerify` | 26.081 秒 | 6.919 秒 | 3.77× |
+| `ClockStopWatchRunning` | 48.110 秒 | 5.889 秒 | 8.17× |
+| `ClockTimerEntry` | 126.280 秒 | 8.045 秒 | 15.70× |
+| **可比合计** | **679.038 秒** | **39.135 秒** | **17.35×** |
+
+这是以正确性为门禁的部分结果，不代表完整 suite 已覆盖。其余 catalog case 会一直
+保留在覆盖分母中，直到获得完整且官方成功的 original，并由 Skill 编译出通过同一
+官方 validator 的 replay。
+
 完整 suite 的 App 安装及 snapshot 属于测量外 setup：
 
 ```bash
