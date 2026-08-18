@@ -19,6 +19,29 @@ export const ANDROID_WORLD_MODEL_PROFILES = {
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "120",
     },
   },
+  // Volcengine ARK Doubao endpoint used as the Luna replacement when the
+  // codex-app-server route is unavailable. Non-secret routing only: the
+  // endpoint id resolves to doubao-seed-2-1-pro-260628. MIDSCENE_MODEL_API_KEY
+  // is intentionally NOT stored here — it is supplied from the environment
+  // (`.env`) at run time so this profile stays key-free for safe provenance.
+  "ark-doubao": {
+    id: "ark-doubao",
+    provider: "volcengine-ark",
+    model: "doubao-seed-2-1-pro-260628",
+    family: "doubao-seed",
+    reasoning: {
+      enabled: false,
+      effort: "none",
+    },
+    env: {
+      MIDSCENE_MODEL_BASE_URL: "https://ark-cn-beijing.bytedance.net/api/v3",
+      MIDSCENE_MODEL_NAME: "ep-20260721211518-8k2xk",
+      MIDSCENE_MODEL_FAMILY: "doubao-seed",
+      MIDSCENE_MODEL_TIMEOUT: "600000",
+      MIDSCENE_RECORD_MODEL_CALL: "1",
+      MIDSCENE_REPLANNING_CYCLE_LIMIT: "120",
+    },
+  },
 } as const;
 
 export type AndroidWorldModelProfile = keyof typeof ANDROID_WORLD_MODEL_PROFILES;
