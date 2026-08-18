@@ -1,6 +1,6 @@
 # AndroidWorld ARK 确定性回放结果（2026-08-18）
 
-本文记录 2026-08-18 使用 ARK 模型运行的十一个完整 AndroidWorld case。十一个 case
+本文记录 2026-08-18 使用 ARK 模型运行的十九个完整 AndroidWorld case。十九个 case
 均完成以下完整链路：
 
 1. ARK 驱动 Midscene 执行 original，并生成录制；
@@ -40,9 +40,17 @@ API key 仅在运行时从本机环境读取，没有写入仓库或结果文档
 | `ContactsAddContact` | 11 | 1 | 1 | 143.907 秒 | 13.726 秒 | 10.48x | 90.46% | [`contacts-add-contact-replay.ts`](./contacts-add-contact-replay.ts) |
 | `MarkorCreateFolder` | 26 | 1 | 1 | 108.976 秒 | 13.073 秒 | 8.34x | 88.00% | [`markor-create-folder-replay.ts`](./markor-create-folder-replay.ts) |
 | `MarkorDeleteNote` | 32 | 1 | 1 | 167.187 秒 | 6.532 秒 | 25.59x | 96.09% | [`markor-delete-note-replay.ts`](./markor-delete-note-replay.ts) |
-| **可比合计** | — | **11/11** | **11/11** | **1,096.654 秒** | **112.948 秒** | **9.71x** | **89.70%** | — |
+| `ExpenseDeleteSingle` | 21 | 1 | 1 | 33.737 秒 | 7.985 秒 | 4.23x | 76.33% | [`expense-delete-single-replay.ts`](./expense-delete-single-replay.ts) |
+| `ExpenseDeleteDuplicates` | 17 | 1 | 1 | 85.380 秒 | 8.002 秒 | 10.67x | 90.63% | [`expense-delete-duplicates-replay.ts`](./expense-delete-duplicates-replay.ts) |
+| `ExpenseAddSingle` | 16 | 1 | 1 | 69.227 秒 | 12.850 秒 | 5.39x | 81.44% | [`expense-add-single-replay.ts`](./expense-add-single-replay.ts) |
+| `RecipeDeleteDuplicateRecipes` | 47 | 1 | 1 | 99.634 秒 | 8.832 秒 | 11.28x | 91.14% | [`recipe-delete-duplicate-recipes-replay.ts`](./recipe-delete-duplicate-recipes-replay.ts) |
+| `RecipeDeleteSingleRecipe` | 53 | 1 | 1 | 43.230 秒 | 7.491 秒 | 5.77x | 82.67% | [`recipe-delete-single-recipe-replay.ts`](./recipe-delete-single-recipe-replay.ts) |
+| `SimpleCalendarDeleteEventsOnRelativeDay` | 66 | 1 | 1 | 232.853 秒 | 8.485 秒 | 27.44x | 96.36% | [`simple-calendar-delete-events-relative-day-replay.ts`](./simple-calendar-delete-events-relative-day-replay.ts) |
+| `SimpleCalendarDeleteOneEvent` | 67 | 1 | 1 | 40.407 秒 | 7.393 秒 | 5.47x | 81.70% | [`simple-calendar-delete-one-event-replay.ts`](./simple-calendar-delete-one-event-replay.ts) |
+| `SimpleSmsSend` | 72 | 1 | 1 | 59.515 秒 | 13.679 秒 | 4.35x | 77.02% | [`simple-sms-send-replay.ts`](./simple-sms-send-replay.ts) |
+| **可比合计** | — | **19/19** | **19/19** | **1,760.637 秒** | **187.664 秒** | **9.38x** | **89.34%** | — |
 
-合计加速比按总耗时计算，即 `1096.654 / 112.948 = 9.71x`，不是十一个 case
+合计加速比按总耗时计算，即 `1760.637 / 187.664 = 9.38x`，不是十九个 case
 加速比的算术平均值。计时范围为 harness 记录的 agent/replay 执行耗时；官方
 initializer、validator 和 app setup 不计入执行边界。
 
@@ -61,8 +69,16 @@ initializer、validator 和 app setup 不计入执行边界。
 | `ContactsAddContact` | deterministic | 0 | 0 ms | 2 | 3,771 ms | 203 ms | 3,974 ms | 0 |
 | `MarkorCreateFolder` | deterministic | 0 | 0 ms | 1 | 4,685 ms | 101 ms | 4,786 ms | 0 |
 | `MarkorDeleteNote` | deterministic | 0 | 0 ms | 0 | 1,015 ms | 0 ms | 1,015 ms | 0 |
+| `ExpenseDeleteSingle` | deterministic | 0 | 0 ms | 1 | 4,285 ms | 106 ms | 4,391 ms | 0 |
+| `ExpenseDeleteDuplicates` | deterministic | 0 | 0 ms | 2 | 3,927 ms | 205 ms | 4,132 ms | 0 |
+| `ExpenseAddSingle` | deterministic | 0 | 0 ms | 1 | 2,351 ms | 102 ms | 2,453 ms | 0 |
+| `RecipeDeleteDuplicateRecipes` | deterministic | 0 | 0 ms | 1 | 4,167 ms | 102 ms | 4,269 ms | 0 |
+| `RecipeDeleteSingleRecipe` | deterministic | 0 | 0 ms | 1 | 1,771 ms | 102 ms | 1,873 ms | 0 |
+| `SimpleCalendarDeleteEventsOnRelativeDay` | deterministic | 0 | 0 ms | 0 | 1,622 ms | 0 ms | 1,622 ms | 0 |
+| `SimpleCalendarDeleteOneEvent` | deterministic | 0 | 0 ms | 1 | 3,709 ms | 104 ms | 3,813 ms | 0 |
+| `SimpleSmsSend` | deterministic | 0 | 0 ms | 3 | 4,772 ms | 308 ms | 5,080 ms | 0 |
 
-十一个 replay 的 `fallbackCount` 和 `checkpointTimeoutCount` 均为 `0`。这表示
+十九个 replay 的 `fallbackCount` 和 `checkpointTimeoutCount` 均为 `0`。这表示
 运行过程中没有回退到 AI，也没有 checkpoint 超时；耗时中包含原生 Android
 accessibility checkpoint 的捕获和等待。
 
@@ -168,6 +184,16 @@ Replay：[`markor-delete-note-replay.ts`](./markor-delete-note-replay.ts)
 - Replay postcondition：目标文件和确认弹窗均从 accessibility state 消失。
 - 官方 oracle：目标文件从 Markor 工作目录删除，reward `1`。
 
+### Expense / Recipe / Calendar / SMS
+
+- Expense 三项分别覆盖单条删除、同名重复项删除和新增收入；replay 绑定 seed
+  生成的名称、金额与备注，并以列表状态作为 checkpoint。
+- Recipe 两项分别删除同名重复菜谱和单条菜谱；固定路径为打开详情、菜单删除、确认。
+- Calendar 两项绑定目标日期和事件标题，进入日程后逐条打开、删除并确认。
+- SMS 绑定号码 `+19678733465` 与消息文本，通过唯一 resource-id 点击发送按钮，
+  并等待输入框清空后才完成 replay。
+- 上述八项均由 AndroidWorld 对应数据库/文件 oracle 再验证，reward 均为 `1`。
+
 ## 本地结果产物
 
 本轮原始产物保存在以下本地目录（`.cache` 不进入 Git）：
@@ -186,7 +212,15 @@ Replay：[`markor-delete-note-replay.ts`](./markor-delete-note-replay.ts)
 ├── 011-contacts-add-contact/sample-1/
 ├── 026-markor-create-folder/sample-1/
 ├── 032-markor-delete-note/sample-1/
-└── 038-open-app-task-eval/sample-1/
+├── 038-open-app-task-eval/sample-1/
+├── 021-expense-delete-single/sample-1/
+├── 017-expense-delete-duplicates/sample-1/
+├── 016-expense-add-single/sample-1/
+├── 047-recipe-delete-duplicate-recipes/sample-1/
+├── 053-recipe-delete-single-recipe/sample-1/
+├── 066-simple-calendar-delete-events-relative-day/sample-1/
+├── 067-simple-calendar-delete-one-event/sample-1/
+└── 072-simple-sms-send/sample-1/
 ```
 
 每个 `sample-1` 目录包含：
@@ -229,9 +263,29 @@ ARK original 未通过官方 validator（40.881 秒，reward `0`），因此没�
 也不进入性能汇总。录制执行了长按 `edited_fierce_goat.txt`、点击删除并确认，但
 AndroidWorld 的文件系统 oracle 未认可最终状态。
 
+### MarkorEditNote
+
+ARK original 未通过官方 validator（221.840 秒，reward `0`），因此没有编译 replay，
+也不进入性能汇总。本次参数为 `file_name=note_Hz5MO.txt`、`edit_type=header`、
+`header=Elementary, my dear Watson.`。
+
+### MarkorAddNoteHeader
+
+同一 seed `20260818024` 运行两次均未形成有效的 official-PASS original。sample 1
+在 602.702 秒后因 ARK 请求 `Request was aborted` 退出；sample 2 因 agent 整段操作
+超时退出。两次均为 process failure、reward `0`，因此标记为 infrastructure/agent
+timeout，不编译 replay，也不进入性能汇总。
+
+### MarkorChangeNoteContent
+
+seed `20260818025` 的 original 在多轮返回、重进和编辑尝试后因 agent operation
+timeout 退出，未形成 official-PASS original，因此不编译 replay，也不进入性能汇总。
+
 ## 结论
 
-当前十一个完整 case 均满足相同的正确性门禁：original 与 replay 都获得 AndroidWorld
-官方 reward `1`。确定性 replay 在零 AI fallback 下将总执行时间从 1,096.654 秒降至
-112.948 秒，总体加速 9.71 倍。结果支持当前 JIT 方向：把已经录制并可由稳定 state/
+当前十九个完整 case 均满足相同的正确性门禁：original 与 replay 都获得 AndroidWorld
+官方 reward `1`。确定性 replay 在零 AI fallback 下将总执行时间从 1,760.637 秒降至
+187.664 秒，总体加速 9.38 倍。本轮挑选的 20 个 Midscene-PASS 候选中，16 个
+original official-PASS；其中 15 个 replay official-PASS，另一个 Contacts spinner case
+blocked。结果支持当前 JIT 方向：把已经录制并可由稳定 state/
 checkpoint 门控的死流程编译为固定 replay，而仍需开放判断的步骤继续交给 agent。
