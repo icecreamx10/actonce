@@ -41,10 +41,6 @@ const RECORDED_INPUT_TARGET = {
 };
 const RECORDED_HOVER_TARGET = { x: 710, y: 206 };
 const outputDir = resolve(process.env.ACTONCE_BENCHMARK_OUTPUT_DIR ?? ".");
-const fixtureRoot = requiredEnv("ACTONCE_LYNXTRON_FIXTURE_ROOT");
-const desktopBundle = requiredEnv("ACTONCE_LYNXTRON_DESKTOP_BUNDLE");
-const fixtureConfig = requiredEnv("ACTONCE_LYNXTRON_CONFIG_PATH");
-const fixtureTmp = requiredEnv("ACTONCE_LYNXTRON_TMPDIR");
 const displayId = Number(process.env.ACTONCE_DISPLAY_ID ?? "0");
 if (displayId !== 0) {
   throw new Error(`This recorded replay requires displayId 0; received ${displayId}`);
@@ -89,6 +85,10 @@ await mkdir(screenshotsDir, { recursive: true });
 await writeFile(assertionDecisionPath, `${JSON.stringify(assertionDecision(), null, 2)}\n`);
 if (process.env.ACTONCE_DECISION_ONLY === "1") process.exit(0);
 
+const fixtureRoot = requiredEnv("ACTONCE_LYNXTRON_FIXTURE_ROOT");
+const desktopBundle = requiredEnv("ACTONCE_LYNXTRON_DESKTOP_BUNDLE");
+const fixtureConfig = requiredEnv("ACTONCE_LYNXTRON_CONFIG_PATH");
+const fixtureTmp = requiredEnv("ACTONCE_LYNXTRON_TMPDIR");
 const startedAt = new Date().toISOString();
 const fullStarted = process.hrtime.bigint();
 const steps: Array<Record<string, unknown>> = [];

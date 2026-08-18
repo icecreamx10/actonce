@@ -118,3 +118,35 @@ PR2a is complete when:
 - `--from-segment` starts at the named segment and verifies its precondition;
 - an unknown segment id fails before any action runs;
 - `hybrid-replay` documents the run, inspect, recover, verify, and resume loop.
+
+The checked-in replay regression suite runs with:
+
+```bash
+npm run test:replay
+```
+
+It consumes the replay artifacts themselves rather than maintaining equivalent
+test-only copies:
+
+- the iOS Settings executor test loads `benchmark/ios/settings-about.plan.json`;
+- iOS and Android checkout benchmarks share their segment definitions with the
+  offline regression test;
+- macOS Lynxtron replay scripts execute their own decision-only path and verify
+  that every compiled checkpoint still points to recorded evidence.
+
+This suite is device-independent and therefore part of `npm test`. It protects
+the plan, action sequence, checkpoint contracts, and recorded evidence links.
+It does not claim that a current app build still renders the same UI.
+
+Device correctness remains an explicit integration gate:
+
+```bash
+npm run benchmark:ios:replay-settings
+npm run benchmark:ios:replay-demo-app
+npm run benchmark:android:replay-demo-app
+npm run benchmark:macos:lynxtron:cli -- run --mode replay --case diagnostic-hover
+```
+
+Those commands require their platform fixtures and device services. They are
+kept out of the default test command so ordinary unit-test runs remain
+deterministic and do not control a live UI.

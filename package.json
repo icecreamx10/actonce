@@ -91,6 +91,7 @@
     "benchmark:macos:checkpoint-service": "tsx benchmark/macos/checkpoint-service.ts",
     "model:verify": "npm run model:verify -w @byted-lynx/actonce-midscene-adapter",
     "test": "vitest run",
+    "test:replay": "vitest run runtime/ios/test/executor.test.ts test/mobile-replay-regression.test.ts test/macos-replay-regression.test.ts",
     "test:macos-runtime": "npm --prefix runtime/macos test",
     "test:ios-runtime": "npm --prefix runtime/ios test",
     "test:android-runtime": "npm --prefix runtime/android test",
