@@ -28,11 +28,12 @@ npm run benchmark:android:smoke
 
 ```bash
 npm run android:install:demo-app
-npm run benchmark:android:record-demo-app
-npm run benchmark:android:replay-demo-app
+npm run benchmark:android:demo-app
 ```
 
-每次执行前都会清空 App 数据。original 走固定 `midscene-android` recorder profile；replay 使用机械录制的逻辑坐标、Android UI-tree checkpoint、最终截图，并默认禁用 fallback。第一次端到端 smoke 中，AI original 约 127 秒，确定性 replay 约 18 秒；这是开发测量，还不是正式的两次评分。
+benchmark CLI 会在计时外清空 App 数据，先执行一次固定的 `midscene-android` original，再次 reset 后执行一次原生 ActOnce replay。两者都必须独立通过同一个实时 accessibility tree oracle 并保存最终截图，耗时才允许比较。original 还必须包含两次成功录制的 Midscene assertion；replay 会报告 fallback 次数，并将 checkpoint capture 耗时与真正的 settle delay 分开。
+
+也可以对同一个 `--output <目录>` 分别使用 `--mode original`、`--mode replay`、`--mode evaluate` 执行各阶段。单次采样用于快速开发验证；发布正式性能结论前，应在独立输出目录中重复运行。
 
 ## 备选文档 Fixture
 

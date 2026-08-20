@@ -6,6 +6,12 @@ import type {
 import type { AndroidSession } from "./session.js";
 
 export type Point = { x: number; y: number };
+export type AndroidNodeSelector = {
+  type?: string;
+  text?: string;
+  contentDescription?: string;
+  resourceId?: string;
+};
 export type AndroidSessionOptions = {
   serial?: string;
   androidAdbPath?: string;

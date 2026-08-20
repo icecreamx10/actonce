@@ -4,40 +4,33 @@
 
 **让 AI 探索一次界面，把成功路径回放成快速、确定性的程序。**
 
-Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现同一个稳定流程。ActOnce 录制一次成功的 AI 操作，保留真实动作与证据，再由 Agent 把可复用片段合成为 checkpoint 驱动的回放代码。
+Computer-use Agent 擅长探索陌生界面，但每次都重新发现同一个稳定流程既慢又贵。ActOnce 录制一次成功的 AI 执行，保留真实动作与证据，再由 Agent 把可复用片段合成为 checkpoint 驱动的回放代码。
 
-当实时 UI 仍与录制一致时，回放完全确定性执行；当状态偏离时，运行时会安全停止，或只针对出错片段调用受限的 AI fallback。
+当实时 UI 与录制一致时，replay 确定性执行；状态偏离时，运行时会 fail closed，或只针对受影响片段调用明确受限的 AI fallback。
 
 > 录制是证据；由 Agent 编排、能够感知状态的 replay 才是可执行产物。
 
-> **平台状态：** macOS 已有三个 case 的桌面 suite；iOS 已有第一条正式 checkout benchmark；Android 也已跑通录制型 checkout smoke 与确定性 replay。Windows 仍在规划中。
+**平台状态：** macOS、iOS、Android 均已有原生确定性 runtime 和经过 benchmark 验证的 original-to-replay 路径；Windows 仍在规划中。
 
-## 当前结果
+## 结果
 
-默认 macOS benchmark suite 包含三个真实的 Lynxtron Fiddle 工作流。最新一轮开发快照使用原生窗口区域截图，所有 replay 均正确完成且没有调用 AI fallback：
+正确性是硬门槛：只有 replay 通过与 original 相同的任务 oracle，ActOnce 才报告性能优势。
 
-| 工作流 | Midscene original 中位数 | 最新 replay | 加速比 |
-| --- | ---: | ---: | ---: |
-| 语法诊断与 hover tooltip | 52.90 秒 | 5.53 秒 | 9.56× |
-| 编辑 → 撤销 → 重做 → 恢复 | 57.30 秒 | 5.03 秒 | 11.39× |
-| Console → Gallery → 编辑器往返 | 75.30 秒 | 8.62 秒 | 8.73× |
-| **Suite 合计** | **185.49 秒** | **19.18 秒** | **9.67×** |
+| Benchmark | AI original | 确定性 replay | 加速 | 正确性 |
+| --- | ---: | ---: | ---: | --- |
+| macOS · 3-case Lynxtron suite | 185.49 秒 | 19.18 秒 | 9.67× | 3/3，fallback 0 |
+| iOS · checkout | 220.246 秒 | 10.499 秒 | 20.98× | 2/2，fallback 0 |
+| Android · checkout | 140.446 秒 | 17.412 秒 | 8.07× | 2/2，fallback 0 |
+| AndroidWorld · 已验证 5-case 切片 | 972.837 秒 | 95.938 秒 | 10.14× | 5/5，fallback 0 |
 
-所有实时截图 checkpoint 均通过，fixture 最终在未保存的情况下恢复，fallback 为 0。这里的 replay 数据是一轮优化快照；正式评分要求两次独立重置的 original 和两次独立重置的 replay，并以正确性作为硬门槛。固定协议见 [Lynxtron benchmark 指南](benchmark/macos/lynxtron-fiddle/README.zh-CN.md)。
+AndroidWorld 的完整目标是 Midscene 三轮公开结果中至少通过一次的 113 个任务。最新切片包含 `ExpenseAddMultiple`：original 与 replay 的官方 reward 均为 `1.0`，耗时 `293.799 秒 → 56.803 秒`（`5.17×`）。全量 suite 仍在推进。
 
-第一条正式 iOS checkout benchmark 也已通过：Midscene original 中位数
-`220.246 秒`，确定性 replay 中位数 `10.499 秒`，加速 `20.98×`；两次 replay
-均正确且没有 fallback。确定性 replay 切换到直连 WDA backend 后，一次开发验证
-用时 `8.969 秒`，其中 accessibility capture 为 `3.008 秒`，settle delay 与
-fallback 均为 0。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
+协议与证据：
 
-Android 通过固定 `midscene-android` profile 录制同构的 My Demo App checkout。
-Agent 先固定语义 segment 与 checkpoint，再逐动作机械 lowering 出 9 个归一化
-tap primitive。正式基线中，original 中位数为
-`140.446 秒`，replay 中位数为 `17.412 秒`，加速 `8.07×`；两次 replay 均正确且
-没有 fallback。将冷启动 UI dump 替换为常驻 UIAutomator2 backend 后，一次开发验证
-正确完成于 `6.927 秒`：accessibility capture 为 `4.200 秒`，真正 settle delay
-仅 `0.203 秒`。详情见 [Android benchmark 指南](benchmark/android/README.zh-CN.md)。
+- [macOS Lynxtron Fiddle](benchmark/macos/lynxtron-fiddle/README.zh-CN.md)
+- [iOS Simulator benchmark](benchmark/ios/README.zh-CN.md)
+- [Android checkout benchmark](benchmark/android/README.zh-CN.md)
+- [AndroidWorld harness](benchmark/android/android-world/README.md)
 
 ## 工作原理
 
@@ -45,7 +38,7 @@ tap primitive。正式基线中，original 中位数为
 AI 示教
   ↓
 append-only 录制
-  动作 · 时间 · 截图 · AX/WDA · 语义观察
+  动作 · 时间 · 截图 · AX/WDA/UIA2 · 语义观察
   ↓
 Agent replay 合成
   阅读证据 · 编排状态变化 · 验证 · 逐动作 lowering
@@ -55,39 +48,35 @@ checkpoint 驱动回放
                               ↘ 允许时使用受限 AI fallback
 ```
 
-ActOnce 刻意拆分四类职责：
+四层职责刻意分离：
 
-- **Interceptor**：多个独立 source 把原始事件写入同一条有序 session log。
-- **发布 Skills**：指导 Agent 使用受支持的组合完成录制，并合成有证据支持的 replay segment。
-- **平台 Runtime**：向生成脚本提供固定、可测试的动作与 checkpoint API。
-- **Benchmark**：先验证正确性，再将 replay 执行时间与原始 AI 运行比较。
+- **Interceptor**：多个独立 source 写入同一条有序 session。
+- **发布 Skills**：指导受支持的录制与由 Agent 主导的 replay 合成。
+- **原生 Runtime**：向生成脚本提供固定、可测试的 action 和 checkpoint API。
+- **Benchmark**：先验证正确性，再比较端到端执行时间。
 
-Midscene 被集中隔离在 `@byted-lynx/actonce-midscene-adapter`：原始 AI 示教和 recorder hook 可以使用它，确定性平台 runtime 不允许依赖它。iOS replay 直接调用 WDA；Android replay 使用 ADB 与常驻 UIAutomator2 accessibility 服务。两个平台都继续把 accessibility checkpoint 作为一级证据。
+Midscene 被隔离在 `@byted-lynx/actonce-midscene-adapter`：AI 示教可以使用它，确定性 runtime 不允许依赖它。iOS 直连 WDA；Android 使用 ADB 与常驻 UIAutomator2；macOS 使用原生输入、accessibility 与窗口区域截图。
 
 ## 仓库结构
 
 | 路径 | 用途 |
 | --- | --- |
-| [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill；macOS 路径已经验证，iOS 仍处于基础建设阶段 |
-| [`skills/synthesize-device-replay`](skills/synthesize-device-replay/SKILL.md) | 发布 Skill：由 Agent 根据录制证据合成 replay plan |
-| [`skills/hybrid-replay`](skills/hybrid-replay/SKILL.md) | Agent 在 checkpoint 失败后接管操作，并从后续确定性 segment 继续回放 |
-| [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
-| [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | AI 录制所需 Midscene 依赖的唯一 package 边界 |
-| [`runtime/macos/`](runtime/macos/README.md) | `@byted-lynx/actonce-macos` 确定性回放 SDK 与 CLI |
-| [`runtime/ios/`](runtime/ios/README.md) | `@byted-lynx/actonce-ios` 固定 WDA primitive、source/visual checkpoint 与 replay runner |
-| [`runtime/android/`](runtime/android/README.zh-CN.md) | `@byted-lynx/actonce-android` 固定 Android primitive、UI-tree/截图 checkpoint 与 replay runner |
-| [`runtime/common/`](runtime/common/README.md) | 共享的 checkpoint 回放流程 |
-| [`runtime/midscene-fallback/`](runtime/midscene-fallback/README.md) | 可选的受限 Midscene 恢复适配器 |
-| [`benchmark/macos/lynxtron-fiddle/`](benchmark/macos/lynxtron-fiddle/README.zh-CN.md) | 固定桌面 fixture、自然语言 case、runner、证据与 evaluator |
-| [`benchmark/android/`](benchmark/android/README.zh-CN.md) | Android 模拟器与 Markor benchmark 环境 |
-| [`benchmark/ios/`](benchmark/ios/README.zh-CN.md) | iOS Simulator、WDA 与 Midscene smoke 环境 |
-| [`.agents/skills/benchmark-lynxtron-fiddle`](.agents/skills/benchmark-lynxtron-fiddle/SKILL.md) | 仓库内部 benchmark 流程，不作为 Skill 发布 |
+| [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill |
+| [`skills/synthesize-device-replay`](skills/synthesize-device-replay/SKILL.md) | 发布的 Agent 主导 evidence-to-replay Skill |
+| [`skills/hybrid-replay`](skills/hybrid-replay/SKILL.md) | 对已保留 failed checkpoint 的可选 Agent 恢复流程 |
+| [`interceptor/`](interceptor/README.zh-CN.md) | 有序 recorder 与平台/Midscene source |
+| [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | Midscene 依赖的唯一 package 边界 |
+| [`runtime/common/`](runtime/common/README.md) | 共享 checkpoint 回放流程 |
+| [`runtime/macos/`](runtime/macos/README.md) | macOS 原生 runtime 与 CLI |
+| [`runtime/ios/`](runtime/ios/README.md) | WDA 直连 runtime 与 checkpoint |
+| [`runtime/android/`](runtime/android/README.zh-CN.md) | ADB/UIAutomator2 runtime 与 checkpoint |
+| [`benchmark/`](benchmark/) | 可复现 fixture、runner 与 evaluator |
 
 ## 快速开始
 
-基础要求是 Node.js 22 或更高版本，以及对应平台工作流所需的 macOS 权限。
+基础要求是 Node.js 22 或更高版本，以及目标平台所需的权限和设备工具。
 
-从 BNPM 安装完整且版本同步的发行包：
+从 BNPM 安装版本同步的发行包与 Skills：
 
 ```bash
 npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
@@ -96,7 +85,7 @@ npx actonce skill install synthesize-device-replay
 npx actonce skill install hybrid-replay
 ```
 
-Skill 安装命令在设置了 `CODEX_HOME` 时复制到 `${CODEX_HOME}/skills`，否则复制到 `~/.codex/skills`；其他 Agent 可通过 `--target <目录>` 指定安装位置。API 使用平台子路径导入：
+通过平台子路径使用 API：
 
 ```ts
 import { ReplayFlow } from "@byted-lynx/actonce/replay";
@@ -104,8 +93,6 @@ import { replayMacPrimitive } from "@byted-lynx/actonce/macos";
 import { replayIOSPrimitive } from "@byted-lynx/actonce/ios";
 import { replayAndroidPrimitive } from "@byted-lynx/actonce/android";
 ```
-
-所有 `@byted-lynx/actonce-*` 组件都属于同一个 Changesets fixed group，因此总包、录制 CLI、平台 runtime 和 Skills 始终使用同一发布版本；有精简环境需求时仍可单独安装组件包。
 
 在源码仓库中开发：
 
@@ -115,16 +102,7 @@ npm test
 npm run typecheck
 ```
 
-准备固定版本的 Lynxtron fixture，并运行默认 original suite：
-
-```bash
-npm run benchmark:macos:lynxtron:prepare
-npm run benchmark:macos:lynxtron:suite
-```
-
-桌面 benchmark 会控制鼠标、键盘、剪贴板、应用、窗口和显示器；运行期间请勿同时操作机器。
-
-Midscene original 需要兼容的多模态模型。复制仓库模板，并确保真实密钥只保存在本地：
+Midscene original 需要兼容的多模态模型。真实凭证只保存在本地：
 
 ```bash
 cp .env.example .env
@@ -132,14 +110,15 @@ cp .env.example .env
 npm run model:verify
 ```
 
-不要提交 API Key，也不要录制包含敏感信息的 UI。`.env`、recording、生成的 fixture 和 benchmark artifact 均已被 Git 忽略。
+不要提交 API Key，也不要录制敏感 UI。`.env`、recording、生成的 fixture 和 benchmark artifact 均已被 Git 忽略。
 
-## 录制与编译
+## 录制与 replay 合成
 
-稳定的平台组合固化在 CLI 中，而不是由 Skill 临时拼装。录制 Skill 只需选择支持的 profile；启用的 interceptor 会把各自事件写入同一条有序 session。
+受支持的 source 组合固化为 CLI profile，而不是由 Skill 临时拼装。所有启用的 interceptor 都写入同一个 session log。
 
 ```bash
 npm run interceptor:profiles
+
 npm run interceptor:start -- record midscene-macos \
   --entry /absolute/path/to/task.ts \
   --display-id 0
@@ -149,51 +128,15 @@ npm run interceptor:start -- record midscene-android \
   --serial emulator-5554
 ```
 
-Android 遵循 Lynx CI 相同的全局环境契约：`$ANDROID_HOME` 提供 `adb` 与 `emulator`，`emulator -list-avds` 从用户级目录发现共享 AVD。macOS 的标准位置是 `~/Library/Android/sdk` 与 `~/.android/avd`；ActOnce 会自动优先复用它们，仅在全局 SDK 不存在时回退到仓库本地 bootstrap。
+每条 recording 包含 manifest、有序 `events.ndjson`，以及内容寻址的截图、原生 UI tree、WDA payload 和 source artifact。Midscene Assert、Boolean、Query 结果是带证据来源的一级 semantic observation。
 
-录制产物由主 manifest、`events.ndjson` 与旁路的内容寻址附件组成，包括截图、AX tree、WDA payload 和 source artifact。Midscene Assert、Boolean、Query 的结果会成为一级 semantic observation 事件，并保留证据来源。
-
-编译 Skill 随后选择可复用片段，通过固定 runtime primitive 降低输入，根据片段中真实存在的证据规划 observation，并在 replay 前验证每项 assertion decision。
-
-## macOS 回放 Runtime
-
-[`@byted-lynx/actonce-macos`](runtime/macos/README.md) 是第一个完整的平台 runtime。它使用 Appium Mac2/WebDriverIO 控制应用和执行固定输入 primitive，将目标窗口规范化到指定显示器，并通过原生窗口区域截图快速验证视觉 checkpoint。
-
-```ts
-import {
-  captureMacRegionScreenshot,
-  replayMacPrimitive,
-  setupMacWindow,
-} from "@byted-lynx/actonce-macos";
-
-const setup = await setupMacWindow({
-  processName: "Example",
-  displayId: 0,
-  width: 1200,
-  height: 800,
-  margin: 40,
-});
-
-await captureMacRegionScreenshot("checkpoint.png", setup.frame, {
-  timeoutMs: 2_000,
-});
-```
-
-窗口区域截图不再通过 WDA 传输完整 Retina 屏幕 PNG。生成动作和视觉区域共享经过验证的 window frame，因此其他显示器、其他应用和桌面位置都不会进入 oracle。
+合成 Skill 要求 Agent 先写 evidence ledger，并为每个状态变化动作编排独立的 checkpoint segment；只有结构验证通过后，确定性工具才能逐动作通过原生 runtime lowering。随后完整执行计划，直到稳定或确认具体 blocker。
 
 ## 评测契约
 
-ActOnce 只报告两个 benchmark 维度：
+1. **正确性：** runtime checkpoint 通过，随后独立任务 oracle 通过。
+2. **条件性能：** 只有正确的 replay 才与 AI original 比较耗时。
 
-1. **正确性**：结构化 assertion 和筛选后的截图证据先通过，再由 AI 审查 evidence bundle。
-2. **条件性能**：只有正确性通过后，才比较 original 中位耗时与 replay 中位耗时。
+Checkpoint capture、settle、fallback、recovery 和 cleanup 全部计入 replay 时间；fallback 次数以及 capture/settle 耗时作为诊断项报告。速度再快的错误 replay 也不可比较。
 
-Fallback 延迟、checkpoint 轮询、恢复和 cleanup 都计入 replay 时间。Fallback 次数和控制器启动总耗时只是诊断信息，不是额外分数。速度再快的错误 replay 也不可比较。
-
-## 当前状态
-
-ActOnce 是一个面向开发机器工作流的活跃原型。macOS 已有正式多 case suite；iOS
-和 Android 都已有经过正式 benchmark 验证的 original 到 replay 对比，其确定性
-runtime 现在使用直接的原生设备 backend，不再经过 Midscene adapter。
-
-接下来的工程重点是继续降低 checkpoint 开销、把编译能力推广到当前 benchmark 之外，并独立加入 Windows，而不是过早强行统一跨平台 action API。
+ActOnce 仍是活跃原型。当前重点是扩大 AndroidWorld 覆盖、继续降低 checkpoint capture 成本、把 replay 合成推广到固定 benchmark 之外，并独立支持 Windows。

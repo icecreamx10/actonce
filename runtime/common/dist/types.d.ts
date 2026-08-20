@@ -118,6 +118,8 @@ export type SegmentProfile = {
 };
 export type ReplayDiagnostics = {
     strategy: "deterministic" | "hybrid";
+    deterministicRetryCount: number;
+    deterministicRetryDurationMs: number;
     fallbackCount: number;
     fallbackDurationMs: number;
     checkpointPollCount: number;
@@ -144,12 +146,16 @@ export type ReplaySegment<TExpectation> = {
     id: string;
     precondition: CheckpointSpec<TExpectation>;
     deterministic: () => Promise<void> | void;
+    deterministicRetry?: {
+        action: () => Promise<void> | void;
+        maxAttempts?: number;
+    };
     postcondition: CheckpointSpec<TExpectation>;
     fallback?: ReplayFallback;
     idempotency?: SegmentIdempotency;
 };
 export type ReplayEvent<TActual = unknown> = {
-    kind: "replay.segment.started" | "replay.checkpoint.checked" | "replay.checkpoint.settle.started" | "replay.checkpoint.settle.completed" | "replay.checkpoint.settle.timed-out" | "replay.deterministic.started" | "replay.deterministic.completed" | "replay.deterministic.failed" | "replay.fallback.started" | "replay.fallback.completed" | "replay.segment.completed" | "replay.segment.failed";
+    kind: "replay.segment.started" | "replay.checkpoint.checked" | "replay.checkpoint.settle.started" | "replay.checkpoint.settle.completed" | "replay.checkpoint.settle.timed-out" | "replay.deterministic.started" | "replay.deterministic.completed" | "replay.deterministic.failed" | "replay.deterministic.retry.started" | "replay.deterministic.retry.completed" | "replay.deterministic.retry.failed" | "replay.fallback.started" | "replay.fallback.completed" | "replay.segment.completed" | "replay.segment.failed";
     segmentId: string;
     phase?: "precondition" | "deterministic" | "postcondition";
     checkpointId?: string;

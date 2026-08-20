@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@byted-lynx/actonce-android": "^0.2.0",
     "@byted-lynx/actonce-midscene-adapter": "^0.2.0"
   },
   "devDependencies": {

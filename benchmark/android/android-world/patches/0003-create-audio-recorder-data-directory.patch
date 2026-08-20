@@ -1,0 +1,16 @@
+diff --git a/android_world/task_evals/single/audio_recorder.py b/android_world/task_evals/single/audio_recorder.py
+index cd941bc..28656cf 100644
+--- a/android_world/task_evals/single/audio_recorder.py
++++ b/android_world/task_evals/single/audio_recorder.py
+@@ -31,6 +31,11 @@ class _AudioRecorder(task_eval.TaskEval):
+ 
+   app_names = ("audio recorder",)
+ 
++  def initialize_task(self, env: interface.AsyncEnv) -> None:
++    super().initialize_task(env)
++    # App snapshots contain internal app data, not this external media path.
++    file_utils.mkdir(device_constants.AUDIORECORDER_DATA, env.controller)
++
+ 
+ class AudioRecorderRecordAudio(_AudioRecorder):
+   """Task for checking that one audio recording has been completed."""

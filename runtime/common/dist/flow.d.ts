@@ -4,6 +4,8 @@ export declare class ReplayFlow<TExpectation, TActual> {
     private readonly policy;
     private fallbackCount;
     private fallbackDurationMs;
+    private deterministicRetryCount;
+    private deterministicRetryDurationMs;
     private checkpointPollCount;
     private checkpointCaptureDurationMs;
     private checkpointSettleDelayMs;

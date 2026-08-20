@@ -4,6 +4,8 @@ export class ReplayFlow {
     policy;
     fallbackCount = 0;
     fallbackDurationMs = 0;
+    deterministicRetryCount = 0;
+    deterministicRetryDurationMs = 0;
     checkpointPollCount = 0;
     checkpointCaptureDurationMs = 0;
     checkpointSettleDelayMs = 0;
@@ -20,6 +22,8 @@ export class ReplayFlow {
     diagnostics() {
         return {
             strategy: this.policy === "recover" ? "hybrid" : "deterministic",
+            deterministicRetryCount: this.deterministicRetryCount,
+            deterministicRetryDurationMs: this.deterministicRetryDurationMs,
             fallbackCount: this.fallbackCount,
             fallbackDurationMs: this.fallbackDurationMs,
             checkpointPollCount: this.checkpointPollCount,
@@ -137,6 +141,59 @@ export class ReplayFlow {
             return;
         if (additionalDifferences.length) {
             result = { ...result, differences: [...additionalDifferences, ...result.differences] };
+        }
+        if (phase === "postcondition"
+            && idempotency === "observe-before-retry"
+            && segment.deterministicRetry) {
+            const maxAttempts = positiveInteger(segment.deterministicRetry.maxAttempts ?? 1, "deterministicRetry maxAttempts");
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                await this.emit({
+                    kind: "replay.deterministic.retry.started",
+                    segmentId: segment.id,
+                    phase: "deterministic",
+                    attempt,
+                });
+                const retryStarted = process.hrtime.bigint();
+                try {
+                    await segment.deterministicRetry.action();
+                    const durationMs = Number(process.hrtime.bigint() - retryStarted) / 1_000_000;
+                    this.deterministicRetryCount += 1;
+                    this.deterministicRetryDurationMs += durationMs;
+                    await this.emit({
+                        kind: "replay.deterministic.retry.completed",
+                        segmentId: segment.id,
+                        phase: "deterministic",
+                        attempt,
+                        durationMs,
+                    });
+                }
+                catch (error) {
+                    const durationMs = Number(process.hrtime.bigint() - retryStarted) / 1_000_000;
+                    this.deterministicRetryCount += 1;
+                    this.deterministicRetryDurationMs += durationMs;
+                    const retryFailure = serializeError(error);
+                    result = {
+                        ...result,
+                        differences: [{
+                                path: "deterministicRetry",
+                                actual: retryFailure,
+                                message: `Deterministic retry failed: ${retryFailure.message}`,
+                            }, ...result.differences],
+                    };
+                    await this.emit({
+                        kind: "replay.deterministic.retry.failed",
+                        segmentId: segment.id,
+                        phase: "deterministic",
+                        attempt,
+                        durationMs,
+                        error: retryFailure,
+                    });
+                    break;
+                }
+                result = await this.settleCheckpoint(segment.id, phase, spec);
+                if (result.status === "matched")
+                    return;
+            }
         }
         if (this.policy === "disabled" || !segment.fallback) {
             throw new CheckpointMismatchError(segment.id, phase, spec.id, result);

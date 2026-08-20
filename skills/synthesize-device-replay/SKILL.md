@@ -79,6 +79,14 @@ actions, invent checkpoints, infer assertions, or write the semantic plan.
     first divergence, fix the narrowest layer without weakening evidence, reset, and
     rerun the complete case until two consecutive fresh-fixture passes or a concrete
     external blocker.
+11. On the first fresh-fixture attempt, execute every selected action exactly once in
+    recorded order. Never use a future checkpoint to skip earlier work. A retry may
+    inspect only that same action's immediate postcondition; cleanup may inspect only
+    its own recorded cleanup postcondition.
+12. If diagnosis proves a shared runtime or evaluator defect, repair and commit that
+    reusable layer first. Discard the derived synthesis attempt, then forward-test this
+    Skill with a context-free agent that receives only the immutable recording and
+    public harness—not the prior diagnosis or generated artifacts.
 
 ## Integrity rules
 

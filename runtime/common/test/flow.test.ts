@@ -116,6 +116,8 @@ describe("ReplayFlow", () => {
     });
     expect(flow.diagnostics()).toEqual({
       strategy: "deterministic",
+      deterministicRetryCount: 0,
+      deterministicRetryDurationMs: 0,
       fallbackCount: 0,
       fallbackDurationMs: 0,
       checkpointPollCount: 0,
@@ -126,6 +128,60 @@ describe("ReplayFlow", () => {
       segments: [],
     });
   });
+
+  it("retries the same recorded primitive only after its postcondition misses", async () => {
+    const deterministic = vi.fn();
+    const retry = vi.fn();
+    const events: string[] = [];
+    const verify = vi.fn()
+      .mockResolvedValueOnce(matched("ready"))
+      .mockResolvedValueOnce(mismatched("unchanged", "done"))
+      .mockResolvedValueOnce(matched("done"));
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify },
+      emit: (event) => { events.push(event.kind); },
+    });
+
+    await flow.segment({
+      id: "tap",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic,
+      deterministicRetry: { action: retry, maxAttempts: 1 },
+      postcondition: { id: "done", expected: { state: "done" } },
+      idempotency: "observe-before-retry",
+    });
+
+    expect(deterministic).toHaveBeenCalledOnce();
+    expect(retry).toHaveBeenCalledOnce();
+    expect(events).toContain("replay.deterministic.retry.completed");
+    expect(flow.diagnostics()).toMatchObject({
+      deterministicRetryCount: 1,
+      fallbackCount: 0,
+    });
+  });
+
+  it.each(["safe", "never-retry"] as const)(
+    "does not run deterministic retry for %s segments",
+    async (idempotency) => {
+      const retry = vi.fn();
+      const flow = new ReplayFlow<Expectation, Actual>({
+        checkpoints: {
+          verify: vi.fn()
+            .mockResolvedValueOnce(matched("ready"))
+            .mockResolvedValueOnce(mismatched("unchanged", "done")),
+        },
+      });
+      await expect(flow.segment({
+        id: "tap",
+        precondition: { id: "ready", expected: { state: "ready" } },
+        deterministic: vi.fn(),
+        deterministicRetry: { action: retry },
+        postcondition: { id: "done", expected: { state: "done" } },
+        idempotency,
+      })).rejects.toBeInstanceOf(CheckpointMismatchError);
+      expect(retry).not.toHaveBeenCalled();
+    },
+  );
 
   it("separates checkpoint capture time from settle delay", async () => {
     let now = 0;

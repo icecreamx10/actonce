@@ -66,6 +66,11 @@ Assertions are observation-only segments with the same pre/post evidence contrac
 Model calls are not allowed in deterministic benchmark execution. Preserve a failed
 checkpoint for the separate `hybrid-replay` workflow.
 
+On the first fresh-fixture attempt execute every selected forward action exactly once
+in recorded order. Never use a later or final checkpoint as lookahead to skip setup or
+intermediate actions. Only retry an already-attempted action against its own immediate
+postcondition; skip cleanup only when that cleanup action's own postcondition matches.
+
 ## Validation loop
 
 Write the oracle before execution. Verify runtime, app/build, fixture reset, target
@@ -77,6 +82,13 @@ Reset before every attempt. Preserve every result and classify the first mismatc
 synthesis, runtime, selector/coordinate, evaluator, or fixture/environment. Fix the
 narrowest layer and require two consecutive fresh-fixture passes. Never weaken the
 oracle, values, modality, or recorded timeout to obtain a pass.
+
+If the independent official oracle passes while an internal checkpoint fails, treat it
+as an evaluator/observability mismatch rather than ignoring the checkpoint. Re-express
+only the same recorded fact through a modality supported by both recording and live
+evidence. When a shared runtime/evaluator defect is proven, fix the reusable layer,
+discard the derived attempt, and forward-test from immutable evidence in a context-free
+agent.
 
 For visual comparison use the smallest content-bearing crop and prove that its
 threshold accepts the recorded positive while rejecting the nearest negative state.
