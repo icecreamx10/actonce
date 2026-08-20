@@ -26,22 +26,39 @@ actions, invent checkpoints, infer assertions, or write the semantic plan.
 
 ## Hard gates
 
-1. Resolve this Skill directory and summarize the completed recording:
+1. Resolve this Skill directory. Inspect attempt boundaries before reading or selecting
+   actions, then summarize the completed recording:
 
    ```bash
-   node <skill-dir>/scripts/summarize-recording.mjs <recording-dir>
+   node <skill-dir>/scripts/inspect-attempts.mjs <recording-dir>
+   ```
+
+   A recording file may contain multiple attempts even when its manifest is complete.
+   If more than one attempt exists, the agent must prove which attempt reached the
+   requested oracle. Do not select by recency or action similarity alone. If no single
+   successful attempt can be proven, stop with an attempt-isolation blocker.
+   After selecting it, summarize only that attempt:
+
+   ```bash
+   node <skill-dir>/scripts/summarize-recording.mjs \
+     <recording-dir> --attempt <attempt-key>
    ```
 
 2. Read [references/selection-and-replay.md](references/selection-and-replay.md)
    completely. Prove the requested outcome and final oracle from screenshots,
    native artifacts, and normalized observations. Model prose is not evidence.
-3. Select the smallest successful contiguous range. Extracting that range is allowed
-   only after the agent records its reason:
+3. Select the smallest successful contiguous range inside the proven attempt.
+   Extracting that range is allowed only after the agent records its attempt and range
+   reasons:
 
    ```bash
    node <skill-dir>/scripts/extract-segment.mjs \
-     <recording-dir> --from <sequence> --to <sequence> --output <selected-range.json>
+     <recording-dir> --attempt <attempt-key> \
+     --from <sequence> --to <sequence> --output <selected-range.json>
    ```
+
+   Never run a sequence-only extraction across multiple attempts. The extractor must
+   fail closed when an attempt is ambiguous or contains duplicate sequences.
 
 4. Read [references/synthesis-contract.md](references/synthesis-contract.md) and the
    selected platform reference completely. Inspect every top-level completed logical

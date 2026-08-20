@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { indexRecordingAttempts, selectAttempt } from "./recording-attempts.mjs";
 
 const args = process.argv.slice(2);
 const recordingDirectory = args[0];
@@ -45,18 +46,31 @@ if (!nonEmpty(ledger.recordingId) || ledger.recordingId !== manifest.recordingId
 
 const range = ledger.selectedSequenceRange;
 if (!isRange(range)) errors.push("ledger.selectedSequenceRange must contain integer from/to with 0 <= from <= to");
+const attempts = indexRecordingAttempts(events);
+let selectedAttempt;
+try {
+  selectedAttempt = selectAttempt(attempts, ledger.selectedAttempt);
+} catch (error) {
+  errors.push(message(error));
+}
+if (attempts.length > 1 && !nonEmpty(ledger.selectedAttempt)) {
+  errors.push("ledger.selectedAttempt is required when the recording contains multiple attempts");
+}
+if (selectedAttempt && !selectedAttempt.sequenceUnique) {
+  errors.push(`selected attempt ${selectedAttempt.key} contains duplicate sequences: ${selectedAttempt.duplicateSequences.join(", ")}`);
+}
 const selectedEvents = isRange(range)
-  ? events.filter((event) => event.sequence >= range.from && event.sequence <= range.to)
+  ? (selectedAttempt?.events ?? []).filter((event) => event.sequence >= range.from && event.sequence <= range.to)
   : [];
 if (isRange(range) && selectedEvents.length === 0) errors.push("selected sequence range contains no events");
 
 const eventBySequence = new Map();
-for (const event of events) {
+for (const event of selectedAttempt?.events ?? []) {
   if (!Number.isInteger(event.sequence)) {
     errors.push("every recorded event must have an integer sequence");
     continue;
   }
-  if (eventBySequence.has(event.sequence)) errors.push(`duplicate recording sequence ${event.sequence}`);
+  if (eventBySequence.has(event.sequence)) errors.push(`duplicate sequence ${event.sequence} inside selected attempt`);
   eventBySequence.set(event.sequence, event);
 }
 const selectedEventBySequence = new Map(selectedEvents.map((event) => [event.sequence, event]));
@@ -182,6 +196,7 @@ console.log(JSON.stringify({
   phase: planPath ? "executable-plan" : "pre-lowering",
   recordingId: manifest.recordingId,
   selectedSequenceRange: range,
+  selectedAttempt: selectedAttempt?.key ?? null,
   completedActionCount: completedActions.size,
   replayedActionCount: segments.filter((segment) => segment.kind === "action").length,
   observationSegmentCount: segments.filter((segment) => segment.kind === "observation").length,

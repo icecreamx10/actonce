@@ -1,17 +1,29 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
+import { attemptSummary, indexRecordingAttempts, selectAttempt } from "./recording-attempts.mjs";
 
-const directory = process.argv[2];
+const args = process.argv.slice(2);
+const directory = args[0];
+const attemptKey = option("--attempt");
 if (!directory || process.argv.includes("--help")) {
-  console.error("Usage: summarize-recording.mjs <recording-directory>");
+  console.error("Usage: summarize-recording.mjs <recording-directory> [--attempt KEY]");
   process.exit(directory ? 0 : 2);
 }
 
 const root = resolve(directory);
 const manifest = JSON.parse(await readFile(`${root}/manifest.json`, "utf8"));
-const events = (await readFile(`${root}/events.ndjson`, "utf8"))
+const allEvents = (await readFile(`${root}/events.ndjson`, "utf8"))
   .split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+const attempts = indexRecordingAttempts(allEvents);
+let selectedAttempt;
+try {
+  selectedAttempt = selectAttempt(attempts, attemptKey);
+} catch (error) {
+  console.error(`Attempt isolation failed: ${error.message}`);
+  process.exit(1);
+}
+const events = selectedAttempt.events;
 
 const sensitiveName = /authorization|cookie|api[-_]?key|password|passwd|secret|access[-_]?token/i;
 function sanitize(value) {
@@ -90,9 +102,22 @@ console.log(JSON.stringify({
     sources: manifest.sources ?? [],
   },
   eventCount: events.length,
-  sequenceRange: events.length ? [events[0].sequence, events.at(-1).sequence] : null,
+  selectedAttempt: attemptSummary(selectedAttempt),
+  appendIndexRange: events.length
+    ? [selectedAttempt.appendIndexRange.from, selectedAttempt.appendIndexRange.to]
+    : null,
+  attemptInspection: {
+    attemptCount: attempts.length,
+    selectionRequired: attempts.length > 1,
+    attempts: attempts.map(attemptSummary),
+  },
   kinds,
   actions: [...actionMap.values()],
   checkpoints,
   midscene,
 }, null, 2));
+
+function option(name) {
+  const index = args.indexOf(name);
+  return index < 0 ? undefined : args[index + 1];
+}

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { attemptSummary, indexRecordingAttempts, selectAttempt } from "./recording-attempts.mjs";
 
 const args = process.argv.slice(2);
 const directory = args[0];
@@ -11,16 +12,29 @@ function option(name) {
 const from = Number(option("--from"));
 const to = Number(option("--to"));
 const output = option("--output");
+const attemptKey = option("--attempt");
 if (!directory || !Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from || !output) {
-  console.error("Usage: extract-segment.mjs <recording-directory> --from N --to N --output segment.json");
+  console.error("Usage: extract-segment.mjs <recording-directory> [--attempt KEY] --from N --to N --output segment.json");
   process.exit(2);
 }
 
 const root = resolve(directory);
 const manifest = JSON.parse(await readFile(`${root}/manifest.json`, "utf8"));
 if (manifest.status === "recording") throw new Error("Refusing to extract an active recording");
-const events = (await readFile(`${root}/events.ndjson`, "utf8"))
-  .split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+const allEvents = (await readFile(`${root}/events.ndjson`, "utf8"))
+  .split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+const attempts = indexRecordingAttempts(allEvents);
+let attempt;
+try {
+  attempt = selectAttempt(attempts, attemptKey);
+} catch (error) {
+  fail(error.message);
+}
+if (!attempt.sequenceUnique) {
+  fail(`Attempt ${attempt.key} contains duplicate sequences: ${attempt.duplicateSequences.join(", ")}`);
+}
+const events = attempt.events
+  .map((event, index) => ({ ...event, recordingAppendIndex: attempt.appendIndexRange.from + index }))
   .filter((event) => event.sequence >= from && event.sequence <= to);
 
 if (!events.length) throw new Error(`No events in sequence range ${from}..${to}`);
@@ -39,10 +53,21 @@ const segment = {
     recordingId: manifest.recordingId,
     recordingDirectory: root,
     platform: manifest.platform,
+    attempt: attemptSummary(attempt),
     sequenceRange: { from, to },
   },
   events,
   artifacts: [...artifacts.values()],
 };
 await writeFile(resolve(output), `${JSON.stringify(segment, null, 2)}\n`, "utf8");
-console.log(JSON.stringify({ output: resolve(output), eventCount: events.length, artifactCount: artifacts.size }, null, 2));
+console.log(JSON.stringify({
+  output: resolve(output),
+  attempt: attempt.key,
+  eventCount: events.length,
+  artifactCount: artifacts.size,
+}, null, 2));
+
+function fail(message) {
+  console.error(`Attempt isolation failed: ${message}`);
+  process.exit(1);
+}
