@@ -6,16 +6,18 @@ not boot, erase, or choose a device inside generated code.
 
 ## Lower recorded actions
 
-Run the deterministic compiler first:
+Only after the agent-authored synthesis ledger passes validation, lower one ledger
+action and its cited before/after evidence at a time:
 
 ```bash
 actonce-ios compile-primitives <recording-or-segment> --output recorded-input.js
 ```
 
-It lowers completed Midscene logical actions from their normalized iOS device
+This compatibility command lowers a completed Midscene logical action from its normalized iOS device
 coordinates. Do not copy raw screenshot-pixel coordinates: Midscene screenshots
 may be DPR-scaled while WDA input uses logical device points. Unknown or incomplete
-actions fail closed.
+actions fail closed. It does not choose or merge segments. Never pass it a whole
+recording, task range, or multi-action slice.
 
 ## Guarded fragments
 

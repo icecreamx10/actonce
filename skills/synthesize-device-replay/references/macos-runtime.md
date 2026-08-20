@@ -2,19 +2,21 @@
 
 Generate macOS replay fragments for `@byted-lynx/actonce-macos`. The runtime is a thin WebdriverIO/Appium Mac2 wrapper for developer machines. Its CLI owns Appium startup, the Mac2 session, and cleanup, and runs every supplied fragment in one session.
 
-## Deterministic primitive lowering
+## Single-action primitive lowering
 
-Use the runtime compiler before adapting a selected segment:
+Only after the agent-authored synthesis ledger passes validation, extract one ledger
+action with its cited before/after evidence and lower that single-action slice:
 
 ```bash
 actonce-macos compile-primitives segment.json --output recorded-input.js
 ```
 
-It maps completed `tap`, `doubleClick`, `rightClick`, `hover`, `dragAndDrop`,
+The compatibility command maps completed `tap`, `doubleClick`, `rightClick`, `hover`, `dragAndDrop`,
 `typeText`, `keyboardPress`, `clearInput`, and `scroll` spans to versioned
 `replayMacPrimitive` calls. It removes implementation primitives nested inside
 a higher-level span (for example the internal tap emitted by `typeText`) and
-rejects unknown, failed, or incomplete operations.
+rejects unknown, failed, or incomplete operations. It does not author replay structure.
+Never pass a whole recording, selected task range, or multi-action slice to it.
 
 Keep these calls opaque while composing checkpoints. In particular, do not
 replace `typeText({ replace: true })` with `element.setValue`, per-character
@@ -47,8 +49,8 @@ const replay: MacReplayScript = async ({ mac }) => {
 export default replay;
 ```
 
-For a fragment that changes application state, compile the selected recording
-checkpoints into a guarded segment. The deterministic action is trusted only after
+For a fragment that changes application state, use the ledger's agent-authored
+checkpoint pair as a guarded segment. The deterministic action is trusted only after
 the live post-checkpoint matches:
 
 ```ts
@@ -91,7 +93,7 @@ const replay: MacReplayScript = async ({ mac, flow }) => {
 };
 ```
 
-Compile deterministic fail-closed segments. When a checkpoint fails, preserve the
+Author deterministic fail-closed segments. When a checkpoint fails, preserve the
 failure for the separate `hybrid-replay` agent workflow; do not embed AI fallback in
 the generated replay.
 
@@ -140,7 +142,7 @@ actonce-macos doctor
 actonce-macos run 01-setup.js 02-edit.js 03-assert.js
 ```
 
-## Compilation preferences
+## Authorship preferences
 
 Choose locators in this order when supported by recorded AX evidence:
 

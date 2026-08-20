@@ -1,4 +1,0 @@
-interface:
-  display_name: "Compile Device Recording"
-  short_description: "Compile an evidence-backed deterministic replay plan"
-  default_prompt: "Use $compile-device-recording to inspect this recording and compile a checkpoint-gated deterministic plan. Validate it only when an equivalent fresh-fixture environment is available; preserve failedCheckpoint for $hybrid-replay when agent recovery is needed."

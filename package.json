@@ -14,7 +14,7 @@
     "runtime/android",
     "runtime/midscene-fallback",
     "skills/record-device-use",
-    "skills/compile-device-recording",
+    "skills/synthesize-device-replay",
     "skills/hybrid-replay"
   ],
   "scripts": {

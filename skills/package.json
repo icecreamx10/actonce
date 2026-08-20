@@ -1,0 +1,26 @@
+{
+  "name": "@byted/actonce-skills",
+  "version": "0.1.0",
+  "description": "Agent skills for recording device use and authoring evidence-backed deterministic replays with ActOnce.",
+  "license": "UNLICENSED",
+  "files": [
+    "record-device-use",
+    "synthesize-device-replay",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@code.byted.org/lynx/actonce.git",
+    "directory": "skills"
+  },
+  "publishConfig": {
+    "registry": "http://bnpm.byted.org"
+  },
+  "keywords": [
+    "agent-skill",
+    "codex",
+    "device-automation",
+    "record-replay",
+    "actonce"
+  ]
+}

@@ -1,7 +1,7 @@
 {
-  "name": "@byted-lynx/actonce-skill-compile-device-recording",
+  "name": "@byted-lynx/actonce-skill-synthesize-device-replay",
   "version": "0.2.0",
-  "description": "ActOnce agent skill for compiling evidence-backed deterministic replay.",
+  "description": "ActOnce agent skill for authoring evidence-backed deterministic replay.",
   "license": "Apache-2.0",
   "publishConfig": { "registry": "http://bnpm.byted.org" },
   "files": ["SKILL.md", "agents", "references", "scripts"],

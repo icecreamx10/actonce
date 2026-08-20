@@ -1,0 +1,4 @@
+interface:
+  display_name: "Synthesize Device Replay"
+  short_description: "Author an evidence-backed replay from a recording"
+  default_prompt: "Use $synthesize-device-replay to inspect this recording, author one evidenced segment per state-changing action, validate the replay plan, and forward-test it on fresh fixtures when available."

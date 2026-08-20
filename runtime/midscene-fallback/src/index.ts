@@ -119,7 +119,7 @@ export function buildMidsceneFallbackPrompt<TExpectation, TActual>(
  * Reduce a Midscene progress event to a normalized corrective action. Only the
  * action kind and a normalized element description are kept — never typed text,
  * clipboard contents, coordinates, screenshots, or model reasoning
- * (skills/compile-device-recording/SKILL.md:46).
+ * (skills/synthesize-device-replay/SKILL.md).
  */
 function normalizeCorrectiveAction(event: MidsceneProgressEvent): CorrectiveAction {
   const kind = normalizeKind(event.actionType ?? event.type);

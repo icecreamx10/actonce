@@ -4,11 +4,16 @@ Generate Android replay fragments for `@byted-lynx/actonce-android`. Select and 
 
 ## Lower recorded actions
 
+Only after the agent-authored synthesis ledger passes validation, extract one ledger
+action with its cited before/after evidence and lower that single-action slice:
+
 ```bash
 actonce-android compile-primitives <recording-or-segment> --output recorded-input.js
 ```
 
 Use the normalized logical coordinates from completed Midscene actions. Do not copy physical screenshot pixels or inline `adb shell input`. Unknown actions fail closed.
+The compatibility command does not choose or merge segments. Never pass it a whole
+recording, task range, or multi-action slice.
 
 ## Guarded fragments
 

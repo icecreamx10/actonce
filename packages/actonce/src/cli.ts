@@ -25,7 +25,7 @@ async function installSkill(values: string[]) {
   const name = values[0];
   if (
     name !== "record-device-use" &&
-    name !== "compile-device-recording" &&
+    name !== "synthesize-device-replay" &&
     name !== "hybrid-replay"
   ) usage(2);
   const targetIndex = values.indexOf("--target");
@@ -62,6 +62,6 @@ Usage:
   actonce macos <command> [...args]
   actonce ios <command> [...args]
   actonce android <command> [...args]
-  actonce skill install <record-device-use|compile-device-recording|hybrid-replay> [--target <dir>]`);
+  actonce skill install <record-device-use|synthesize-device-replay|hybrid-replay> [--target <dir>]`);
   process.exit(code);
 }

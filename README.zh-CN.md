@@ -4,11 +4,11 @@
 
 **让 AI 探索一次界面，把成功路径回放成快速、确定性的程序。**
 
-Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现同一个稳定流程。ActOnce 录制一次成功的 AI 操作，保留真实动作与证据，再把可复用片段编译成由 checkpoint 驱动的回放代码。
+Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现同一个稳定流程。ActOnce 录制一次成功的 AI 操作，保留真实动作与证据，再由 Agent 把可复用片段合成为 checkpoint 驱动的回放代码。
 
 当实时 UI 仍与录制一致时，回放完全确定性执行；当状态偏离时，运行时会安全停止，或只针对出错片段调用受限的 AI fallback。
 
-> 录制是证据；编译后、能够感知状态的 replay 才是可执行产物。
+> 录制是证据；由 Agent 编排、能够感知状态的 replay 才是可执行产物。
 
 > **平台状态：** macOS 已有三个 case 的桌面 suite；iOS 已有第一条正式 checkout benchmark；Android 也已跑通录制型 checkout smoke 与确定性 replay。Windows 仍在规划中。
 
@@ -31,8 +31,9 @@ Computer-use Agent 很擅长探索陌生 UI，却不适合每次都重新发现�
 用时 `8.969 秒`，其中 accessibility capture 为 `3.008 秒`，settle delay 与
 fallback 均为 0。详情见 [iOS benchmark 指南](benchmark/ios/README.zh-CN.md)。
 
-Android 通过固定 `midscene-android` profile 录制同构的 My Demo App checkout，
-并机械编译出 9 个归一化 tap primitive。正式基线中，original 中位数为
+Android 通过固定 `midscene-android` profile 录制同构的 My Demo App checkout。
+Agent 先固定语义 segment 与 checkpoint，再逐动作机械 lowering 出 9 个归一化
+tap primitive。正式基线中，original 中位数为
 `140.446 秒`，replay 中位数为 `17.412 秒`，加速 `8.07×`；两次 replay 均正确且
 没有 fallback。将冷启动 UI dump 替换为常驻 UIAutomator2 backend 后，一次开发验证
 正确完成于 `6.927 秒`：accessibility capture 为 `4.200 秒`，真正 settle delay
@@ -46,8 +47,8 @@ AI 示教
 append-only 录制
   动作 · 时间 · 截图 · AX/WDA · 语义观察
   ↓
-基于证据的编译
-  选择稳定片段 · 保留观察模态 · 降低为固定 primitive
+Agent replay 合成
+  阅读证据 · 编排状态变化 · 验证 · 逐动作 lowering
   ↓
 checkpoint 驱动回放
   观察 → 动作 → 等待稳定 → 验证 → 下一步
@@ -57,7 +58,7 @@ checkpoint 驱动回放
 ActOnce 刻意拆分四类职责：
 
 - **Interceptor**：多个独立 source 把原始事件写入同一条有序 session log。
-- **发布 Skills**：指导 Agent 使用受支持的组合完成录制，并编译有价值的片段。
+- **发布 Skills**：指导 Agent 使用受支持的组合完成录制，并合成有证据支持的 replay segment。
 - **平台 Runtime**：向生成脚本提供固定、可测试的动作与 checkpoint API。
 - **Benchmark**：先验证正确性，再将 replay 执行时间与原始 AI 运行比较。
 
@@ -68,7 +69,7 @@ Midscene 被集中隔离在 `@byted-lynx/actonce-midscene-adapter`：原始 AI �
 | 路径 | 用途 |
 | --- | --- |
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill；macOS 路径已经验证，iOS 仍处于基础建设阶段 |
-| [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | 发布 Skill：选择有证据支持的片段并生成 replay 脚本 |
+| [`skills/synthesize-device-replay`](skills/synthesize-device-replay/SKILL.md) | 发布 Skill：由 Agent 根据录制证据合成 replay plan |
 | [`skills/hybrid-replay`](skills/hybrid-replay/SKILL.md) | Agent 在 checkpoint 失败后接管操作，并从后续确定性 segment 继续回放 |
 | [`interceptor/`](interceptor/README.zh-CN.md) | 统一 append-only log 服务，以及 Midscene、macOS input/AX、WDA source |
 | [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | AI 录制所需 Midscene 依赖的唯一 package 边界 |
@@ -91,7 +92,7 @@ Midscene 被集中隔离在 `@byted-lynx/actonce-midscene-adapter`：原始 AI �
 ```bash
 npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
 npx actonce skill install record-device-use
-npx actonce skill install compile-device-recording
+npx actonce skill install synthesize-device-replay
 npx actonce skill install hybrid-replay
 ```
 

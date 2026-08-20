@@ -13,7 +13,7 @@ Capture one authoritative run without changing the task. Preserve enough raw evi
 - Recording is not self-contained in this skill package. It requires `@byted-lynx/actonce-recorder` (included by `@byted-lynx/actonce`) or an ActOnce checkout, plus the selected platform/device and permissions required by Midscene or WebDriverAgent.
 - macOS needs a supported developer machine and required permissions; iOS needs an explicitly selected Simulator/device and reachable WebDriverAgent; Android needs one connected ADB device. Model-backed tasks also need configured Midscene credentials.
 - If `actonce-record profiles --json` omits the required profile, report the missing runtime instead of inventing commands.
-- Use this skill to capture a new run. If the user only supplies an existing `manifest.json` and `events.ndjson`, use `compile-device-recording` instead; its inspection helpers do not require a live device.
+- Use this skill to capture a new run. If the user only supplies an existing `manifest.json` and `events.ndjson`, use `synthesize-device-replay` instead; its inspection helpers do not require a live device.
 
 ## Workflow
 

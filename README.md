@@ -4,11 +4,11 @@
 
 **Let AI explore a UI once. Replay the successful path as a fast, deterministic program.**
 
-Computer-use agents are excellent at discovering how to complete unfamiliar UI tasks. They are much less efficient when asked to rediscover the same stable workflow on every run. ActOnce records one successful AI-driven execution, preserves its actions and evidence, and compiles repeatable segments into checkpoint-gated replay code.
+Computer-use agents are excellent at discovering how to complete unfamiliar UI tasks. They are much less efficient when asked to rediscover the same stable workflow on every run. ActOnce records one successful AI-driven execution, preserves its actions and evidence, and lets an agent synthesize repeatable, checkpoint-gated replay code.
 
 When the live UI still matches the recording, replay stays deterministic. When it diverges, the runtime can stop safely or invoke a bounded AI fallback for only the affected segment.
 
-> The recording is evidence. The compiled, state-aware replay is the executable artifact.
+> The recording is evidence. The agent-authored, state-aware replay is the executable artifact.
 
 > **Platform status:** macOS has a three-case desktop suite, iOS has its first formal checkout benchmark, and Android now has an end-to-end recorded checkout smoke plus deterministic replay. Windows support is planned.
 
@@ -33,8 +33,9 @@ including `3.008 s` of accessibility capture and no settle delay or fallback.
 See the [iOS benchmark guide](benchmark/ios/README.md).
 
 Android records the matching My Demo App checkout through a fixed
-`midscene-android` profile and mechanically compiles nine normalized tap
-primitives. Its formal baseline passed with an original median of `140.446 s`
+`midscene-android` profile. Its agent-authored replay mechanically lowers nine
+normalized tap primitives only after fixing the semantic segments and checkpoints.
+Its formal baseline passed with an original median of `140.446 s`
 and replay median of `17.412 s` (`8.07×` speedup), two of two replays correct,
 and no fallback. After replacing cold UI dumps with a persistent UIAutomator2
 backend, a one-pass development validation completed correctly in `6.927 s`:
@@ -49,8 +50,8 @@ AI demonstration
 append-only recording
   actions · timing · screenshots · AX/WDA · semantic observations
       ↓
-evidence-aware compilation
-  select stable spans · preserve observation modality · lower primitives
+agent replay synthesis
+  inspect evidence · author state transitions · validate · lower one action at a time
       ↓
 checkpoint-gated replay
   observe → act → settle → verify → continue
@@ -60,7 +61,7 @@ checkpoint-gated replay
 ActOnce deliberately separates four concerns:
 
 - **Interceptors** capture raw events from independent sources into one ordered session log.
-- **Published Skills** tell an agent how to record a supported computer-use run and compile useful spans.
+- **Published Skills** tell an agent how to record a supported computer-use run and synthesize evidenced replay segments.
 - **Platform runtimes** expose fixed, testable action and checkpoint APIs to generated scripts.
 - **Benchmarks** compare correctness first, then execution time against the original AI run.
 
@@ -71,7 +72,7 @@ Midscene is quarantined behind `@byted-lynx/actonce-midscene-adapter`: original 
 | Path | Purpose |
 | --- | --- |
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published recording Skill; its macOS path is validated, while iOS support remains foundational |
-| [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published Skill for selecting evidence-backed spans and producing replay scripts |
+| [`skills/synthesize-device-replay`](skills/synthesize-device-replay/SKILL.md) | Published Skill for agent-authoring evidence-backed replay plans |
 | [`skills/hybrid-replay`](skills/hybrid-replay/SKILL.md) | Agent workflow for recovering a failed checkpoint and resuming the remaining deterministic plan |
 | [`interceptor/`](interceptor/README.md) | Shared append-only log service plus Midscene, macOS input/AX, and WDA sources |
 | [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | The sole package boundary for Midscene dependencies used by AI recording |
@@ -94,7 +95,7 @@ Install the complete synchronized distribution from BNPM:
 ```bash
 npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
 npx actonce skill install record-device-use
-npx actonce skill install compile-device-recording
+npx actonce skill install synthesize-device-replay
 npx actonce skill install hybrid-replay
 ```
 
@@ -136,7 +137,7 @@ npm run model:verify
 
 Never commit API keys or record sensitive UI content. `.env`, recordings, generated fixtures, and benchmark artifacts are ignored by Git.
 
-## Recording and compilation
+## Recording and replay synthesis
 
 Stable platform combinations are encoded in the CLI rather than improvised inside a Skill. The recording Skill selects a supported profile; every enabled interceptor contributes events to the same ordered session.
 
@@ -155,7 +156,7 @@ Android follows the same global environment contract used by Lynx CI: `$ANDROID_
 
 The resulting recording uses a primary manifest and `events.ndjson`, with content-addressed screenshots, AX trees, WDA payloads, and source artifacts beside it. Semantic Midscene Assert, Boolean, and Query outcomes are first-class observation events with their evidence provenance.
 
-The compilation Skill then selects useful spans, lowers recorded input through fixed runtime primitives, plans observations from evidence actually present in the range, and validates every assertion decision before replay.
+The synthesis Skill requires the agent to inspect the evidence, author one checkpoint-gated segment per state-changing action, validate that ledger, and only then lower each recorded action through fixed runtime primitives.
 
 ## macOS replay runtime
 
@@ -196,4 +197,4 @@ Fallback latency, checkpoint polling, recovery, and cleanup remain inside replay
 
 ActOnce is an active prototype focused on developer-machine workflows. macOS has a formal multi-case suite; iOS and Android both have formal benchmark-validated original-to-replay comparisons. Their deterministic runtimes now use direct native device backends rather than Midscene adapters.
 
-The next engineering focus is reducing checkpoint capture overhead further, generalizing compilation beyond the current benchmark cases, and adding Windows independently rather than forcing a premature cross-platform action API.
+The next engineering focus is reducing checkpoint capture overhead further, generalizing replay synthesis beyond the current benchmark cases, and adding Windows independently rather than forcing a premature cross-platform action API.

@@ -4,8 +4,8 @@ Status: PR2a implementation design.
 
 ## 1. Scope
 
-ActOnce compiles an immutable recording into an ordered `plan.json` and executes
-that plan deterministically. A checkpoint is the only success oracle.
+An agent synthesizes an immutable recording into an ordered `plan.json`; ActOnce
+executes that plan deterministically. A checkpoint is the only success oracle.
 
 Two things are immutable:
 
@@ -16,9 +16,9 @@ The action inside a segment is the replaceable *how*. An agent may manually
 perform or lightly adjust that action, but it may not weaken checkpoints or
 change the case structure.
 
-## 2. Compile
+## 2. Synthesize
 
-`compile-device-recording` determines the checkpoints first and emits a versioned
+`synthesize-device-replay` requires the agent to determine checkpoints first and emits a versioned
 plan:
 
 ```ts
@@ -39,8 +39,8 @@ type ReplayPlanSegment = {
 };
 ```
 
-The plan contains no automatic fallback policy. Compile and execute are separate:
-compile once, then execute the same plan as many times as needed.
+The plan contains no automatic fallback policy. Synthesis and execution are separate:
+author and validate once, then execute the same plan as many times as needed.
 
 ## 3. Deterministic Execute
 
@@ -54,7 +54,7 @@ actonce-android replay <plan.json>
 For every segment:
 
 1. verify the precondition;
-2. run the compiled action;
+2. run the mechanically lowered action;
 3. verify the postcondition.
 
 If a checkpoint does not pass, execution stops. Failure is not reclassified or

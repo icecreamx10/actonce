@@ -65,7 +65,7 @@ export type FallbackRequest<TExpectation, TActual> = {
  * A single normalized action the agent took while recovering a segment.
  * Carries only the action kind and a normalized target — never raw values,
  * clipboard contents, screenshot bytes, or model reasoning
- * (skills/compile-device-recording/SKILL.md:46).
+ * (skills/synthesize-device-replay/SKILL.md).
  */
 export type CorrectiveAction = {
     kind: string;
