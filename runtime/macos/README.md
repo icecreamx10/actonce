@@ -16,6 +16,90 @@ npx actonce-macos doctor
 
 For local repository development, run `npm install && npm run build` inside this directory.
 
+## Persistent visual capture service
+
+Frequent checkpoints should share the native, window-scoped capture service instead
+of spawning `/usr/sbin/screencapture` or taking a full-display WDA screenshot for
+every poll. The service owns one long-lived Swift ScreenCaptureKit helper, keeps
+recent frames and decoded references in memory, and exposes newline-delimited JSON
+RPC over a user-owned Unix socket:
+
+The capture service requires macOS 14 or newer; the rest of the replay runtime
+keeps its existing macOS 11.3 minimum.
+
+```bash
+actonce-macos capture-service --socket /tmp/actonce-capture/e2e.sock
+```
+
+`MacDeviceConnector` is the device-connection boundary. It can start an embedded
+service or connect to an already-running capture service:
+
+```ts
+import { MacDeviceConnector } from "@byted-lynx/actonce-macos";
+import type { VisualCaptureCapability } from "@byted-lynx/actonce-replay";
+
+const device = await new MacDeviceConnector().connect();
+const target = await device.resolveTarget({ bundleId: "com.example.LynxDesktop" });
+const capture = await device.getCapability<VisualCaptureCapability>("visualCapture");
+const visual = await capture.openStream({ target });
+```
+
+Service operations are `health`, `targets`, `session.open`, `capture`,
+`reference.register`, `compare`,
+`waitStable`, and `session.close`. Regions always use target-window logical
+coordinates, so display position and Retina scale do not leak into checkpoints.
+The first implementation keeps one ScreenCaptureKit stream per selected window.
+Call `setupMacWindow()` before replay so input geometry is fully on-screen and
+unobscured; the capture stream itself remains window-relative and Retina-aware.
+
+Tree observation remains a separate injected layer. With a CDP-capable app,
+connect its session to the shared replay checkpoint driver. The driver polls the
+canonical DOM first and captures a visual frame only after semantic stability:
+
+```ts
+import { CdpTreeObserver, createCdpReplayFlow } from "@byted-lynx/actonce-cdp";
+
+const tree = await new CdpTreeObserver().connect({
+  device,
+  target,
+  options: { endpoint: "http://127.0.0.1:9222", target: { title: "Lynx" } },
+});
+const reference = await visual.registerReference({ path: "event-ready.png" });
+const flow = createCdpReplayFlow({
+  tree,
+  visual,
+});
+
+const result = await flow.waitForCheckpoint("open-card", "postcondition", {
+  id: "event-ready",
+  expected: {
+    tree: { projection: [
+      { selector: { testId: "count" }, properties: { text: "1" } },
+    ] },
+    visual: {
+      referenceId: reference.referenceId,
+      comparator: { type: "pixelDiff", mismatchThreshold: 0.001 },
+    },
+  },
+  settle: { timeoutMs: 3_000, intervalMs: 30 },
+});
+```
+
+The coordinator sandwiches the screenshot between two identical canonical DOM
+hashes. A stale but visually stable page therefore cannot satisfy the checkpoint.
+
+Measure the two hot paths independently against a stable CDP page and macOS
+window. Cold stream startup is reported separately from warm captures:
+
+```bash
+npm run benchmark:macos:checkpoint-service -- \
+  --cdp-endpoint http://127.0.0.1:9222 \
+  --bundle-id com.example.LynxDesktop \
+  --window-title-pattern 'Fiddle' \
+  --samples 100 \
+  --visual-samples 20
+```
+
 Window normalization is implemented by the runtime SDK. `setupMacWindow()`
 centers the window on the selected display, keeps it fully visible and clear of
 display edges, raises it, and verifies the final geometry. Its result contains

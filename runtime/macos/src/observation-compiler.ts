@@ -83,6 +83,7 @@ const KNOWN_EVALUATOR_MODALITIES: Record<string, MacEvaluatorModality> = {
   "apple-vision-ocr": "visual",
   "bounded-red-pixel-classifier": "visual",
   "recorded-screenshot-region-comparison": "visual",
+  "recorded-screenshot-contrastive-comparison": "visual",
   "visual-ai": "visual",
   "macos-ax": "native-ui",
   dom: "dom",

@@ -1,8 +1,18 @@
 import type {
+  CorrectiveAction,
   FallbackDriver,
   FallbackRequest,
   FallbackResult,
 } from "@byted-lynx/actonce-replay";
+
+export type MidsceneProgressEvent = {
+  scope: string;
+  phase: string;
+  /** Optional concrete action descriptor, when the Midscene build reports one. */
+  type?: string;
+  actionType?: string;
+  element?: { description?: string; id?: string };
+};
 
 export type MidsceneFallbackAgent = {
   aiAction(
@@ -10,7 +20,7 @@ export type MidsceneFallbackAgent = {
     options?: { abortSignal?: AbortSignal; context?: string; cacheable?: boolean },
   ): Promise<string | undefined>;
   addProgressListener?: (
-    listener: (event: { scope: string; phase: string }) => void | Promise<void>,
+    listener: (event: MidsceneProgressEvent) => void | Promise<void>,
   ) => () => void;
 };
 
@@ -40,9 +50,11 @@ implements FallbackDriver<TExpectation, TActual> {
     const timeoutMs = request.constraints.timeoutMs ?? 30_000;
     const maxActions = request.constraints.maxActions ?? 5;
     let actionCount = 0;
+    const actions: CorrectiveAction[] = [];
     const removeProgressListener = this.agent.addProgressListener?.((event) => {
       if (event.scope !== "aiAct" || event.phase !== "action_running") return;
       actionCount += 1;
+      actions.push(normalizeCorrectiveAction(event));
       if (actionCount > maxActions) {
         controller.abort(new Error(`Midscene fallback exceeded ${maxActions} UI actions`));
       }
@@ -55,7 +67,16 @@ implements FallbackDriver<TExpectation, TActual> {
         context: this.options.context,
       });
       if (controller.signal.aborted) throw controller.signal.reason;
-      return { status: "completed", actionCount };
+      const result: FallbackResult = { status: "completed", actionCount };
+      if (actions.length > 0) {
+        result.corrective = {
+          segmentId: request.segmentId,
+          phase: request.phase,
+          attempt: request.attempt,
+          actions,
+        };
+      }
+      return result;
     } catch (error) {
       return {
         status: "failed",
@@ -92,6 +113,28 @@ export function buildMidsceneFallbackPrompt<TExpectation, TActual>(
     "Stop as soon as the local goal is visibly satisfied. The runtime will independently verify the checkpoint.",
     `Checkpoint evidence: ${details}`,
   ].join("\n");
+}
+
+/**
+ * Reduce a Midscene progress event to a normalized corrective action. Only the
+ * action kind and a normalized element description are kept — never typed text,
+ * clipboard contents, coordinates, screenshots, or model reasoning
+ * (skills/synthesize-device-replay/SKILL.md).
+ */
+function normalizeCorrectiveAction(event: MidsceneProgressEvent): CorrectiveAction {
+  const kind = normalizeKind(event.actionType ?? event.type);
+  const target = event.element?.description ?? event.element?.id;
+  const action: CorrectiveAction = { kind };
+  if (target) action.target = target;
+  return action;
+}
+
+function normalizeKind(raw: string | undefined): string {
+  if (!raw) return "action";
+  return raw
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/[_\s]+/g, "-")
+    .toLowerCase();
 }
 
 function compactJson(value: unknown, maxLength: number): string {

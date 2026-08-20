@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { cp, mkdir } from "node:fs/promises";
+import { cp, mkdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
@@ -23,7 +23,11 @@ async function forward(binary: string, values: string[]) {
 
 async function installSkill(values: string[]) {
   const name = values[0];
-  if (name !== "record-device-use" && name !== "compile-device-recording") usage(2);
+  if (
+    name !== "record-device-use" &&
+    name !== "synthesize-device-replay" &&
+    name !== "hybrid-replay"
+  ) usage(2);
   const targetIndex = values.indexOf("--target");
   const targetRoot = targetIndex >= 0 ? values[targetIndex + 1] : join(process.env.CODEX_HOME ?? join(homedir(), ".codex"), "skills");
   if (!targetRoot) throw new Error("--target requires a directory");
@@ -33,9 +37,21 @@ async function installSkill(values: string[]) {
   const destination = join(targetRoot, name);
   await mkdir(destination, { recursive: true });
   for (const entry of ["SKILL.md", "agents", "references", "scripts"]) {
-    await cp(join(source, entry), join(destination, entry), { recursive: true, force: true });
+    const sourceEntry = join(source, entry);
+    if (await exists(sourceEntry)) {
+      await cp(sourceEntry, join(destination, entry), { recursive: true, force: true });
+    }
   }
   console.log(destination);
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function usage(code: number): never {
@@ -46,6 +62,6 @@ Usage:
   actonce macos <command> [...args]
   actonce ios <command> [...args]
   actonce android <command> [...args]
-  actonce skill install <record-device-use|compile-device-recording> [--target <dir>]`);
+  actonce skill install <record-device-use|synthesize-device-replay|hybrid-replay> [--target <dir>]`);
   process.exit(code);
 }

@@ -4,11 +4,11 @@
 
 **让 AI 探索一次界面，把成功路径回放成快速、确定性的程序。**
 
-Computer-use Agent 擅长探索陌生界面，但每次都重新发现同一个稳定流程既慢又贵。ActOnce 录制一次成功的 AI 执行，保留真实动作与证据，再把可复用片段编译成由 checkpoint 驱动的回放代码。
+Computer-use Agent 擅长探索陌生界面，但每次都重新发现同一个稳定流程既慢又贵。ActOnce 录制一次成功的 AI 执行，保留真实动作与证据，再由 Agent 把可复用片段合成为 checkpoint 驱动的回放代码。
 
 当实时 UI 与录制一致时，replay 确定性执行；状态偏离时，运行时会 fail closed，或只针对受影响片段调用明确受限的 AI fallback。
 
-> 录制是证据；编译后、能够感知状态的 replay 才是可执行产物。
+> 录制是证据；由 Agent 编排、能够感知状态的 replay 才是可执行产物。
 
 **平台状态：** macOS、iOS、Android 均已有原生确定性 runtime 和经过 benchmark 验证的 original-to-replay 路径；Windows 仍在规划中。
 
@@ -40,8 +40,8 @@ AI 示教
 append-only 录制
   动作 · 时间 · 截图 · AX/WDA/UIA2 · 语义观察
   ↓
-基于证据的编译
-  选择稳定片段 · 保留观察模态 · 降低为固定 primitive
+Agent replay 合成
+  阅读证据 · 编排状态变化 · 验证 · 逐动作 lowering
   ↓
 checkpoint 驱动回放
   观察 → 动作 → 等待稳定 → 验证 → 下一步
@@ -51,7 +51,7 @@ checkpoint 驱动回放
 四层职责刻意分离：
 
 - **Interceptor**：多个独立 source 写入同一条有序 session。
-- **发布 Skills**：指导受支持的录制与基于证据的编译。
+- **发布 Skills**：指导受支持的录制与由 Agent 主导的 replay 合成。
 - **原生 Runtime**：向生成脚本提供固定、可测试的 action 和 checkpoint API。
 - **Benchmark**：先验证正确性，再比较端到端执行时间。
 
@@ -62,7 +62,8 @@ Midscene 被隔离在 `@byted-lynx/actonce-midscene-adapter`：AI 示教可以�
 | 路径 | 用途 |
 | --- | --- |
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | 发布录制 Skill |
-| [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | 发布的 evidence-to-replay Skill |
+| [`skills/synthesize-device-replay`](skills/synthesize-device-replay/SKILL.md) | 发布的 Agent 主导 evidence-to-replay Skill |
+| [`skills/hybrid-replay`](skills/hybrid-replay/SKILL.md) | 对已保留 failed checkpoint 的可选 Agent 恢复流程 |
 | [`interceptor/`](interceptor/README.zh-CN.md) | 有序 recorder 与平台/Midscene source |
 | [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | Midscene 依赖的唯一 package 边界 |
 | [`runtime/common/`](runtime/common/README.md) | 共享 checkpoint 回放流程 |
@@ -80,7 +81,8 @@ Midscene 被隔离在 `@byted-lynx/actonce-midscene-adapter`：AI 示教可以�
 ```bash
 npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
 npx actonce skill install record-device-use
-npx actonce skill install compile-device-recording
+npx actonce skill install synthesize-device-replay
+npx actonce skill install hybrid-replay
 ```
 
 通过平台子路径使用 API：
@@ -110,7 +112,7 @@ npm run model:verify
 
 不要提交 API Key，也不要录制敏感 UI。`.env`、recording、生成的 fixture 和 benchmark artifact 均已被 Git 忽略。
 
-## 录制与编译
+## 录制与 replay 合成
 
 受支持的 source 组合固化为 CLI profile，而不是由 Skill 临时拼装。所有启用的 interceptor 都写入同一个 session log。
 
@@ -128,7 +130,7 @@ npm run interceptor:start -- record midscene-android \
 
 每条 recording 包含 manifest、有序 `events.ndjson`，以及内容寻址的截图、原生 UI tree、WDA payload 和 source artifact。Midscene Assert、Boolean、Query 结果是带证据来源的一级 semantic observation。
 
-编译 Skill 会选择可复用片段，保留录制动作与观察模态，通过原生 runtime 降低输入，只从已有证据生成 assertion，并实际执行结果，直到脚本稳定或确认具体 blocker。
+合成 Skill 要求 Agent 先写 evidence ledger，并为每个状态变化动作编排独立的 checkpoint segment；只有结构验证通过后，确定性工具才能逐动作通过原生 runtime lowering。随后完整执行计划，直到稳定或确认具体 blocker。
 
 ## 评测契约
 
@@ -137,4 +139,4 @@ npm run interceptor:start -- record midscene-android \
 
 Checkpoint capture、settle、fallback、recovery 和 cleanup 全部计入 replay 时间；fallback 次数以及 capture/settle 耗时作为诊断项报告。速度再快的错误 replay 也不可比较。
 
-ActOnce 仍是活跃原型。当前重点是扩大 AndroidWorld 覆盖、继续降低 checkpoint capture 成本、把编译推广到固定 benchmark 之外，并独立支持 Windows。
+ActOnce 仍是活跃原型。当前重点是扩大 AndroidWorld 覆盖、继续降低 checkpoint capture 成本、把 replay 合成推广到固定 benchmark 之外，并独立支持 Windows。

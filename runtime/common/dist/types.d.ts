@@ -11,6 +11,21 @@ export type CheckpointSpec<TExpectation> = {
     id: string;
     expected: TExpectation;
     settle?: CheckpointSettlePolicy;
+    /**
+     * Marks this checkpoint as a frozen state contract == a segment boundary.
+     * Defaults to true for segment pre/postconditions. An important checkpoint is
+     * the sole acceptance oracle; only it decides whether a step succeeded. Its
+     * `expected` assertion is immutable across recompilations (the *what*); how the
+     * app reaches it (the deterministic action) is replaceable (the *how*).
+     */
+    important?: boolean;
+    /**
+     * Optional human label for the app state this checkpoint asserts arrival at,
+     * e.g. "settings.about". Surfaced in the executor's checkpoint-centric result
+     * so a failure names *which* state was not reached, and becomes the StateNode
+     * id in the state-graph extension (design §11).
+     */
+    state?: string;
 };
 export type CheckpointSettlePolicy = {
     timeoutMs: number;
@@ -46,13 +61,65 @@ export type FallbackRequest<TExpectation, TActual> = {
         observationOnly: boolean;
     };
 };
+/**
+ * A single normalized action the agent took while recovering a segment.
+ * Carries only the action kind and a normalized target — never raw values,
+ * clipboard contents, screenshot bytes, or model reasoning
+ * (skills/synthesize-device-replay/SKILL.md).
+ */
+export type CorrectiveAction = {
+    kind: string;
+    target?: string;
+    atMonotonicNs?: string;
+};
+/** The captured demonstration of one script-level agent fallback. */
+export type CorrectiveDemonstration = {
+    segmentId: string;
+    phase: "precondition" | "postcondition";
+    attempt: number;
+    actions: CorrectiveAction[];
+    evidenceRefs?: string[];
+    summary?: string;
+};
 export type FallbackResult = {
     status: "completed" | "declined" | "failed";
     actionCount?: number;
     reason?: string;
+    corrective?: CorrectiveDemonstration;
+};
+export type SegmentOutcome = "matched" | "recovered" | "deterministic-failed" | "fallback-failed" | "mismatched";
+export type SegmentGuardCost = {
+    captureDurationMs: number;
+    settleDelayMs: number;
+    pollCount: number;
+    timeoutCount: number;
+};
+export type SegmentFallbackOutcomes = {
+    completed: number;
+    declined: number;
+    failed: number;
+};
+export type SegmentProfile = {
+    segmentId: string;
+    runs: number;
+    attempts: number;
+    deterministicFailures: number;
+    guard: {
+        precondition: SegmentGuardCost;
+        postcondition: SegmentGuardCost;
+    };
+    fallback: {
+        count: number;
+        durationMs: number;
+        outcomes: SegmentFallbackOutcomes;
+    };
+    outcome: SegmentOutcome;
+    matchedCleanly: boolean;
 };
 export type ReplayDiagnostics = {
     strategy: "deterministic" | "hybrid";
+    deterministicRetryCount: number;
+    deterministicRetryDurationMs: number;
     fallbackCount: number;
     fallbackDurationMs: number;
     checkpointPollCount: number;
@@ -61,6 +128,8 @@ export type ReplayDiagnostics = {
     /** @deprecated Use checkpointCaptureDurationMs and checkpointSettleDelayMs. */
     checkpointWaitDurationMs: number;
     checkpointTimeoutCount: number;
+    /** Per-segment attribution, empty when no segment ran (e.g. bare checkpoints). */
+    segments: SegmentProfile[];
 };
 export interface FallbackDriver<TExpectation, TActual> {
     recover(request: FallbackRequest<TExpectation, TActual>): Promise<FallbackResult>;
@@ -77,12 +146,16 @@ export type ReplaySegment<TExpectation> = {
     id: string;
     precondition: CheckpointSpec<TExpectation>;
     deterministic: () => Promise<void> | void;
+    deterministicRetry?: {
+        action: () => Promise<void> | void;
+        maxAttempts?: number;
+    };
     postcondition: CheckpointSpec<TExpectation>;
     fallback?: ReplayFallback;
     idempotency?: SegmentIdempotency;
 };
 export type ReplayEvent<TActual = unknown> = {
-    kind: "replay.segment.started" | "replay.checkpoint.checked" | "replay.checkpoint.settle.started" | "replay.checkpoint.settle.completed" | "replay.checkpoint.settle.timed-out" | "replay.deterministic.started" | "replay.deterministic.completed" | "replay.deterministic.failed" | "replay.fallback.started" | "replay.fallback.completed" | "replay.segment.completed" | "replay.segment.failed";
+    kind: "replay.segment.started" | "replay.checkpoint.checked" | "replay.checkpoint.settle.started" | "replay.checkpoint.settle.completed" | "replay.checkpoint.settle.timed-out" | "replay.deterministic.started" | "replay.deterministic.completed" | "replay.deterministic.failed" | "replay.deterministic.retry.started" | "replay.deterministic.retry.completed" | "replay.deterministic.retry.failed" | "replay.fallback.started" | "replay.fallback.completed" | "replay.segment.completed" | "replay.segment.failed";
     segmentId: string;
     phase?: "precondition" | "deterministic" | "postcondition";
     checkpointId?: string;

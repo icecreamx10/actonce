@@ -4,6 +4,18 @@ export { locatorToWebdriver } from "./locator.js";
 export { waitUntil } from "./wait.js";
 export { doctor } from "./doctor.js";
 export { captureMacRegionScreenshot } from "./screenshot.js";
+export { MacCaptureClient } from "./capture-client.js";
+export { MacCaptureService } from "./capture-service.js";
+export { MacDeviceConnector } from "./device.js";
+export { SwiftCaptureBackend, ensureCaptureHelper } from "./swift-capture-backend.js";
+export type {
+  CaptureBackendFrame,
+  CaptureBackendTarget,
+  CaptureServiceRequest,
+  CaptureServiceResponse,
+  MacCaptureBackend,
+} from "./capture-protocol.js";
+export type { MacDeviceConnectOptions } from "./device.js";
 export type { MacRegionScreenshotOptions, MacScreenshotRegion } from "./screenshot.js";
 export { runScripts, mergeConfigs } from "./runner.js";
 export {

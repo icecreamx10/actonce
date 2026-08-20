@@ -9,6 +9,7 @@ import {
 } from "./observation-compiler.js";
 import { runScripts } from "./runner.js";
 import { MacSession } from "./session.js";
+import { MacCaptureService } from "./capture-service.js";
 import type { MacFallbackPluginModule } from "./checkpoint.js";
 import type { MacSessionOptions } from "./types.js";
 import type { MacWindowSetupOptions } from "./window-setup.js";
@@ -16,7 +17,21 @@ import type { MacWindowSetupOptions } from "./window-setup.js";
 const args = process.argv.slice(2);
 const command = args[0];
 
-if (command === "doctor") {
+if (command === "capture-service") {
+  const socketPath = optionValue(args, "--socket");
+  if (!socketPath) throw new Error("capture-service requires --socket <path>");
+  const service = await MacCaptureService.start({
+    socketPath,
+    helperExecutable: optionValue(args, "--helper"),
+  });
+  console.log(JSON.stringify({ ready: true, socketPath: service.socketPath }));
+  await new Promise<void>((resolveStop) => {
+    const stop = () => resolveStop();
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+  });
+  await service.close();
+} else if (command === "doctor") {
   const report = await doctor();
   if (args.includes("--json")) {
     console.log(JSON.stringify(report, null, 2));
@@ -209,6 +224,7 @@ function printUsage() {
   console.log(`@byted-lynx/actonce-macos
 
 Usage:
+  actonce-macos capture-service --socket <path> [--helper <compiled-swift-helper>]
   actonce-macos doctor [--json]
   actonce-macos compile-primitives <recording-dir|segment.json|events.ndjson> --output <script.js>
   actonce-macos plan-observations <recording-dir|segment.json|events.ndjson> --output <plan.json> [--from n --to n]

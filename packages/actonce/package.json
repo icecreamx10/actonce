@@ -7,7 +7,9 @@
   "publishConfig": { "registry": "http://bnpm.byted.org" },
   "engines": { "node": "^20.19.0 || ^22.12.0 || >=24.0.0" },
   "exports": {
+    "./recorder": { "types": "./dist/recorder.d.ts", "import": "./dist/recorder.js" },
     "./replay": { "types": "./dist/replay.d.ts", "import": "./dist/replay.js" },
+    "./cdp": { "types": "./dist/cdp.d.ts", "import": "./dist/cdp.js" },
     "./macos": { "types": "./dist/macos.d.ts", "import": "./dist/macos.js" },
     "./ios": { "types": "./dist/ios.d.ts", "import": "./dist/ios.js" },
     "./android": { "types": "./dist/android.d.ts", "import": "./dist/android.js" },
@@ -24,12 +26,14 @@
   "dependencies": {
     "@byted-lynx/actonce-recorder": "^0.2.0",
     "@byted-lynx/actonce-replay": "^0.2.0",
+    "@byted-lynx/actonce-cdp": "^0.2.0",
     "@byted-lynx/actonce-macos": "^0.2.0",
     "@byted-lynx/actonce-ios": "^0.2.0",
     "@byted-lynx/actonce-android": "^0.2.0",
     "@byted-lynx/actonce-midscene-fallback": "^0.2.0",
     "@byted-lynx/actonce-skill-record-device-use": "^0.2.0",
-    "@byted-lynx/actonce-skill-compile-device-recording": "^0.2.0"
+    "@byted-lynx/actonce-skill-synthesize-device-replay": "^0.2.0",
+    "@byted-lynx/actonce-skill-hybrid-replay": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -13,6 +13,21 @@ export type CheckpointSpec<TExpectation> = {
   id: string;
   expected: TExpectation;
   settle?: CheckpointSettlePolicy;
+  /**
+   * Marks this checkpoint as a frozen state contract == a segment boundary.
+   * Defaults to true for segment pre/postconditions. An important checkpoint is
+   * the sole acceptance oracle; only it decides whether a step succeeded. Its
+   * `expected` assertion is immutable across recompilations (the *what*); how the
+   * app reaches it (the deterministic action) is replaceable (the *how*).
+   */
+  important?: boolean;
+  /**
+   * Optional human label for the app state this checkpoint asserts arrival at,
+   * e.g. "settings.about". Surfaced in the executor's checkpoint-centric result
+   * so a failure names *which* state was not reached, and becomes the StateNode
+   * id in the state-graph extension (design §11).
+   */
+  state?: string;
 };
 
 export type CheckpointSettlePolicy = {
@@ -57,10 +72,64 @@ export type FallbackRequest<TExpectation, TActual> = {
   };
 };
 
+/**
+ * A single normalized action the agent took while recovering a segment.
+ * Carries only the action kind and a normalized target — never raw values,
+ * clipboard contents, screenshot bytes, or model reasoning
+ * (skills/synthesize-device-replay/SKILL.md).
+ */
+export type CorrectiveAction = {
+  kind: string;        // normalized: "tap" | "type" | "scroll" | "key" | ...
+  target?: string;     // normalized selector/description; never raw secrets
+  atMonotonicNs?: string;
+};
+
+/** The captured demonstration of one script-level agent fallback. */
+export type CorrectiveDemonstration = {
+  segmentId: string;
+  phase: "precondition" | "postcondition";
+  attempt: number;
+  actions: CorrectiveAction[];
+  evidenceRefs?: string[]; // artifact path / sha references only, never bytes
+  summary?: string;        // sanitized recap, NOT raw model reasoning
+};
+
 export type FallbackResult = {
   status: "completed" | "declined" | "failed";
   actionCount?: number;
   reason?: string;
+  corrective?: CorrectiveDemonstration;
+};
+
+export type SegmentOutcome =
+  | "matched"              // postcondition matched cleanly, no deopt
+  | "recovered"            // matched only after fallback
+  | "deterministic-failed" // deterministic() threw (and did not recover)
+  | "fallback-failed"      // fallback ran but postcondition never matched
+  | "mismatched";          // failed closed (policy disabled / no fallback)
+
+export type SegmentGuardCost = {
+  captureDurationMs: number;
+  settleDelayMs: number;
+  pollCount: number;
+  timeoutCount: number;
+};
+
+export type SegmentFallbackOutcomes = {
+  completed: number;
+  declined: number;
+  failed: number;
+};
+
+export type SegmentProfile = {
+  segmentId: string;
+  runs: number;
+  attempts: number;
+  deterministicFailures: number;
+  guard: { precondition: SegmentGuardCost; postcondition: SegmentGuardCost };
+  fallback: { count: number; durationMs: number; outcomes: SegmentFallbackOutcomes };
+  outcome: SegmentOutcome;   // final outcome of the most recent run
+  matchedCleanly: boolean;   // postcondition matched with zero deopts
 };
 
 export type ReplayDiagnostics = {
@@ -75,6 +144,8 @@ export type ReplayDiagnostics = {
   /** @deprecated Use checkpointCaptureDurationMs and checkpointSettleDelayMs. */
   checkpointWaitDurationMs: number;
   checkpointTimeoutCount: number;
+  /** Per-segment attribution, empty when no segment ran (e.g. bare checkpoints). */
+  segments: SegmentProfile[];
 };
 
 export interface FallbackDriver<TExpectation, TActual> {

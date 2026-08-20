@@ -125,6 +125,7 @@ describe("ReplayFlow", () => {
       checkpointSettleDelayMs: 0,
       checkpointWaitDurationMs: 0,
       checkpointTimeoutCount: 0,
+      segments: [],
     });
   });
 
@@ -349,5 +350,102 @@ describe("ReplayFlow", () => {
     })).rejects.toBeInstanceOf(FallbackFailedError);
 
     expect(recover.mock.calls[0][0].constraints.observationOnly).toBe(true);
+  });
+
+  it("attributes per-segment guard and outcome in diagnostics", async () => {
+    let now = 0;
+    const verify = vi.fn(async () => {
+      now += 10;
+      return matched("done");
+    });
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify },
+      now: () => now,
+    });
+
+    await flow.segment({
+      id: "step-a",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic: vi.fn(),
+      postcondition: { id: "done", expected: { state: "done" } },
+    });
+    await flow.segment({
+      id: "step-b",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic: vi.fn(),
+      postcondition: { id: "done", expected: { state: "done" } },
+    });
+
+    const segments = flow.diagnostics().segments;
+    expect(segments.map((segment) => segment.segmentId)).toEqual(["step-a", "step-b"]);
+    expect(segments[0]).toMatchObject({
+      runs: 1,
+      attempts: 2,
+      deterministicFailures: 0,
+      outcome: "matched",
+      matchedCleanly: true,
+      fallback: { count: 0, outcomes: { completed: 0, declined: 0, failed: 0 } },
+    });
+    expect(segments[0].guard.precondition.captureDurationMs).toBe(10);
+    expect(segments[0].guard.postcondition.captureDurationMs).toBe(10);
+  });
+
+  it("marks a recovered segment in single-run diagnostics", async () => {
+    const verify = vi.fn()
+      .mockResolvedValueOnce(matched("ready"))
+      .mockResolvedValueOnce(mismatched("unchanged", "done"))
+      .mockResolvedValueOnce(matched("done"));
+    const recover = vi.fn().mockResolvedValue({
+      status: "completed",
+      actionCount: 1,
+      corrective: {
+        segmentId: "edit",
+        phase: "postcondition",
+        attempt: 1,
+        actions: [{ kind: "tap", target: "Save" }],
+      },
+    });
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify },
+      policy: "recover",
+      fallback: { recover },
+    });
+
+    await flow.segment({
+      id: "edit",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic: vi.fn(),
+      postcondition: { id: "done", expected: { state: "done" } },
+      fallback: { goal: "Recover" },
+    });
+
+    const segment = flow.diagnostics().segments[0];
+    expect(segment).toMatchObject({
+      outcome: "recovered",
+      matchedCleanly: false,
+      fallback: { count: 1, outcomes: { completed: 1, declined: 0, failed: 0 } },
+    });
+  });
+
+  it("records a fallback-failed outcome before rethrowing", async () => {
+    const verify = vi.fn()
+      .mockResolvedValueOnce(matched("ready"))
+      .mockResolvedValue(mismatched("unchanged", "done"));
+    const recover = vi.fn().mockResolvedValue({ status: "failed", reason: "gave up" });
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify },
+      policy: "recover",
+      fallback: { recover },
+    });
+
+    await expect(flow.segment({
+      id: "edit",
+      precondition: { id: "ready", expected: { state: "ready" } },
+      deterministic: vi.fn(),
+      postcondition: { id: "done", expected: { state: "done" } },
+      fallback: { goal: "Recover", maxAttempts: 1 },
+    })).rejects.toBeInstanceOf(FallbackFailedError);
+
+    expect(flow.diagnostics().segments[0].outcome).toBe("fallback-failed");
   });
 });
