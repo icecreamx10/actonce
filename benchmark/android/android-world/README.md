@@ -62,8 +62,8 @@ npm run benchmark:android:android-world-suite -- --phase evaluate --selection pa
 ```
 
 Between `original` and `replay`, use the published
-`skills/compile-device-recording` Skill on each complete official-pass
-recording. There is intentionally no automatic benchmark compile command.
+`skills/synthesize-device-replay` Skill on each complete official-pass
+recording. There is intentionally no automatic benchmark synthesis command.
 
 The formal default is intentionally serial: one emulator, one sample per case,
 and no cross-case averaging. The suite pins the `codex-luna` model profile,

@@ -2,17 +2,15 @@ import { spawn, type ChildProcess, type StdioOptions } from "node:child_process"
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { mkdir, open, type FileHandle } from "node:fs/promises";
 
 const require = createRequire(import.meta.url);
-const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
 export type AppiumServerOptions = {
   hostname?: string;
   port?: number;
   logPath?: string;
   startupTimeoutMs?: number;
+  homePath?: string;
 };
 
 export class ManagedAppiumServer {
@@ -31,14 +29,15 @@ export class ManagedAppiumServer {
     const hostname = options.hostname ?? "127.0.0.1";
     const port = options.port ?? (await availablePort(hostname));
     const appiumEntry = require.resolve("appium");
+    const appiumHome = resolveManagedAppiumHome(options.homePath);
     const log = options.logPath ? await logStdio(options.logPath) : undefined;
     const stdio: StdioOptions = log?.stdio ?? ["ignore", "inherit", "inherit"];
     const child = spawn(
       process.execPath,
       [appiumEntry, "server", "--address", hostname, "--port", String(port)],
       {
-        cwd: packageRoot,
-        env: { ...process.env, FORCE_COLOR: "0" },
+        cwd: appiumHome,
+        env: { ...process.env, APPIUM_HOME: appiumHome, FORCE_COLOR: "0" },
         stdio,
       },
     );
@@ -84,6 +83,17 @@ export class ManagedAppiumServer {
       cause: lastError,
     });
   }
+}
+
+/**
+ * npm workspaces may hoist appium-mac2-driver above runtime/macos. Appium stores
+ * absolute extension paths under APPIUM_HOME, so derive the home from the
+ * package that is actually installed instead of assuming a local node_modules.
+ */
+export function resolveManagedAppiumHome(explicit?: string): string {
+  if (explicit) return resolve(explicit);
+  const driverManifest = require.resolve("appium-mac2-driver/package.json");
+  return dirname(dirname(dirname(driverManifest)));
 }
 
 async function availablePort(hostname: string): Promise<number> {

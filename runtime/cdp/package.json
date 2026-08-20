@@ -1,0 +1,33 @@
+{
+  "name": "@byted-lynx/actonce-cdp",
+  "version": "0.2.0",
+  "description": "CDP tree observation adapter for ActOnce checkpoints.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "publishConfig": { "registry": "http://bnpm.byted.org" },
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepack": "npm run clean && npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@byted-lynx/actonce-replay": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

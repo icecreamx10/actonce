@@ -57,7 +57,7 @@ npm run benchmark:android:android-world-suite -- --phase evaluate --selection pa
 ```
 
 在 `original` 与 `replay` 之间，对每条完整且官方通过的录制使用发布的
-`skills/compile-device-recording` Skill。benchmark 刻意不提供自动 compile 命令。
+`skills/synthesize-device-replay` Skill。benchmark 刻意不提供自动合成命令。
 
 正式默认口径刻意保持串行：单 emulator、每个 case 一个 sample，不做跨重复
 平均。suite 固定使用 `codex-luna` profile，通过本机已登录的 Codex app server

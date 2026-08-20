@@ -4,11 +4,11 @@
 
 **Let AI explore a UI once. Replay the successful path as a fast, deterministic program.**
 
-Computer-use agents are good at discovering unfamiliar interfaces, but repeatedly rediscovering a stable workflow is slow and expensive. ActOnce records one successful AI run, preserves its actions and evidence, and compiles reusable spans into checkpoint-gated replay code.
+Computer-use agents are good at discovering unfamiliar interfaces, but repeatedly rediscovering a stable workflow is slow and expensive. ActOnce records one successful AI run, preserves its actions and evidence, and lets an agent synthesize reusable spans into checkpoint-gated replay code.
 
 When the live UI matches the recording, replay stays deterministic. On divergence, it fails closed or invokes an explicitly bounded AI fallback for only the affected span.
 
-> The recording is evidence. The compiled, state-aware replay is the executable artifact.
+> The recording is evidence. The agent-authored, state-aware replay is the executable artifact.
 
 **Platform status:** macOS, iOS, and Android have native deterministic runtimes and benchmark-validated original-to-replay paths. Windows is planned.
 
@@ -40,8 +40,8 @@ AI demonstration
 append-only recording
   actions · timing · screenshots · AX/WDA/UIA2 · semantic observations
       ↓
-evidence-aware compilation
-  select stable spans · preserve modality · lower fixed primitives
+agent replay synthesis
+  inspect evidence · author transitions · validate · lower one action at a time
       ↓
 checkpoint-gated replay
   observe → act → settle → verify → continue
@@ -51,7 +51,7 @@ checkpoint-gated replay
 Four layers stay deliberately separate:
 
 - **Interceptors** merge raw events from independent sources into one ordered session.
-- **Published Skills** guide supported recording and evidence-backed compilation.
+- **Published Skills** guide supported recording and agent-authored replay synthesis.
 - **Native runtimes** expose fixed, testable action and checkpoint APIs.
 - **Benchmarks** validate correctness first and compare end-to-end execution time second.
 
@@ -62,7 +62,8 @@ Midscene is isolated behind `@byted-lynx/actonce-midscene-adapter`. AI demonstra
 | Path | Purpose |
 | --- | --- |
 | [`skills/record-device-use`](skills/record-device-use/SKILL.md) | Published recording Skill |
-| [`skills/compile-device-recording`](skills/compile-device-recording/SKILL.md) | Published evidence-to-replay Skill |
+| [`skills/synthesize-device-replay`](skills/synthesize-device-replay/SKILL.md) | Published agent-authored evidence-to-replay Skill |
+| [`skills/hybrid-replay`](skills/hybrid-replay/SKILL.md) | Optional agent recovery for a preserved failed checkpoint |
 | [`interceptor/`](interceptor/README.md) | Ordered recorder and platform/Midscene sources |
 | [`packages/midscene-adapter/`](packages/midscene-adapter/README.md) | Sole Midscene dependency boundary |
 | [`runtime/common/`](runtime/common/README.md) | Shared checkpoint-gated replay flow |
@@ -80,7 +81,8 @@ Install the synchronized distribution and Skills from BNPM:
 ```bash
 npm install @byted-lynx/actonce --registry=http://bnpm.byted.org
 npx actonce skill install record-device-use
-npx actonce skill install compile-device-recording
+npx actonce skill install synthesize-device-replay
+npx actonce skill install hybrid-replay
 ```
 
 Use platform subpath exports:
@@ -110,7 +112,7 @@ npm run model:verify
 
 Never commit API keys or record sensitive UI. `.env`, recordings, generated fixtures, and benchmark artifacts are ignored by Git.
 
-## Record and compile
+## Record and synthesize replay
 
 Supported source combinations are fixed CLI profiles rather than Skill-time wiring. Every enabled interceptor writes to the same session log.
 
@@ -128,7 +130,7 @@ npm run interceptor:start -- record midscene-android \
 
 Each recording contains a manifest, ordered `events.ndjson`, and content-addressed screenshots, native UI trees, WDA payloads, and source artifacts. Midscene Assert, Boolean, and Query results are first-class semantic observations with evidence provenance.
 
-The compilation Skill selects reusable spans, preserves the recorded action and observation modality, lowers input through the native runtime, generates assertions only from available evidence, and executes the result until it is stable or a concrete blocker is proven.
+The synthesis Skill requires the agent to author an evidence ledger and one checkpoint-gated segment per state-changing action before deterministic tools may lower that action through the native runtime. The generated plan is then executed until it is stable or a concrete blocker is proven.
 
 ## Evaluation contract
 
@@ -137,4 +139,4 @@ The compilation Skill selects reusable spans, preserves the recorded action and 
 
 Checkpoint capture, settling, fallback, recovery, and cleanup stay inside replay time. Fallback count and capture/settle durations are reported as diagnostics. A fast incorrect replay is never comparable.
 
-ActOnce remains an active prototype. The current focus is broader AndroidWorld coverage, lower checkpoint capture cost, general compilation beyond fixed benchmarks, and independent Windows support.
+ActOnce remains an active prototype. The current focus is broader AndroidWorld coverage, lower checkpoint capture cost, general replay synthesis beyond fixed benchmarks, and independent Windows support.

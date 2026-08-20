@@ -58,6 +58,9 @@ async function runCommand(args: string[]): Promise<void> {
     ACTONCE_LYNXTRON_DESKTOP_BUNDLE: fixture.desktopBundle,
     ACTONCE_LYNXTRON_CONFIG_PATH: fixture.configPath,
     ACTONCE_LYNXTRON_TMPDIR: fixture.temporaryDirectory,
+    ...(options.get("--source-recording")
+      ? { ACTONCE_BENCHMARK_SOURCE_RECORDING: resolve(options.get("--source-recording")!) }
+      : {}),
   });
   const resultPath = join(output, "result.json");
   if (exitCode !== 0) {

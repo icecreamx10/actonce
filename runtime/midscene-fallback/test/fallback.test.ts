@@ -56,6 +56,37 @@ describe("MidsceneFallbackDriver", () => {
     expect(result).toMatchObject({ status: "failed", reason: expect.stringContaining("exceeded 1") });
   });
 
+  it("captures normalized corrective actions without raw values", async () => {
+    let listener: ((event: { scope: string; phase: string; actionType?: string; element?: { description?: string } }) => void) | undefined;
+    const aiAction = vi.fn(async () => {
+      listener?.({ scope: "aiAct", phase: "action_running", actionType: "Tap", element: { description: "Run button" } });
+      listener?.({ scope: "aiAct", phase: "action_running", actionType: "Input", element: { description: "editor" } });
+      listener?.({ scope: "other", phase: "planning" });
+      return undefined;
+    });
+    const driver = new MidsceneFallbackDriver({
+      aiAction,
+      addProgressListener: (value) => {
+        listener = value;
+        return () => { listener = undefined; };
+      },
+    });
+    const result = await driver.recover(request);
+    expect(result).toMatchObject({ status: "completed", actionCount: 2 });
+    expect(result.corrective).toMatchObject({
+      segmentId: "edit-main",
+      phase: "postcondition",
+      attempt: 1,
+      actions: [
+        { kind: "tap", target: "Run button" },
+        { kind: "input", target: "editor" },
+      ],
+    });
+    const serialized = JSON.stringify(result.corrective);
+    expect(serialized).not.toContain("probe");
+    expect(serialized).not.toContain("screenshotBase64");
+  });
+
   it("declines action recovery for never-retry postconditions", async () => {
     const aiAction = vi.fn();
     const driver = new MidsceneFallbackDriver({ aiAction });

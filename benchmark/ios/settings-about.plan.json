@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "recordingId": "ios-settings-about",
+  "version": 1,
+  "platform": "ios",
+  "segments": [
+    {
+      "id": "open-general",
+      "precondition": {
+        "id": "settings-root",
+        "state": "settings.root",
+        "expected": { "source": { "includes": ["com.apple.settings.general", "通用"] } }
+      },
+      "action": {
+        "operation": "tap",
+        "arguments": [{ "x": 218, "y": 328 }]
+      },
+      "postcondition": {
+        "id": "general-visible",
+        "state": "settings.general",
+        "expected": { "source": { "includes": ["About", "关于本机"] } },
+        "settle": { "timeoutMs": 2500, "intervalMs": 100 }
+      }
+    },
+    {
+      "id": "open-about",
+      "precondition": {
+        "id": "general-ready",
+        "state": "settings.general",
+        "expected": { "source": { "includes": ["About", "关于本机"] } }
+      },
+      "action": {
+        "operation": "tap",
+        "arguments": [{ "x": 218, "y": 404 }]
+      },
+      "postcondition": {
+        "id": "about-visible",
+        "state": "settings.about",
+        "expected": {
+          "source": {
+            "includes": ["关于本机", "SW_VERSION_SPECIFIER", "ProductModelName", "iPhone 17 Pro"]
+          },
+          "captureScreenshot": true
+        },
+        "settle": { "timeoutMs": 2500, "intervalMs": 100 }
+      }
+    }
+  ]
+}

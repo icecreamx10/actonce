@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hybrid Replay"
+  short_description: "Resume checkpoint replay with agent recovery"
+  default_prompt: "Use $hybrid-replay to run this compiled device replay, recover any failed checkpoint manually, and resume from the next segment."
