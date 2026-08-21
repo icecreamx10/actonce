@@ -1,3 +1,7 @@
+// Compiled from recording `original` (android-world SystemBrightnessMin),
+// sequence range 0-118. Deterministic, checkpoint-gated, no fallback.
+// Oracle evidence: the recorded final `com.android.systemui:id/slider` node
+// reads "text":"0.0" (minimum) at after-action checkpoint seq 105.
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -43,9 +47,9 @@ try {
   });
 
   await flow.segment({
-    id: "set-maximum",
-    // SystemBrightnessMax starts at minimum; we only require being on the
-    // Display screen that exposes the Brightness level entry.
+    id: "set-minimum",
+    // SystemBrightnessMin starts at maximum; the Display screen exposes the
+    // Brightness level entry. We only require being on that screen.
     precondition: { id: "display-brightness", expected: { source: { includes: ["Brightness level"] } } },
     deterministic: async () => {
       await tapSourceText("Brightness level");
@@ -54,16 +58,19 @@ try {
         10_000,
       );
       const bounds = parseBounds(slider.bounds);
+      // Swipe the handle to the far left to reach minimum brightness. Push past
+      // the left edge so the value clamps to 0, mirroring the recorded pair of
+      // decreasing swipes that ended at the absolute minimum.
       await primitive(
         "swipe",
-        logical({ x: bounds.left + 20, y: (bounds.top + bounds.bottom) / 2 }),
-        logical({ x: bounds.right + 35, y: (bounds.top + bounds.bottom) / 2 }),
+        logical({ x: bounds.right - 20, y: (bounds.top + bounds.bottom) / 2 }),
+        logical({ x: bounds.left - 35, y: (bounds.top + bounds.bottom) / 2 }),
         { durationMs: 300 },
       );
     },
     postcondition: {
-      id: "slider-max",
-      expected: { source: { includes: ['"text":"65535.0"'] }, captureScreenshot: true },
+      id: "slider-min",
+      expected: { source: { includes: ['"text":"0.0"'] }, captureScreenshot: true },
       settle: { timeoutMs: 8_000, intervalMs: 100 },
     },
   });
@@ -140,7 +147,7 @@ function elapsed() {
 async function writeResult(value: unknown) {
   await writeFile(resolve(outputDir, "result.json"), `${JSON.stringify({
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: "android-world-system-brightness-min",
     mode: "replay",
     ...value as object,
   }, null, 2)}\n`);

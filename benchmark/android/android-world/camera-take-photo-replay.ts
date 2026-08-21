@@ -1,3 +1,5 @@
+// Compiled from the official-PASS CameraTakePhoto recording generated with
+// seed 20260818006. Deterministic, state-gated, and AI fallback disabled.
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -20,53 +22,55 @@ try {
       events.push(event);
     },
   });
-  const primitive = (operation: Parameters<typeof replayAndroidPrimitive>[1]["operation"], ...args: unknown[]) =>
-    replayAndroidPrimitive(android, { operation, arguments: args });
 
   await flow.segment({
-    id: "open-display-settings",
-    // The AndroidWorld harness force-stops and relaunches the Settings app
-    // before timing, so replay begins on the Settings homepage, not Home.
-    precondition: { id: "settings-home", expected: { source: { includes: ["Settings"] } } },
-    deterministic: async () => {
-      await primitive("launchApp", "com.android.settings");
-      await waitForSource("Settings");
-      await primitive("swipe", { x: 205, y: 780 }, { x: 205, y: 550 }, { durationMs: 300 });
-      await waitForSource("Display");
-      await tapSourceText("Display");
+    id: "reach-camera-shutter",
+    precondition: {
+      id: "camera-foreground",
+      expected: { source: { includes: ["com.android.camera2"] } },
     },
-    postcondition: {
-      id: "display",
-      expected: { source: { includes: ["Brightness", "Brightness level"] } },
-      settle: { timeoutMs: 4_000, intervalMs: 100 },
-    },
-  });
-
-  await flow.segment({
-    id: "set-maximum",
-    // SystemBrightnessMax starts at minimum; we only require being on the
-    // Display screen that exposes the Brightness level entry.
-    precondition: { id: "display-brightness", expected: { source: { includes: ["Brightness level"] } } },
     deterministic: async () => {
-      await tapSourceText("Brightness level");
-      const slider = await waitForNode(
-        (node) => node["resource-id"] === "com.android.systemui:id/slider",
-        10_000,
+      // The passing recording observed the one-time location prompt and tapped
+      // its stable confirm_button. Later runs may already be on the preview, so
+      // both recorded states converge on the same known shutter state.
+      const confirm = await findCurrentNode(
+        (node) => node["resource-id"] === "com.android.camera2:id/confirm_button",
       );
-      const bounds = parseBounds(slider.bounds);
-      await primitive(
-        "swipe",
-        logical({ x: bounds.left + 20, y: (bounds.top + bounds.bottom) / 2 }),
-        logical({ x: bounds.right + 35, y: (bounds.top + bounds.bottom) / 2 }),
-        { durationMs: 300 },
+      if (confirm) await tapNode(confirm);
+      await waitForNode(
+        (node) => node["resource-id"] === "com.android.camera2:id/shutter_button",
+        8_000,
       );
     },
     postcondition: {
-      id: "slider-max",
-      expected: { source: { includes: ['"text":"65535.0"'] }, captureScreenshot: true },
+      id: "camera-shutter",
+      expected: { source: { includes: ["com.android.camera2:id/shutter_button"] } },
       settle: { timeoutMs: 8_000, intervalMs: 100 },
     },
   });
+
+  await flow.segment({
+    id: "take-one-photo",
+    precondition: {
+      id: "camera-shutter",
+      expected: { source: { includes: ["com.android.camera2:id/shutter_button"] } },
+    },
+    deterministic: async () => {
+      const shutter = await waitForNode(
+        (node) => node["resource-id"] === "com.android.camera2:id/shutter_button",
+      );
+      await tapNode(shutter);
+    },
+    postcondition: {
+      id: "photo-thumbnail",
+      expected: {
+        source: { includes: ["com.android.camera2:id/rounded_thumbnail_view"] },
+        captureScreenshot: true,
+      },
+      settle: { timeoutMs: 8_000, intervalMs: 100 },
+    },
+  });
+
   await android.screenshot(resolve(outputDir, "final.png"));
   await writeResult({
     status,
@@ -86,24 +90,26 @@ try {
 console.log(JSON.stringify({ status, executionDurationMs: elapsed(), outputDir, error }, null, 2));
 if (status === "failed") process.exitCode = 2;
 
-async function tapSourceText(text: string) {
-  const node = await waitForNode((candidate) => candidate.text === text);
+async function tapNode(node: Record<string, unknown>) {
   const bounds = parseBounds(node.bounds);
   await replayAndroidPrimitive(android, {
     operation: "tap",
-    arguments: [logical({ x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 })],
+    arguments: [{
+      x: (bounds.left + bounds.right) / 2 / android.device.pixelRatio(),
+      y: (bounds.top + bounds.bottom) / 2 / android.device.pixelRatio(),
+    }],
   });
 }
 
-async function waitForSource(expected: string) {
-  await waitForNode((node) => node.text === expected || node["content-desc"] === expected);
+async function findCurrentNode(predicate: (node: Record<string, unknown>) => boolean) {
+  android.invalidateObservation();
+  return findNode(JSON.parse(await android.source()), predicate);
 }
 
 async function waitForNode(predicate: (node: Record<string, unknown>) => boolean, timeoutMs = 4_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    android.invalidateObservation();
-    const node = findNode(JSON.parse(await android.source()), predicate);
+    const node = await findCurrentNode(predicate);
     if (node) return node;
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
   }
@@ -128,11 +134,6 @@ function parseBounds(value: unknown) {
   return { left: numbers[0], top: numbers[1], right: numbers[2], bottom: numbers[3] };
 }
 
-function logical(point: { x: number; y: number }) {
-  const densityScale = 420 / 160;
-  return { x: point.x / densityScale, y: point.y / densityScale };
-}
-
 function elapsed() {
   return Number(process.hrtime.bigint() - started) / 1_000_000;
 }
@@ -140,7 +141,7 @@ function elapsed() {
 async function writeResult(value: unknown) {
   await writeFile(resolve(outputDir, "result.json"), `${JSON.stringify({
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: "android-world-camera-take-photo",
     mode: "replay",
     ...value as object,
   }, null, 2)}\n`);

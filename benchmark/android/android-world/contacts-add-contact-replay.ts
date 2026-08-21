@@ -1,3 +1,5 @@
+// Compiled from the official-PASS ContactsAddContact recording generated with
+// seed 20260818011. Deterministic, state-gated, and AI fallback disabled.
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -16,64 +18,59 @@ let error: { name: string; message: string } | undefined;
 try {
   const flow = createAndroidReplayFlow(android, {
     policy: "disabled",
-    emit: (event) => {
-      events.push(event);
-    },
-  });
-  const primitive = (operation: Parameters<typeof replayAndroidPrimitive>[1]["operation"], ...args: unknown[]) =>
-    replayAndroidPrimitive(android, { operation, arguments: args });
-
-  await flow.segment({
-    id: "open-display-settings",
-    // The AndroidWorld harness force-stops and relaunches the Settings app
-    // before timing, so replay begins on the Settings homepage, not Home.
-    precondition: { id: "settings-home", expected: { source: { includes: ["Settings"] } } },
-    deterministic: async () => {
-      await primitive("launchApp", "com.android.settings");
-      await waitForSource("Settings");
-      await primitive("swipe", { x: 205, y: 780 }, { x: 205, y: 550 }, { durationMs: 300 });
-      await waitForSource("Display");
-      await tapSourceText("Display");
-    },
-    postcondition: {
-      id: "display",
-      expected: { source: { includes: ["Brightness", "Brightness level"] } },
-      settle: { timeoutMs: 4_000, intervalMs: 100 },
-    },
+    emit: (event) => { events.push(event); },
   });
 
   await flow.segment({
-    id: "set-maximum",
-    // SystemBrightnessMax starts at minimum; we only require being on the
-    // Display screen that exposes the Brightness level entry.
-    precondition: { id: "display-brightness", expected: { source: { includes: ["Brightness level"] } } },
+    id: "open-contact-editor",
+    precondition: {
+      id: "contacts",
+      expected: { source: { includes: ["com.google.android.contacts"] } },
+    },
     deterministic: async () => {
-      await tapSourceText("Brightness level");
-      const slider = await waitForNode(
-        (node) => node["resource-id"] === "com.android.systemui:id/slider",
-        10_000,
+      const permission = await findCurrentNode((node) =>
+        node["resource-id"] === "com.android.permissioncontroller:id/permission_allow_button"
+          || node["resource-id"] === "com.android.permissioncontroller:id/permission_deny_button",
       );
-      const bounds = parseBounds(slider.bounds);
-      await primitive(
-        "swipe",
-        logical({ x: bounds.left + 20, y: (bounds.top + bounds.bottom) / 2 }),
-        logical({ x: bounds.right + 35, y: (bounds.top + bounds.bottom) / 2 }),
-        { durationMs: 300 },
+      if (permission) await tapNode(permission);
+      const create = await waitForNode((node) =>
+        node["resource-id"] === "com.google.android.contacts:id/floating_action_button"
+          || String(node["content-desc"] ?? "").toLowerCase().includes("create new contact"),
+        8_000,
       );
+      await tapNode(create);
     },
     postcondition: {
-      id: "slider-max",
-      expected: { source: { includes: ['"text":"65535.0"'] }, captureScreenshot: true },
+      id: "contact-editor",
+      expected: { source: { includes: ["First name", "Phone", "Save"] } },
       settle: { timeoutMs: 8_000, intervalMs: 100 },
     },
   });
-  await android.screenshot(resolve(outputDir, "final.png"));
-  await writeResult({
-    status,
-    executionDurationMs: elapsed(),
-    replayDiagnostics: flow.diagnostics(),
-    events,
+
+  await flow.segment({
+    id: "fill-and-save-contact",
+    precondition: {
+      id: "contact-editor",
+      expected: { source: { includes: ["First name", "Phone", "Save"] } },
+    },
+    deterministic: async () => {
+      await fillField("First name", "Eva");
+      await fillField("Last name", "Hernandez");
+      await fillField("Phone", "+16378203168");
+      await tapNode(await waitForNode((node) => node.text === "Save" || node["content-desc"] === "Save"));
+    },
+    postcondition: {
+      id: "contact-saved",
+      expected: {
+        source: { includes: ["Eva Hernandez", "637", "820", "3168"] },
+        captureScreenshot: true,
+      },
+      settle: { timeoutMs: 8_000, intervalMs: 100 },
+    },
   });
+
+  await android.screenshot(resolve(outputDir, "final.png"));
+  await writeResult({ status, executionDurationMs: elapsed(), replayDiagnostics: flow.diagnostics(), events });
 } catch (caught) {
   status = "failed";
   error = caught instanceof Error
@@ -86,24 +83,34 @@ try {
 console.log(JSON.stringify({ status, executionDurationMs: elapsed(), outputDir, error }, null, 2));
 if (status === "failed") process.exitCode = 2;
 
-async function tapSourceText(text: string) {
-  const node = await waitForNode((candidate) => candidate.text === text);
+async function fillField(label: string, value: string) {
+  const node = await waitForNode((candidate) =>
+    candidate.text === label || candidate["content-desc"] === label || candidate["hint-text"] === label,
+  );
+  await tapNode(node);
+  await replayAndroidPrimitive(android, { operation: "typeText", arguments: [value] });
+}
+
+async function tapNode(node: Record<string, unknown>) {
   const bounds = parseBounds(node.bounds);
   await replayAndroidPrimitive(android, {
     operation: "tap",
-    arguments: [logical({ x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 })],
+    arguments: [{
+      x: (bounds.left + bounds.right) / 2 / android.device.pixelRatio(),
+      y: (bounds.top + bounds.bottom) / 2 / android.device.pixelRatio(),
+    }],
   });
 }
 
-async function waitForSource(expected: string) {
-  await waitForNode((node) => node.text === expected || node["content-desc"] === expected);
+async function findCurrentNode(predicate: (node: Record<string, unknown>) => boolean) {
+  android.invalidateObservation();
+  return findNode(JSON.parse(await android.source()), predicate);
 }
 
 async function waitForNode(predicate: (node: Record<string, unknown>) => boolean, timeoutMs = 4_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    android.invalidateObservation();
-    const node = findNode(JSON.parse(await android.source()), predicate);
+    const node = await findCurrentNode(predicate);
     if (node) return node;
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
   }
@@ -128,11 +135,6 @@ function parseBounds(value: unknown) {
   return { left: numbers[0], top: numbers[1], right: numbers[2], bottom: numbers[3] };
 }
 
-function logical(point: { x: number; y: number }) {
-  const densityScale = 420 / 160;
-  return { x: point.x / densityScale, y: point.y / densityScale };
-}
-
 function elapsed() {
   return Number(process.hrtime.bigint() - started) / 1_000_000;
 }
@@ -140,7 +142,7 @@ function elapsed() {
 async function writeResult(value: unknown) {
   await writeFile(resolve(outputDir, "result.json"), `${JSON.stringify({
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: "android-world-contacts-add-contact",
     mode: "replay",
     ...value as object,
   }, null, 2)}\n`);

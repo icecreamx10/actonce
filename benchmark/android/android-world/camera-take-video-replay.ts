@@ -1,3 +1,5 @@
+// Compiled from the official-PASS CameraTakeVideo recording generated with
+// seed 20260818007. Deterministic, state-gated, and AI fallback disabled.
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -24,49 +26,70 @@ try {
     replayAndroidPrimitive(android, { operation, arguments: args });
 
   await flow.segment({
-    id: "open-display-settings",
-    // The AndroidWorld harness force-stops and relaunches the Settings app
-    // before timing, so replay begins on the Settings homepage, not Home.
-    precondition: { id: "settings-home", expected: { source: { includes: ["Settings"] } } },
+    id: "select-video-mode",
+    precondition: {
+      id: "camera-foreground",
+      expected: { source: { includes: ["com.android.camera2:id/shutter_button"] } },
+    },
     deterministic: async () => {
-      await primitive("launchApp", "com.android.settings");
-      await waitForSource("Settings");
-      await primitive("swipe", { x: 205, y: 780 }, { x: 205, y: 550 }, { durationMs: 300 });
-      await waitForSource("Display");
-      await tapSourceText("Display");
+      // The passing recording opened Camera's mode selector by dragging the
+      // shutter to the right. This gesture is stable from either Camera or
+      // Video mode and exposes accessibility text for both choices.
+      await primitive(
+        "dragAndDrop",
+        logical({ x: 536, y: 2189 }),
+        logical({ x: 971, y: 2189 }),
+      );
+      const video = await waitForNode((node) =>
+        node.text === "Video" || node["content-desc"] === "Switch to Video Camera",
+      );
+      await tapNode(video);
+      await waitForNode(
+        (node) => node["resource-id"] === "com.android.camera2:id/shutter_button",
+        8_000,
+      );
     },
     postcondition: {
-      id: "display",
-      expected: { source: { includes: ["Brightness", "Brightness level"] } },
-      settle: { timeoutMs: 4_000, intervalMs: 100 },
+      id: "video-ready",
+      expected: { source: { includes: ["com.android.camera2:id/shutter_button"] } },
+      settle: { timeoutMs: 8_000, intervalMs: 100 },
     },
   });
 
   await flow.segment({
-    id: "set-maximum",
-    // SystemBrightnessMax starts at minimum; we only require being on the
-    // Display screen that exposes the Brightness level entry.
-    precondition: { id: "display-brightness", expected: { source: { includes: ["Brightness level"] } } },
+    id: "record-video",
+    precondition: {
+      id: "video-ready",
+      expected: { source: { includes: ["com.android.camera2:id/shutter_button"] } },
+    },
     deterministic: async () => {
-      await tapSourceText("Brightness level");
-      const slider = await waitForNode(
-        (node) => node["resource-id"] === "com.android.systemui:id/slider",
-        10_000,
+      await tapNode(await waitForNode(
+        (node) => node["resource-id"] === "com.android.camera2:id/shutter_button",
+      ));
+      await waitForNode(
+        (node) => node["resource-id"] === "com.android.camera2:id/recording_time",
+        8_000,
       );
-      const bounds = parseBounds(slider.bounds);
-      await primitive(
-        "swipe",
-        logical({ x: bounds.left + 20, y: (bounds.top + bounds.bottom) / 2 }),
-        logical({ x: bounds.right + 35, y: (bounds.top + bounds.bottom) / 2 }),
-        { durationMs: 300 },
-      );
+      // Preserve the recorded semantics while keeping the benchmark bounded:
+      // AndroidWorld only requires exactly one newly saved video.
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 2_000));
+      await tapNode(await waitForNode(
+        (node) => node["resource-id"] === "com.android.camera2:id/shutter_button",
+      ));
     },
     postcondition: {
-      id: "slider-max",
-      expected: { source: { includes: ['"text":"65535.0"'] }, captureScreenshot: true },
+      id: "video-saved",
+      expected: {
+        // Camera keeps the empty recording_time container mounted after stop.
+        // The newly visible thumbnail is the recorded after-action state and
+        // proves that media was saved; the official oracle checks the file.
+        source: { includes: ["com.android.camera2:id/rounded_thumbnail_view"] },
+        captureScreenshot: true,
+      },
       settle: { timeoutMs: 8_000, intervalMs: 100 },
     },
   });
+
   await android.screenshot(resolve(outputDir, "final.png"));
   await writeResult({
     status,
@@ -86,17 +109,15 @@ try {
 console.log(JSON.stringify({ status, executionDurationMs: elapsed(), outputDir, error }, null, 2));
 if (status === "failed") process.exitCode = 2;
 
-async function tapSourceText(text: string) {
-  const node = await waitForNode((candidate) => candidate.text === text);
+async function tapNode(node: Record<string, unknown>) {
   const bounds = parseBounds(node.bounds);
   await replayAndroidPrimitive(android, {
     operation: "tap",
-    arguments: [logical({ x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 })],
+    arguments: [logical({
+      x: (bounds.left + bounds.right) / 2,
+      y: (bounds.top + bounds.bottom) / 2,
+    })],
   });
-}
-
-async function waitForSource(expected: string) {
-  await waitForNode((node) => node.text === expected || node["content-desc"] === expected);
 }
 
 async function waitForNode(predicate: (node: Record<string, unknown>) => boolean, timeoutMs = 4_000) {
@@ -129,8 +150,7 @@ function parseBounds(value: unknown) {
 }
 
 function logical(point: { x: number; y: number }) {
-  const densityScale = 420 / 160;
-  return { x: point.x / densityScale, y: point.y / densityScale };
+  return { x: point.x / android.device.pixelRatio(), y: point.y / android.device.pixelRatio() };
 }
 
 function elapsed() {
@@ -140,7 +160,7 @@ function elapsed() {
 async function writeResult(value: unknown) {
   await writeFile(resolve(outputDir, "result.json"), `${JSON.stringify({
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: "android-world-camera-take-video",
     mode: "replay",
     ...value as object,
   }, null, 2)}\n`);
