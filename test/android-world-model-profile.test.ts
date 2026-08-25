@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { delimiter } from "node:path";
 import {
+  codexAppServerPath,
   modelProfileProvenance,
   requireAndroidWorldModelProfile,
 } from "../benchmark/android/android-world/model-profile.js";
@@ -32,6 +34,13 @@ describe("AndroidWorld model profiles", () => {
 
   it("rejects unpinned profiles", () => {
     expect(() => requireAndroidWorldModelProfile("unknown")).toThrow(/Unknown AndroidWorld model profile/);
+  });
+
+  it("exposes the ChatGPT-bundled Codex CLI to a clean benchmark shell", () => {
+    const bundledPath = "/Applications/ChatGPT.app/Contents/Resources";
+    const value = codexAppServerPath(["/usr/bin", "/bin"].join(delimiter));
+    if (process.platform === "darwin") expect(value.split(delimiter)[0]).toBe(bundledPath);
+    else expect(value).toBe(["/usr/bin", "/bin"].join(delimiter));
   });
 });
 
