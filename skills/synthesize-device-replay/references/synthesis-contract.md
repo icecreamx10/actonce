@@ -8,6 +8,7 @@ is the auditable record of agent decisions; no deterministic script may generate
   "schemaVersion": 1,
   "kind": "actonce.replay-synthesis-ledger",
   "recordingId": "recording-id",
+  "selectedAttempt": "attempt-1",
   "selectedSequenceRange": { "from": 15, "to": 39 },
   "segments": [
     {
@@ -33,6 +34,10 @@ is the auditable record of agent decisions; no deterministic script may generate
   "exclusions": []
 }
 ```
+
+`selectedAttempt` must equal the key emitted by `inspect-attempts.mjs`; it is mandatory
+when a recording contains multiple attempts. Sequence citations are resolved only
+inside that attempt.
 
 Every completed top-level logical action in the selected range must appear exactly once
 as either an action segment or an exclusion. An exclusion requires its recorded action
