@@ -1,3 +1,8 @@
+// Compiled from recording `original` (android-world SystemBluetoothTurnOff),
+// checkpoint sequence 0-7. Deterministic, checkpoint-gated, no fallback.
+// Oracle evidence: the recorded final `android:id/switch_widget` node for
+// "Use Bluetooth" transitions checked "true" -> "false" at after-action
+// checkpoint 8 (bounds [839,675][985,801]), i.e. Bluetooth is turned off.
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -24,46 +29,78 @@ try {
     replayAndroidPrimitive(android, { operation, arguments: args });
 
   await flow.segment({
-    id: "open-display-settings",
+    id: "open-connected-devices",
     // The AndroidWorld harness force-stops and relaunches the Settings app
     // before timing, so replay begins on the Settings homepage, not Home.
     precondition: { id: "settings-home", expected: { source: { includes: ["Settings"] } } },
     deterministic: async () => {
       await primitive("launchApp", "com.android.settings");
       await waitForSource("Settings");
-      await primitive("swipe", { x: 205, y: 780 }, { x: 205, y: 550 }, { durationMs: 300 });
-      await waitForSource("Display");
-      await tapSourceText("Display");
+      // "Connected devices" is visible on the Settings homepage without
+      // scrolling (recorded before-action checkpoint 1).
+      await tapSourceText("Connected devices");
     },
     postcondition: {
-      id: "display",
-      expected: { source: { includes: ["Brightness", "Brightness level"] } },
+      id: "connected-devices",
+      expected: { source: { includes: ["Connection preferences"] } },
       settle: { timeoutMs: 4_000, intervalMs: 100 },
     },
   });
 
   await flow.segment({
-    id: "set-maximum",
-    // SystemBrightnessMax starts at minimum; we only require being on the
-    // Display screen that exposes the Brightness level entry.
-    precondition: { id: "display-brightness", expected: { source: { includes: ["Brightness level"] } } },
+    id: "open-connection-preferences",
+    precondition: { id: "connected-devices", expected: { source: { includes: ["Connection preferences"] } } },
     deterministic: async () => {
-      await tapSourceText("Brightness level");
-      const slider = await waitForNode(
-        (node) => node["resource-id"] === "com.android.systemui:id/slider",
-        10_000,
+      await tapSourceText("Connection preferences");
+    },
+    postcondition: {
+      id: "connection-preferences",
+      // The Connection preferences screen exposes a standalone "Bluetooth" row
+      // (recorded after-action checkpoint 4).
+      expected: { source: { includes: ['"text":"Bluetooth"'] } },
+      settle: { timeoutMs: 4_000, intervalMs: 100 },
+    },
+  });
+
+  await flow.segment({
+    id: "open-bluetooth",
+    precondition: { id: "connection-preferences", expected: { source: { includes: ['"text":"Bluetooth"'] } } },
+    deterministic: async () => {
+      await tapSourceText("Bluetooth");
+    },
+    postcondition: {
+      id: "bluetooth-detail",
+      expected: { source: { includes: ["Use Bluetooth"] } },
+      settle: { timeoutMs: 4_000, intervalMs: 100 },
+    },
+  });
+
+  await flow.segment({
+    id: "turn-off-bluetooth",
+    precondition: {
+      id: "bluetooth-on",
+      // Guard that Bluetooth is currently on before toggling it off.
+      expected: { source: { includes: ["Use Bluetooth", '"checked":"true"'] } },
+    },
+    deterministic: async () => {
+      // Locate the "Use Bluetooth" toggle by its stable resource-id while it is
+      // still checked, tap it, then confirm the switch flips to off.
+      const toggle = await waitForNode(
+        (node) => node["resource-id"] === "android:id/switch_widget" && node.checked === "true",
       );
-      const bounds = parseBounds(slider.bounds);
-      await primitive(
-        "swipe",
-        logical({ x: bounds.left + 20, y: (bounds.top + bounds.bottom) / 2 }),
-        logical({ x: bounds.right + 35, y: (bounds.top + bounds.bottom) / 2 }),
-        { durationMs: 300 },
+      const bounds = parseBounds(toggle.bounds);
+      await primitive("tap", logical({
+        x: (bounds.left + bounds.right) / 2,
+        y: (bounds.top + bounds.bottom) / 2,
+      }));
+      await waitForNode(
+        (node) => node["resource-id"] === "android:id/switch_widget" && node.checked === "false",
+        8_000,
       );
     },
     postcondition: {
-      id: "slider-max",
-      expected: { source: { includes: ['"text":"65535.0"'] }, captureScreenshot: true },
+      id: "bluetooth-off",
+      expected: { source: { includes: ["Use Bluetooth", '"checked":"false"'] }, captureScreenshot: true },
       settle: { timeoutMs: 8_000, intervalMs: 100 },
     },
   });
@@ -140,7 +177,7 @@ function elapsed() {
 async function writeResult(value: unknown) {
   await writeFile(resolve(outputDir, "result.json"), `${JSON.stringify({
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: "android-world-system-bluetooth-turn-off",
     mode: "replay",
     ...value as object,
   }, null, 2)}\n`);

@@ -1,3 +1,9 @@
+// Compiled from recording `original` (android-world SystemBluetoothTurnOn),
+// checkpoint sequence 0-5. Deterministic, checkpoint-gated, no fallback.
+// Oracle evidence: opening "Pair new device" turns Bluetooth on ("Bluetooth
+// will turn on to pair"); the recorded after-action checkpoint reaches the
+// "Available devices" scanning screen and the official validator reads
+// global bluetooth_on == 1.
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -24,46 +30,37 @@ try {
     replayAndroidPrimitive(android, { operation, arguments: args });
 
   await flow.segment({
-    id: "open-display-settings",
+    id: "open-connected-devices",
     // The AndroidWorld harness force-stops and relaunches the Settings app
     // before timing, so replay begins on the Settings homepage, not Home.
     precondition: { id: "settings-home", expected: { source: { includes: ["Settings"] } } },
     deterministic: async () => {
       await primitive("launchApp", "com.android.settings");
       await waitForSource("Settings");
-      await primitive("swipe", { x: 205, y: 780 }, { x: 205, y: 550 }, { durationMs: 300 });
-      await waitForSource("Display");
-      await tapSourceText("Display");
+      // "Connected devices" is visible on the Settings homepage without
+      // scrolling (recorded before-action checkpoint 0).
+      await tapSourceText("Connected devices");
     },
     postcondition: {
-      id: "display",
-      expected: { source: { includes: ["Brightness", "Brightness level"] } },
+      id: "connected-devices",
+      expected: { source: { includes: ["Pair new device"] } },
       settle: { timeoutMs: 4_000, intervalMs: 100 },
     },
   });
 
   await flow.segment({
-    id: "set-maximum",
-    // SystemBrightnessMax starts at minimum; we only require being on the
-    // Display screen that exposes the Brightness level entry.
-    precondition: { id: "display-brightness", expected: { source: { includes: ["Brightness level"] } } },
+    id: "turn-on-bluetooth",
+    // On the Connected devices screen, "Pair new device" turns Bluetooth on as
+    // a side effect ("Bluetooth will turn on to pair"). This is the action that
+    // flips global bluetooth_on from 0 to 1.
+    precondition: { id: "connected-devices", expected: { source: { includes: ["Pair new device"] } } },
     deterministic: async () => {
-      await tapSourceText("Brightness level");
-      const slider = await waitForNode(
-        (node) => node["resource-id"] === "com.android.systemui:id/slider",
-        10_000,
-      );
-      const bounds = parseBounds(slider.bounds);
-      await primitive(
-        "swipe",
-        logical({ x: bounds.left + 20, y: (bounds.top + bounds.bottom) / 2 }),
-        logical({ x: bounds.right + 35, y: (bounds.top + bounds.bottom) / 2 }),
-        { durationMs: 300 },
-      );
+      await tapSourceText("Pair new device");
     },
     postcondition: {
-      id: "slider-max",
-      expected: { source: { includes: ['"text":"65535.0"'] }, captureScreenshot: true },
+      id: "bluetooth-on",
+      // The pairing screen begins scanning once Bluetooth is on.
+      expected: { source: { includes: ["Available devices"] }, captureScreenshot: true },
       settle: { timeoutMs: 8_000, intervalMs: 100 },
     },
   });
@@ -140,7 +137,7 @@ function elapsed() {
 async function writeResult(value: unknown) {
   await writeFile(resolve(outputDir, "result.json"), `${JSON.stringify({
     schemaVersion: 1,
-    benchmark: "android-world-system-brightness-max",
+    benchmark: "android-world-system-bluetooth-turn-on",
     mode: "replay",
     ...value as object,
   }, null, 2)}\n`);
