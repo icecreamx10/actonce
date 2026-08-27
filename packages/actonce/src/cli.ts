@@ -12,6 +12,7 @@ if (command === "record") await forward("actonce-record", args);
 else if (command === "macos") await forward("actonce-macos", args);
 else if (command === "ios") await forward("actonce-ios", args);
 else if (command === "android") await forward("actonce-android", args);
+else if (command === "checkpoint") await forward("actonce-checkpoint", args);
 else if (command === "skill" && args.shift() === "install") await installSkill(args);
 else usage(command ? 2 : 0);
 
@@ -62,6 +63,7 @@ Usage:
   actonce macos <command> [...args]
   actonce ios <command> [...args]
   actonce android <command> [...args]
+  actonce checkpoint serve-stdio
   actonce skill install <record-device-use|synthesize-device-replay|hybrid-replay> [--target <dir>]`);
   process.exit(code);
 }
