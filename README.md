@@ -21,9 +21,10 @@ Correctness is a hard gate: ActOnce reports speed only when the replay passes th
 | macOS · 3-case Lynxtron suite | 185.49 s | 19.18 s | 9.67× | 3/3, fallback 0 |
 | iOS · checkout | 220.246 s | 10.499 s | 20.98× | 2/2, fallback 0 |
 | Android · checkout | 140.446 s | 17.412 s | 8.07× | 2/2, fallback 0 |
-| AndroidWorld · verified 5-case slice | 972.837 s | 95.938 s | 10.14× | 5/5, fallback 0 |
+| AndroidWorld · broader official PASS/PASS validation | 1,760.637 s | 187.664 s | 9.38× | 19/19, fallback 0 |
+| AndroidWorld · strict zero-context formal slice | 972.837 s | 95.938 s | 10.14× | 5/5, fallback 0 |
 
-The AndroidWorld target is all 113 tasks that passed at least one of Midscene's three published rounds. Its latest verified slice includes `ExpenseAddMultiple`: official reward `1.0` for both original and replay, `293.799 s → 56.803 s` (`5.17×`). Full-suite scoring is still in progress.
+The AndroidWorld target is all 113 tasks that passed at least one of Midscene's three published rounds. The 19-case row is a broader serial validation batch in which both original and replay earned official reward `1.0`. The 5-case row is the stricter, independently measured zero-context formal slice: `ClockStopWatchPausedVerify`, `ClockStopWatchRunning`, `ClockTimerEntry`, `BrowserMaze`, and `ExpenseAddMultiple`. A separate 20-candidate campaign produced 14 official-PASS originals and 4 replay-correct cases; incorrect, timed-out, setup-failed, and checkpoint-failed attempts are excluded from performance totals. Full-suite scoring is still in progress.
 
 Protocols and evidence:
 
