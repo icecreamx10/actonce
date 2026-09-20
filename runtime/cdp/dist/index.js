@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { canonicalTreeHash, ObservationCheckpointDriver, ReplayFlow, } from "@byted-lynx/actonce-replay";
+export { ExternalCdpCheckpointService, serveExternalCdpCheckpoints } from "./external-checkpoint-service.js";
 export const CDP_TREE_SOURCE = {
     id: "cdp-dom",
     kind: "cdp",

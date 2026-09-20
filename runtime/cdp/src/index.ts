@@ -32,6 +32,9 @@ export interface CdpClient {
   close(): Promise<void>;
 }
 
+export { ExternalCdpCheckpointService, serveExternalCdpCheckpoints } from "./external-checkpoint-service.js";
+export type { StableTreeAnchor } from "./external-checkpoint-service.js";
+
 export type CdpObserverOptions = {
   client?: CdpClient;
   endpoint?: string;

@@ -1,3 +1,15 @@
+import { existsSync } from "node:fs";
+import { delimiter, join } from "node:path";
+
+const CHATGPT_CODEX_RESOURCES = "/Applications/ChatGPT.app/Contents/Resources";
+
+export function codexAppServerPath(basePath = process.env.PATH ?? ""): string {
+  const bundledCodex = join(CHATGPT_CODEX_RESOURCES, "codex");
+  if (process.platform !== "darwin" || !existsSync(bundledCodex)) return basePath;
+  const entries = basePath.split(delimiter).filter(Boolean);
+  return [CHATGPT_CODEX_RESOURCES, ...entries.filter((entry) => entry !== CHATGPT_CODEX_RESOURCES)].join(delimiter);
+}
+
 export const ANDROID_WORLD_MODEL_PROFILES = {
   "codex-luna": {
     id: "codex-luna",
@@ -17,6 +29,9 @@ export const ANDROID_WORLD_MODEL_PROFILES = {
       MIDSCENE_MODEL_TIMEOUT: "600000",
       MIDSCENE_RECORD_MODEL_CALL: "1",
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "120",
+      // Midscene's codex:// provider spawns `codex app-server`. Trae's clean
+      // benchmark shells do not necessarily inherit the ChatGPT app bundle.
+      PATH: codexAppServerPath(),
     },
   },
 } as const;
