@@ -5,6 +5,8 @@ export interface CdpClient {
     request<TResult = unknown>(method: string, params?: Record<string, unknown>): Promise<TResult>;
     close(): Promise<void>;
 }
+export { ExternalCdpCheckpointService, serveExternalCdpCheckpoints } from "./external-checkpoint-service.js";
+export type { StableTreeAnchor } from "./external-checkpoint-service.js";
 export type CdpObserverOptions = {
     client?: CdpClient;
     endpoint?: string;
@@ -101,5 +103,4 @@ export declare class CdpWebSocketClient implements CdpClient {
     close(): Promise<void>;
 }
 export declare function resolveCdpWebSocketUrl(endpoint: string | undefined, selector?: CdpObserverOptions["target"]): Promise<string>;
-export {};
 //# sourceMappingURL=index.d.ts.map

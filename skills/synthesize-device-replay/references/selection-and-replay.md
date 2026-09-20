@@ -2,9 +2,13 @@
 
 ## Read the timeline
 
-Use `traceId`/span relations first, then domain IDs such as `logicalActionId`, then
-source timestamps, and finally global append `sequence`. Sequence is file order, not
-proof of asynchronous causality.
+First isolate one attempt with `inspect-attempts.mjs`. A recording append log may hold
+multiple attempts whose attempt-local `sequence` values restart. Use explicit attempt
+IDs or recorder/Midscene lifecycle boundaries; use timestamps only as supporting
+evidence. Within the selected attempt, use `traceId`/span relations first, then domain
+IDs such as `logicalActionId`, then source timestamps, and finally
+`recordingAppendIndex`. Neither attempt-local sequence nor file order proves
+asynchronous causality.
 
 ## Prove the source demonstration
 

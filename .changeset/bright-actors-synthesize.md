@@ -6,3 +6,5 @@
 Replace the ambiguous compile-device-recording Skill with synthesize-device-replay.
 Require an agent-authored evidence ledger and one checkpoint-gated segment per recorded
 state-changing action before deterministic primitive lowering or replay execution.
+Detect multiple attempts in one append log before synthesis, require explicit attempt
+selection, and reject ambiguous sequence-only extraction.

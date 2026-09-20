@@ -165,7 +165,7 @@ export class NativeAndroidDevice {
       }],
     });
   }
-  async typeText(value: string): Promise<void> { await this.shell(["input", "text", value.replaceAll("%", "%25").replaceAll(" ", "%s")]); }
+  async typeText(value: string): Promise<void> { await this.shell(["input", "text", encodeAndroidInputText(value)]); }
   async keyboardPress(key: string): Promise<void> { await this.shell(["input", "keyevent", keyCode(key)]); }
   async clearInput(maxLength = 100): Promise<void> {
     if (!Number.isInteger(maxLength) || maxLength < 0) throw new TypeError("clearInput maxLength must be a non-negative integer");
@@ -243,6 +243,16 @@ export class NativeAndroidDevice {
 }
 
 type AndroidShell = (args: string[]) => Promise<string>;
+
+/**
+ * Encodes a logical string for Android's `input text` command. `adb shell`
+ * evaluates the payload remotely, so shell metacharacters must be preserved
+ * through that transport in addition to Android's percent/space encoding.
+ */
+export function encodeAndroidInputText(value: string): string {
+  const inputTextPayload = value.replaceAll("%", "%25").replaceAll(" ", "%s");
+  return inputTextPayload.replace(/[\\'"`$&|;<>()[\]{}*?!~]/g, "\\$&");
+}
 
 export async function activateAndroidPackage(
   packageName: string,

@@ -2,11 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   androidUiAutomatorXmlToUiTree,
   activateAndroidPackage,
+  encodeAndroidInputText,
   findAndroidUiTreeNodes,
   normalizeAndroidSource,
   isInvalidSessionError,
   UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS,
 } from "../src/native-device.js";
+
+describe("encodeAndroidInputText", () => {
+  it("preserves apostrophes through the remote adb shell transport", () => {
+    expect(encodeAndroidInputText("It's a bird, it's a plane."))
+      .toBe("It\\'s%sa%sbird,%sit\\'s%sa%splane.");
+  });
+
+  it("retains Android input text encoding while escaping shell metacharacters", () => {
+    expect(encodeAndroidInputText("100% done & saved"))
+      .toBe("100%25%sdone%s\\&%ssaved");
+  });
+});
 
 describe("activateAndroidPackage", () => {
   it("starts the uniquely resolved launcher component with Android launcher flags", async () => {
