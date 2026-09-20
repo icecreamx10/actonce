@@ -21,9 +21,10 @@ Computer-use Agent 擅长探索陌生界面，但每次都重新发现同一个�
 | macOS · 3-case Lynxtron suite | 185.49 秒 | 19.18 秒 | 9.67× | 3/3，fallback 0 |
 | iOS · checkout | 220.246 秒 | 10.499 秒 | 20.98× | 2/2，fallback 0 |
 | Android · checkout | 140.446 秒 | 17.412 秒 | 8.07× | 2/2，fallback 0 |
-| AndroidWorld · 已验证 5-case 切片 | 972.837 秒 | 95.938 秒 | 10.14× | 5/5，fallback 0 |
+| AndroidWorld · 较大规模 official PASS/PASS 验证集 | 1,760.637 秒 | 187.664 秒 | 9.38× | 19/19，fallback 0 |
+| AndroidWorld · 严格 zero-context formal 切片 | 972.837 秒 | 95.938 秒 | 10.14× | 5/5，fallback 0 |
 
-AndroidWorld 的完整目标是 Midscene 三轮公开结果中至少通过一次的 113 个任务。最新切片包含 `ExpenseAddMultiple`：original 与 replay 的官方 reward 均为 `1.0`，耗时 `293.799 秒 → 56.803 秒`（`5.17×`）。全量 suite 仍在推进。
+AndroidWorld 的完整目标是 Midscene 三轮公开结果中至少通过一次的 113 个任务。19-case 行来自较大规模的串行验证批次，original 与 replay 的官方 reward 均为 `1.0`；5-case 行则是更严格、由独立 zero-context Agent 测量的 formal 切片：`ClockStopWatchPausedVerify`、`ClockStopWatchRunning`、`ClockTimerEntry`、`BrowserMaze` 和 `ExpenseAddMultiple`。另一次 20 个候选任务的测试中，14 个 original 获得官方 PASS，其中 4 个 replay 正确；错误、超时、环境初始化失败或 checkpoint 失败的尝试不进入性能汇总。全量 suite 仍在推进。
 
 协议与证据：
 
