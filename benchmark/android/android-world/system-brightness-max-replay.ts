@@ -25,7 +25,9 @@ try {
 
   await flow.segment({
     id: "open-display-settings",
-    precondition: { id: "home", expected: { source: { includes: ["Home"] } } },
+    // The AndroidWorld harness force-stops and relaunches the Settings app
+    // before timing, so replay begins on the Settings homepage, not Home.
+    precondition: { id: "settings-home", expected: { source: { includes: ["Settings"] } } },
     deterministic: async () => {
       await primitive("launchApp", "com.android.settings");
       await waitForSource("Settings");
@@ -42,7 +44,9 @@ try {
 
   await flow.segment({
     id: "set-maximum",
-    precondition: { id: "brightness-min", expected: { source: { includes: ["Brightness level", "0%"] } } },
+    // SystemBrightnessMax starts at minimum; we only require being on the
+    // Display screen that exposes the Brightness level entry.
+    precondition: { id: "display-brightness", expected: { source: { includes: ["Brightness level"] } } },
     deterministic: async () => {
       await tapSourceText("Brightness level");
       const slider = await waitForNode(

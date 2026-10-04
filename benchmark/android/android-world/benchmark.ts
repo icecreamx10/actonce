@@ -247,7 +247,16 @@ async function prepareInitialTargetApp(value: unknown) {
     const focus = await runCapture(adb, ["-s", serial, "shell", "dumpsys", "window"]);
     if (focus.code !== 0) throw new Error(`Failed to inspect foreground app: ${focus.stderr}`);
     const current = focus.stdout.split("\n").find((line) => line.includes("mCurrentFocus="));
-    if (current?.includes(initialPackage)) {
+    const activities = await runCapture(adb, [
+      "-s", serial, "shell", "dumpsys", "activity", "activities",
+    ]);
+    if (activities.code !== 0) {
+      throw new Error(`Failed to inspect foreground activity task: ${activities.stderr}`);
+    }
+    const focusedRootTask = activities.stdout
+      .split("\n")
+      .find((line) => line.includes("topDisplayFocusedRootTask="));
+    if (current?.includes(initialPackage) || focusedRootTask?.includes(`I=${initialPackage}/`)) {
       await canonicalizeInitialAppState(adb, serial, initialPackage);
       return;
     }
