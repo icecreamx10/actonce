@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { delimiter } from "node:path";
+import { existsSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import {
   codexAppServerPath,
   modelProfileProvenance,
@@ -18,6 +19,7 @@ describe("AndroidWorld model profiles", () => {
       MIDSCENE_MODEL_REASONING_ENABLED: "true",
       MIDSCENE_MODEL_REASONING_EFFORT: "medium",
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "120",
+      PUPPETEER_SKIP_DOWNLOAD: "true",
     });
     expect(Object.keys(profile.env).some((key) => /key|token|secret/i.test(key))).toBe(false);
   });
@@ -37,9 +39,15 @@ describe("AndroidWorld model profiles", () => {
   });
 
   it("exposes the ChatGPT-bundled Codex CLI to a clean benchmark shell", () => {
-    const bundledPath = "/Applications/ChatGPT.app/Contents/Resources";
+    const bundledPaths = [
+      "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS",
+      "/Applications/ChatGPT.app/Contents/Resources",
+    ];
     const value = codexAppServerPath(["/usr/bin", "/bin"].join(delimiter));
-    if (process.platform === "darwin") expect(value.split(delimiter)[0]).toBe(bundledPath);
+    const availableBundle = process.platform === "darwin"
+      ? bundledPaths.find((directory) => existsSync(join(directory, "codex")))
+      : undefined;
+    if (availableBundle) expect(value.split(delimiter)[0]).toBe(availableBundle);
     else expect(value).toBe(["/usr/bin", "/bin"].join(delimiter));
   });
 });
