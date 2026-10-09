@@ -32,8 +32,8 @@ if adb -s "${ACTONCE_ANDROID_SERIAL}" get-state 2>/dev/null | grep -q "device"; 
 fi
 
 mkdir -p "${ACTONCE_ROOT}/.cache/android-runtime"
-LOG_PATH="${ACTONCE_ROOT}/.cache/android-runtime/emulator.log"
-PID_PATH="${ACTONCE_ROOT}/.cache/android-runtime/emulator.pid"
+LOG_PATH="${ACTONCE_ROOT}/.cache/android-runtime/${ACTONCE_ANDROID_SERIAL}.log"
+PID_PATH="${ACTONCE_ROOT}/.cache/android-runtime/${ACTONCE_ANDROID_SERIAL}.pid"
 
 EMULATOR_ARGS=(
   -avd "${ACTONCE_AVD_NAME}"

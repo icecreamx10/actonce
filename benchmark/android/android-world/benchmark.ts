@@ -51,6 +51,7 @@ async function original() {
     "interceptor/src/cli.ts", "record", "midscene-android",
     "--entry", originalEntry,
     "--recordings-dir", outputDir, "--recording-id", "original",
+    "--serial", process.env.ACTONCE_ANDROID_SERIAL || "emulator-5554",
     "--expose-adb-shell", "false",
   ], {
     ...modelProfile.env,
