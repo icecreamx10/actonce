@@ -55,8 +55,13 @@ For each catalog case:
    discarding or renumbering them.
 
 Run exactly one independently initialized original and one replay per case on
-one serially used emulator. Do not parallelize measured cases and do not average
-repetitions. Report suite coverage separately as
+one serially used emulator. When the user explicitly requests concurrency,
+different cases may run on separate cloned API 33 emulators. Each worker must
+have independent serial, console, gRPC, UIAutomator2 and lease ports, fixture
+setup, and output directories. Never run two cases on the same emulator or average
+repetitions. Record device concurrency in the campaign manifest; concurrent
+timings have shared-host contention and must not be mixed with serial scores.
+Report suite coverage separately as
 catalog, original-pass, compiled, replay-correct, and performance-comparable
 counts. A missing, unsupported, setup-failed, or incorrect case remains visible
 in the denominator; never silently skip it.
@@ -87,6 +92,21 @@ API key, and must be verified before the suite with:
 ```bash
 npm run android-world:model:verify
 ```
+
+For the user-requested GPT-6 Luna original-recording campaign, verify
+`--model-profile codex-6-luna` before measurement. The committed
+`parallel-original.ts` CLI persists the exclusion evidence and task assignment:
+
+```bash
+npx tsx benchmark/android/android-world/parallel-original.ts --phase plan
+npx tsx benchmark/android/android-world/parallel-original.ts --phase run --worker 0
+npx tsx benchmark/android/android-world/parallel-original.ts --phase run --worker 1
+```
+
+Delegate each worker to a fresh agent. Read its assigned device and setup from
+`plan.json`; record context isolation separately. This campaign measures original
+recording coverage only. Agent synthesis and an independently measured replay are
+still required before reporting ActOnce speedup.
 
 There is intentionally no benchmark CLI compile phase. After the original
 phase, invoke the published `compile-device-recording` Skill separately for

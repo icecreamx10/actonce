@@ -15,7 +15,7 @@ export function codexAppServerPath(basePath = process.env.PATH ?? ""): string {
   return [bundledDirectory, ...entries.filter((entry) => entry !== bundledDirectory)].join(delimiter);
 }
 
-export const ANDROID_WORLD_MODEL_PROFILES = {
+const LEGACY_MODEL_PROFILES = {
   "codex-luna": {
     id: "codex-luna",
     provider: "codex-app-server",
@@ -38,6 +38,19 @@ export const ANDROID_WORLD_MODEL_PROFILES = {
       // Midscene's codex:// provider spawns `codex app-server`. Trae's clean
       // benchmark shells do not necessarily inherit the ChatGPT app bundle.
       PATH: codexAppServerPath(),
+    },
+  },
+} as const;
+
+export const ANDROID_WORLD_MODEL_PROFILES = {
+  ...LEGACY_MODEL_PROFILES,
+  "codex-6-luna": {
+    ...LEGACY_MODEL_PROFILES["codex-luna"],
+    id: "codex-6-luna",
+    model: "gpt-6-luna",
+    env: {
+      ...LEGACY_MODEL_PROFILES["codex-luna"].env,
+      MIDSCENE_MODEL_NAME: "gpt-6-luna",
     },
   },
 } as const;

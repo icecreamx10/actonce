@@ -4,6 +4,7 @@
 import argparse
 import dataclasses
 import json
+import os
 import pickle
 import random
 from pathlib import Path
@@ -18,10 +19,13 @@ PARAMS = {"max_or_min": "max"}
 
 
 def connect():
+  serial = os.environ.get("ACTONCE_ANDROID_SERIAL", "emulator-5554")
+  console_port = int(os.environ.get(
+      "ACTONCE_EMULATOR_PORT", serial.removeprefix("emulator-")))
   return env_launcher.load_and_setup_env(
-      console_port=5554,
+      console_port=console_port,
       adb_path=str(Path.home() / "Library/Android/sdk/platform-tools/adb"),
-      grpc_port=8554,
+      grpc_port=int(os.environ.get("ACTONCE_EMULATOR_GRPC_PORT", "8554")),
       freeze_datetime=False,
   )
 

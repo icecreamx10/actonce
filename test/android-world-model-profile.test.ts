@@ -38,6 +38,12 @@ describe("AndroidWorld model profiles", () => {
     expect(() => requireAndroidWorldModelProfile("unknown")).toThrow(/Unknown AndroidWorld model profile/);
   });
 
+  it("uses the requested GPT-6 Luna for both execution and provenance", () => {
+    const profile = requireAndroidWorldModelProfile("codex-6-luna");
+    expect(profile.env.MIDSCENE_MODEL_NAME).toBe("gpt-6-luna");
+    expect(modelProfileProvenance("codex-6-luna").model).toBe(profile.env.MIDSCENE_MODEL_NAME);
+  });
+
   it("exposes the ChatGPT-bundled Codex CLI to a clean benchmark shell", () => {
     const bundledPaths = [
       "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS",
