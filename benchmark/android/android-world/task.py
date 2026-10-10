@@ -10,13 +10,17 @@ import random
 from pathlib import Path
 from typing import Any
 
-from environment import adb, configure_host, configure_shared_adb, verify_fixture, verify_saved_snapshot
+from environment import (adb, configure_host, configure_shared_adb,
+                         configure_fixture_storage, migrate_legacy_snapshots,
+                         verify_fixture, verify_saved_snapshot)
 
 configure_host()
 
 from android_world import registry
 from android_world.env import env_launcher
 from android_world.env.setup_device import apps, setup
+
+configure_fixture_storage()
 
 TASK = "SystemBrightnessMax"
 PARAMS = {"max_or_min": "max"}
@@ -37,7 +41,7 @@ def connect():
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument("command", choices=("list-apps", "inspect-fixtures", "prepare", "prepare-app", "initialize", "evaluate"))
+  parser.add_argument("command", choices=("list-apps", "inspect-fixtures", "migrate-fixtures", "prepare", "prepare-app", "initialize", "evaluate"))
   parser.add_argument("--task", default=TASK)
   parser.add_argument("--state-dir", type=Path)
   parser.add_argument("--seed", type=int)
@@ -52,6 +56,10 @@ def main():
     from android_world.env import device_constants
     directories = adb("shell", f"ls {device_constants.SNAPSHOT_DATA} 2>/dev/null || true")
     print(json.dumps({"snapshots": directories.split()}), flush=True)
+    return
+  if args.command == "migrate-fixtures":
+    migrate_legacy_snapshots({app.package_name() for app in setup._APPS})
+    print(json.dumps({"status": "migrated"}), flush=True)
     return
   env = connect()
   try:

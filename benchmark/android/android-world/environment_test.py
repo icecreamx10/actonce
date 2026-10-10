@@ -7,6 +7,18 @@ import environment
 
 
 class EnvironmentTest(unittest.TestCase):
+  def test_snapshot_migration_preserves_existing_destinations(self):
+    with patch.object(environment, "adb") as adb:
+      environment.migrate_legacy_snapshots(["example.app"])
+      command = adb.call_args.args[1]
+      self.assertIn("[ ! -e '/data/local/tmp/actonce-android-world/snapshots/example.app' ]", command)
+      self.assertNotIn("rm ", command)
+
+  def test_snapshot_migration_rejects_unsafe_packages(self):
+    with patch.object(environment, "adb"):
+      with self.assertRaises(ValueError):
+        environment.migrate_legacy_snapshots(["../other"])
+
   def test_recovery_does_not_kill_shared_server(self):
     controller = Mock()
     environment.recover_shared_adb(controller, timeout=5)

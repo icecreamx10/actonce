@@ -8,6 +8,30 @@ import subprocess
 import time
 import xml.etree.ElementTree as ET
 
+SNAPSHOT_ROOT = "/data/local/tmp/actonce-android-world/snapshots"
+
+
+def configure_fixture_storage():
+  from android_world.env import device_constants
+  # Do not put non-package-owned fixture data under Android's app-data root.
+  # Use a dedicated durable device directory, retaining official snapshot APIs.
+  device_constants.SNAPSHOT_DATA = SNAPSHOT_ROOT
+
+
+def migrate_legacy_snapshots(packages):
+  packages = sorted(set(packages))
+  for package in packages:
+    if not re.fullmatch(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*", package):
+      raise ValueError(f"Invalid fixture package name: {package}")
+  adb("root")
+  adb("wait-for-device")
+  legacy = "/data/data/android_world/snapshots"
+  for package in packages:
+    source, target = f"{legacy}/{package}", f"{SNAPSHOT_ROOT}/{package}"
+    # Never replace a new snapshot or delete the legacy copy.
+    adb("shell", f"if [ -d '{source}' ] && [ ! -e '{target}' ]; then "
+        f"mkdir -p '{target}' && cp -a '{source}/.' '{target}/'; fi")
+
 
 def configure_host():
   # gRPC fork diagnostics can otherwise enter ADB's merged output pipe and

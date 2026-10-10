@@ -58,6 +58,9 @@ These checks repair onboarding outside measurement; older ready entries for
 these apps are invalidated automatically.
 Ready entries are also invalidated if their snapshot directory is missing on
 the current emulator; a host-side setup manifest alone is not readiness proof.
+Fixture snapshots use `/data/local/tmp/actonce-android-world/snapshots`, outside
+Android's package-owned data directories. Preparation migrates existing legacy
+snapshots without overwriting new snapshots or deleting the originals.
 `task.py` resolves the repository's installed FFmpeg binary before loading
 official media generators. None of these
 repairs changes task goals or the official evaluator.
