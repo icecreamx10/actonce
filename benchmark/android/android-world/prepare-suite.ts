@@ -60,7 +60,8 @@ async function persist() {
     apps: ordered,
   };
   await writeFile(statePath, `${JSON.stringify(value, null, 2)}\n`);
-  console.log(JSON.stringify({ ...value, statePath }, null, 2));
+  console.log(JSON.stringify({ status: value.status, ready: value.ready,
+    failed: value.failed, pending: value.pending, statePath }));
 }
 
 function inherit(childArgs: string[]) {
