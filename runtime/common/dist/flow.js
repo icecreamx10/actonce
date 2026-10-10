@@ -302,6 +302,18 @@ export class ReplayFlow {
                 }
             }
             const durationMs = Math.max(0, now() - started);
+            // A final matching capture is not success when it missed the deadline
+            // or never established the requested consecutive-match count.
+            result = {
+                ...result,
+                status: "mismatched",
+                differences: [...result.differences, {
+                        path: "settle",
+                        expected: { timeoutMs, consecutiveMatches },
+                        actual: { durationMs, consecutiveMatches: matchCount },
+                        message: "checkpoint settle deadline exceeded before stable match",
+                    }],
+            };
             this.checkpointTimeoutCount += 1;
             this.profileFor(segmentId).guard[phase].timeoutCount += 1;
             await this.emit({
