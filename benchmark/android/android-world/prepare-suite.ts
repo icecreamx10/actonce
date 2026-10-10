@@ -13,6 +13,7 @@ await mkdir(outputDir, { recursive: true });
 const listed = await capture([taskCli, "list-apps"]);
 const listing = JSON.parse(lastLine(listed.stdout)) as { apps: string[]; packages: Record<string, string> };
 const allApps = listing.apps;
+await capture([taskCli, "migrate-fixtures"]);
 const inspected = await capture([taskCli, "inspect-fixtures"]);
 const snapshots = new Set<string>((JSON.parse(lastLine(inspected.stdout)) as { snapshots: string[] }).snapshots);
 const apps = args.app ? allApps.filter((app) => app === args.app) : allApps;
