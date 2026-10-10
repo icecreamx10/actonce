@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { EventEmitter } from "node:events";
+import type { ChildProcess } from "node:child_process";
 import {
   androidUiAutomatorXmlToUiTree,
   activateAndroidPackage,
@@ -8,6 +10,7 @@ import {
   isInvalidSessionError,
   UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS,
   resolveAndroidSystemPort,
+  waitForInstrumentationExit,
 } from "../src/native-device.js";
 
 describe("encodeAndroidInputText", () => {
@@ -92,6 +95,28 @@ describe("activateAndroidPackage", () => {
 });
 
 describe("persistent UIAutomator2 session", () => {
+  it("waits for asynchronous instrumentation cleanup without killing its connection", async () => {
+    const child = Object.assign(new EventEmitter(), { exitCode: null, signalCode: null });
+    const waiting = waitForInstrumentationExit(child as ChildProcess);
+    child.emit("exit", 0);
+    expect(await waiting).toBe(true);
+    expect(child.listenerCount("exit")).toBe(0);
+    expect(child.listenerCount("error")).toBe(0);
+  });
+
+  it("bounds an unresponsive instrumentation shutdown and removes listeners", async () => {
+    const child = Object.assign(new EventEmitter(), { exitCode: null, signalCode: null });
+    expect(await waitForInstrumentationExit(child as ChildProcess, 1)).toBe(false);
+    expect(child.listenerCount("exit")).toBe(0);
+    expect(child.listenerCount("error")).toBe(0);
+  });
+
+  it("does not wait for an absent or already exited instrumentation", async () => {
+    expect(await waitForInstrumentationExit(undefined)).toBe(true);
+    const child = Object.assign(new EventEmitter(), { exitCode: 0, signalCode: null });
+    expect(await waitForInstrumentationExit(child as ChildProcess)).toBe(true);
+  });
+
   it("resolves distinct worker ports from the environment", () => {
     expect(resolveAndroidSystemPort(undefined, "8200")).toBe(8200);
     expect(resolveAndroidSystemPort(undefined, "8201")).toBe(8201);

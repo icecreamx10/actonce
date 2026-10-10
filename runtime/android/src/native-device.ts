@@ -12,6 +12,28 @@ const INSTRUMENTATION = `${TEST_PACKAGE}/androidx.test.runner.AndroidJUnitRunner
 // pinned model timeout (10 minutes).
 export const UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS = 1_200;
 
+/** DELETE /session finishes instrumentation asynchronously. Keep its adb
+ * connection alive until Android has disconnected UiAutomation. */
+export async function waitForInstrumentationExit(
+  child: ChildProcess | undefined,
+  timeoutMs = 5_000,
+): Promise<boolean> {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return true;
+  return new Promise((resolve) => {
+    const finish = (exited: boolean) => {
+      clearTimeout(timer);
+      child.removeListener("exit", onExit);
+      child.removeListener("error", onError);
+      resolve(exited);
+    };
+    const onExit = () => finish(true);
+    const onError = () => finish(false);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    child.once("exit", onExit);
+    child.once("error", onError);
+  });
+}
+
 export function resolveAndroidSystemPort(
   explicit?: number,
   environment: string | undefined = process.env.ACTONCE_ANDROID_SYSTEM_PORT,
@@ -90,11 +112,15 @@ export class NativeAndroidDevice {
   async close(): Promise<void> {
     if (this.sessionId) await this.request("DELETE", `/session/${this.sessionId}`).catch(() => undefined);
     this.sessionId = undefined;
-    this.instrumentation?.kill("SIGTERM");
-    await Promise.all([
-      this.shell(["am", "force-stop", SERVER_PACKAGE]).catch(() => ""),
-      this.shell(["am", "force-stop", TEST_PACKAGE]).catch(() => ""),
-    ]);
+    // Killing adb here can destroy UiAutomation's binder connection while
+    // Instrumentation.finish() is still disconnecting it, creating an Android
+    // crash dialog after an otherwise successful replay.
+    await waitForInstrumentationExit(this.instrumentation);
+    await this.shell(["am", "force-stop", SERVER_PACKAGE]).catch(() => "");
+    await this.shell(["am", "force-stop", TEST_PACKAGE]).catch(() => "");
+    if (this.instrumentation?.exitCode === null && this.instrumentation.signalCode === null)
+      this.instrumentation.kill("SIGTERM");
+    this.instrumentation = undefined;
     await this.run(["forward", "--remove", `tcp:${this.systemPort}`]).catch(() => "");
   }
 
