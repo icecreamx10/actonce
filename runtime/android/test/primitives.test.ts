@@ -1,7 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { replayAndroidPrimitive } from "../src/primitives.js";
+import { extractAndroidPrimitives } from "../src/primitive-compiler.js";
 
 describe("replayAndroidPrimitive", () => {
+  it("delivers the recorded long-press duration after primitive lowering", async () => {
+    const longPress = vi.fn(async () => undefined);
+    const [action] = extractAndroidPrimitives([{
+      kind: "logical.action.completed", sequence: 1, actionId: "hold",
+      operation: "LongPress",
+      normalizedArguments: { locate: { center: [42, 65] }, duration: 1000 },
+    }]);
+    await replayAndroidPrimitive({ device: { longPress } } as never, action.primitive);
+    expect(longPress).toHaveBeenCalledExactlyOnceWith({ x: 42, y: 65 }, 1000);
+  });
+
   it("supports a Skill-verified unique node with the recorded coordinate fallback", async () => {
     const tapUniqueNode = vi.fn(async () => "selector" as const);
     const android = {

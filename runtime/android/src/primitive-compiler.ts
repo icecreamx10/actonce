@@ -153,7 +153,17 @@ function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
       );
     return { operation, arguments: [packageName] };
   }
-  if (["tap", "doubleClick", "longPress"].includes(operation))
+  if (operation === "longPress") {
+    const duration = args.duration;
+    if (duration !== undefined &&
+        (typeof duration !== "number" || !Number.isFinite(duration) || duration < 0))
+      throw new Error("Recorded Android LongPress duration must be a nonnegative finite number");
+    return {
+      operation,
+      arguments: [targetPoint(args.locate), ...(duration === undefined ? [] : [duration])],
+    };
+  }
+  if (["tap", "doubleClick"].includes(operation))
     return { operation, arguments: [targetPoint(args.locate)] };
   if (operation === "typeText") {
     if (typeof args.value !== "string")
