@@ -5,3 +5,6 @@ recordings/
 .cache/
 .env
 .DS_Store
+# Python benchmark bridge caches
+__pycache__/
+*.pyc
