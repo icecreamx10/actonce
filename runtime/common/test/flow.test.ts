@@ -316,6 +316,58 @@ describe("ReplayFlow", () => {
     expect(now).toBe(50);
   });
 
+  it("fails closed when a matching capture completes after the settle deadline", async () => {
+    let now = 0;
+    const action = vi.fn();
+    const events: Array<{ kind: string; checkpoint?: { status: string } }> = [];
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify: async () => { now += 101; return matched("ready"); } },
+      now: () => now,
+      emit: (event) => { events.push(event); },
+    });
+    await expect(flow.segment({
+      id: "late", deterministic: action,
+      precondition: { id: "ready", expected: { state: "ready" }, settle: { timeoutMs: 100 } },
+      postcondition: { id: "done", expected: { state: "done" } },
+    })).rejects.toBeInstanceOf(CheckpointMismatchError);
+    expect(action).not.toHaveBeenCalled();
+    expect(flow.diagnostics().checkpointTimeoutCount).toBe(1);
+    expect(events.find((event) => event.kind === "replay.checkpoint.settle.timed-out")?.checkpoint?.status).toBe("mismatched");
+  });
+
+  it("fails closed when the last matching frame is insufficient for stability", async () => {
+    let now = 0;
+    const action = vi.fn();
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify: async () => matched("ready") },
+      now: () => now,
+      delay: async (durationMs) => { now += durationMs; },
+    });
+    await expect(flow.segment({
+      id: "unstable", deterministic: action,
+      precondition: { id: "ready", expected: { state: "ready" }, settle: { timeoutMs: 100, intervalMs: 100, consecutiveMatches: 2 } },
+      postcondition: { id: "done", expected: { state: "done" } },
+    })).rejects.toBeInstanceOf(CheckpointMismatchError);
+    expect(action).not.toHaveBeenCalled();
+    expect(flow.diagnostics().checkpointTimeoutCount).toBe(1);
+  });
+
+  it("accepts a stable match completing exactly at the deadline", async () => {
+    let now = 0;
+    const action = vi.fn();
+    const flow = new ReplayFlow<Expectation, Actual>({
+      checkpoints: { verify: async () => { now += 100; return matched("ready"); } },
+      now: () => now,
+    });
+    await flow.segment({
+      id: "boundary", deterministic: action,
+      precondition: { id: "ready", expected: { state: "ready" }, settle: { timeoutMs: 100 } },
+      postcondition: { id: "done", expected: { state: "ready" } },
+    });
+    expect(action).toHaveBeenCalledOnce();
+    expect(flow.diagnostics().checkpointTimeoutCount).toBe(0);
+  });
+
   it("fails closed when fallback is disabled", async () => {
     const flow = new ReplayFlow<Expectation, Actual>({
       checkpoints: { verify: async () => mismatched("wrong", "ready") },
