@@ -12,6 +12,16 @@ const INSTRUMENTATION = `${TEST_PACKAGE}/androidx.test.runner.AndroidJUnitRunner
 // pinned model timeout (10 minutes).
 export const UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS = 1_200;
 
+export function resolveAndroidSystemPort(
+  explicit?: number,
+  environment: string | undefined = process.env.ACTONCE_ANDROID_SYSTEM_PORT,
+): number {
+  const port = explicit ?? (environment === undefined ? 8200 : Number(environment));
+  if (!Number.isInteger(port) || port < 1 || port > 65_535)
+    throw new Error(`Invalid Android UIAutomator2 system port: ${String(explicit ?? environment)}`);
+  return port;
+}
+
 export class NativeAndroidDevice {
   private instrumentation?: ChildProcess;
   private sessionId?: string;
@@ -30,7 +40,7 @@ export class NativeAndroidDevice {
     const serials = connected.split("\n").slice(1).map((line) => line.trim().split(/\s+/)).filter((parts) => parts[1] === "device").map((parts) => parts[0]);
     const serial = options.serial ?? process.env.ACTONCE_ANDROID_SERIAL ?? serials[0];
     if (!serial || !serials.includes(serial)) throw new Error(`Android device ${serial ?? "<none>"} is not connected`);
-    const device = new NativeAndroidDevice(serial, adbPath, options.systemPort ?? 8200);
+    const device = new NativeAndroidDevice(serial, adbPath, resolveAndroidSystemPort(options.systemPort));
     await device.start();
     return device;
   }

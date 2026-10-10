@@ -7,6 +7,7 @@ import {
   normalizeAndroidSource,
   isInvalidSessionError,
   UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS,
+  resolveAndroidSystemPort,
 } from "../src/native-device.js";
 
 describe("encodeAndroidInputText", () => {
@@ -91,6 +92,21 @@ describe("activateAndroidPackage", () => {
 });
 
 describe("persistent UIAutomator2 session", () => {
+  it("resolves distinct worker ports from the environment", () => {
+    expect(resolveAndroidSystemPort(undefined, "8200")).toBe(8200);
+    expect(resolveAndroidSystemPort(undefined, "8201")).toBe(8201);
+    expect(resolveAndroidSystemPort(undefined, undefined)).toBe(8200);
+  });
+
+  it("lets explicit configuration override environment configuration", () => {
+    expect(resolveAndroidSystemPort(8300, "8201")).toBe(8300);
+    expect(resolveAndroidSystemPort(8300, "invalid")).toBe(8300);
+  });
+
+  it.each(["", "invalid", "0", "65536", "8200.5"])("rejects invalid worker port %s", (value) => {
+    expect(() => resolveAndroidSystemPort(undefined, value)).toThrow("system port");
+  });
+
   it("outlives the ten-minute benchmark model timeout", () => {
     expect(UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS).toBeGreaterThan(600);
   });
