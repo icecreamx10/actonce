@@ -77,6 +77,12 @@ def main():
       params = load_or_create_params(task_class, args.task, args.state_dir, args.seed)
       task = task_class(params)
       clear_validator_state(args.state_dir)
+      # Upstream warns and skips missing snapshots. A formal benchmark must
+      # instead reject an unprepared device, even if its host manifest is old.
+      for app_name in task_class.app_names:
+        app = setup.get_app_mapping(app_name)
+        if app is not None:
+          verify_saved_snapshot(app, env)
       task.initialize_task(env)
       save_validator_state(task, args.state_dir)
       output = {
