@@ -1,7 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { compileAndroidPrimitives } from "../src/primitive-compiler.js";
+import { compileAndroidPrimitives, extractAndroidPrimitives } from "../src/primitive-compiler.js";
 
 describe("compileAndroidPrimitives", () => {
+  it("preserves recorded long-press duration as the runtime's numeric argument", () => {
+    const [action] = extractAndroidPrimitives([{
+      kind: "logical.action.completed", sequence: 81, actionId: "hold",
+      operation: "LongPress",
+      normalizedArguments: { locate: { center: [107, 311] }, duration: 1000 },
+    }]);
+    expect(action.primitive).toEqual({ operation: "longPress", arguments: [{ x: 107, y: 311 }, 1000] });
+  });
+
+  it("retains default long-press behavior when duration was not recorded", () => {
+    const [action] = extractAndroidPrimitives([{
+      kind: "logical.action.completed", sequence: 1, actionId: "hold",
+      operation: "LongPress", normalizedArguments: { locate: { center: [1, 2] } },
+    }]);
+    expect(action.primitive.arguments).toEqual([{ x: 1, y: 2 }]);
+  });
+
+  it.each(["1000", -1, NaN, Infinity, null])("rejects invalid recorded duration %s", (duration) => {
+    expect(() => extractAndroidPrimitives([{
+      kind: "logical.action.completed", sequence: 1, actionId: "hold",
+      operation: "LongPress", normalizedArguments: { locate: { center: [1, 2] }, duration },
+    }])).toThrow("LongPress duration");
+  });
+
   it("lowers completed logical actions and omits waits", () => {
     const result = compileAndroidPrimitives(
       [
