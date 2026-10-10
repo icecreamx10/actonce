@@ -41,6 +41,7 @@
     "android:run": "npm --prefix runtime/android run build && node runtime/android/dist/cli.js run",
     "android-world:bootstrap": "bash benchmark/android/android-world/bootstrap.sh",
     "android-world:check": "bash benchmark/android/android-world/bootstrap.sh --check",
+    "android-world:test-environment": ".cache/android-world/venv/bin/python benchmark/android/android-world/environment_test.py",
     "android-world:start": "ACTONCE_ANDROID_API=33 ACTONCE_AVD_NAME=actonce_android_world_api33 ACTONCE_EMULATOR_GRPC_PORT=8554 ACTONCE_PARTITION_SIZE_MB=8192 bash scripts/android/start-emulator.sh",
     "android-world:start:foreground": "ACTONCE_ANDROID_API=33 ACTONCE_AVD_NAME=actonce_android_world_api33 ACTONCE_EMULATOR_GRPC_PORT=8554 ACTONCE_PARTITION_SIZE_MB=8192 bash scripts/android/start-emulator.sh --foreground",
     "android-world:prepare": "GRPC_VERBOSITY=ERROR .cache/android-world/venv/bin/python benchmark/android/android-world/task.py prepare",
@@ -118,6 +119,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "3.0.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@types/node": "^24.0.0",
     "appium-webdriveragent": "^16.1.6",
     "tsx": "4.23.12",

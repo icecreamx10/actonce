@@ -10,6 +10,10 @@ import random
 from pathlib import Path
 from typing import Any
 
+from environment import adb, configure_host, configure_shared_adb, verify_fixture, verify_saved_snapshot
+
+configure_host()
+
 from android_world import registry
 from android_world.env import env_launcher
 from android_world.env.setup_device import apps, setup
@@ -19,6 +23,7 @@ PARAMS = {"max_or_min": "max"}
 
 
 def connect():
+  configure_shared_adb()
   serial = os.environ.get("ACTONCE_ANDROID_SERIAL", "emulator-5554")
   console_port = int(os.environ.get(
       "ACTONCE_EMULATOR_PORT", serial.removeprefix("emulator-")))
@@ -32,7 +37,7 @@ def connect():
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument("command", choices=("list-apps", "prepare", "prepare-app", "initialize", "evaluate"))
+  parser.add_argument("command", choices=("list-apps", "inspect-fixtures", "prepare", "prepare-app", "initialize", "evaluate"))
   parser.add_argument("--task", default=TASK)
   parser.add_argument("--state-dir", type=Path)
   parser.add_argument("--seed", type=int)
@@ -40,18 +45,31 @@ def main():
   parser.add_argument("--app")
   args = parser.parse_args()
   if args.command == "list-apps":
-    print(json.dumps({"apps": [app.app_name for app in setup._APPS]}), flush=True)
+    print(json.dumps({"apps": [app.app_name for app in setup._APPS],
+                      "packages": {app.app_name: app.package_name() for app in setup._APPS}}), flush=True)
+    return
+  if args.command == "inspect-fixtures":
+    from android_world.env import device_constants
+    directories = adb("shell", f"ls {device_constants.SNAPSHOT_DATA} 2>/dev/null || true")
+    print(json.dumps({"snapshots": directories.split()}), flush=True)
     return
   env = connect()
   try:
     if args.command == "prepare":
       setup.setup_apps(env, None if args.suite else (apps.SettingsApp,))
+      if args.suite:
+        for name in ("clipper", "vlc"):
+          verify_fixture(name, env)
+      for app in (setup._APPS if args.suite else (apps.SettingsApp,)):
+        verify_saved_snapshot(app, env)
       output = {"status": "ready", "scope": "suite" if args.suite else "settings"}
     elif args.command == "prepare-app":
       app = setup.get_app_mapping(args.app)
       if app is None:
         raise ValueError(f"Unknown AndroidWorld app: {args.app}")
       setup.setup_apps(env, (app,))
+      verify_fixture(args.app, env)
+      verify_saved_snapshot(app, env)
       output = {"status": "ready", "scope": "app", "app": args.app}
     elif args.command == "initialize":
       env.reset(go_home=True)

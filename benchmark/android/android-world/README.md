@@ -52,6 +52,28 @@ Repository-owned patches under `patches/` are applied idempotently by bootstrap
 and remain part of the pinned environment provenance. They may fix setup or
 stability without changing task intent or the official success condition.
 
+Native fixture preparation also verifies Clipper with a clipboard round-trip
+and VLC with its app-created media database before saving their snapshots.
+These checks repair onboarding outside measurement; older ready entries for
+these apps are invalidated automatically.
+Ready entries are also invalidated if their snapshot directory is missing on
+the current emulator; a host-side setup manifest alone is not readiness proof.
+`task.py` resolves the repository's installed FFmpeg binary before loading
+official media generators. None of these
+repairs changes task goals or the official evaluator.
+The benchmark bridge preserves AndroidEnv command retries without killing the
+host-wide ADB daemon, so one worker's failed device command cannot disconnect
+other emulators.
+
+To retry only environment failures, preserve the previous campaign and build a
+new plan (same task seeds and device assignments):
+
+```bash
+npx tsx benchmark/android/android-world/parallel-original.ts --phase plan --retry-setup-failures-from <previous-root> --output <new-root>
+```
+
+Run each planned worker from a fresh benchmark agent after preparing its device.
+
 Create and resume the full matrix in explicit phases:
 
 ```bash
