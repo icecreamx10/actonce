@@ -61,6 +61,7 @@ async function original() {
     ...modelProfile.env,
     ACTONCE_ANDROID_WORLD_GOAL: String(initialized.goal),
     ACTONCE_ANDROID_WORLD_APPS: JSON.stringify(initialized.apps ?? []),
+    ACTONCE_ANDROID_WORLD_START_STATE: initialTargetPolicy(args.task, initialized.apps).initialPackage ? "target-app" : "official-home",
     MIDSCENE_RUN_DIR: resolve(runDir, "midscene-run"),
   });
   const official = await task("evaluate");
@@ -83,6 +84,7 @@ async function original() {
     model: modelProfileProvenance(args.modelProfile),
     executionScaffold: {
       logicalAppMapping: initialized.apps,
+      startState: initialTargetPolicy(args.task, initialized.apps).initialPackage ? "target-app" : "official-home",
       adbShellExposed: false,
     },
   });

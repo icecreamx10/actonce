@@ -29,6 +29,11 @@ App-data snapshot 不恢复 Android 运行时权限授予状态。新的 origina
 审计的 fixture，并用公共 CLI 的 `--fixture-permissions <file>`；不能编造未知权限、
 删除权限弹窗动作，或把权限修复放进计时内回放。格式为
 `{ "schemaVersion": 1, "userId": 0, "packages": [{ "package": "com.example.app", "permissions": { "android.permission.RECORD_AUDIO": false } }] }`。
+新基线还记录可变的 `user-set`、`user-fixed` flags，并逐项恢复验证；不重置 AppOps
+或 system flags。仅恢复 granted=false 不够：user-fixed 仍会让权限弹窗消失。
+旧 grant-only 基线保持原语义，不自动清除 flags。若原始证据证明某个 flag，可在明确的
+fixture package 内补充 `permissionFlags: { "android.permission.ACCESS_FINE_LOCATION": { "user-fixed": false } }`；
+未指定的 flags 保留，不猜测，不修改原始基线。
 缺失的旧基线在结果中明确标为 unavailable；命令或验证失败则停止 setup，不弱化 checkpoint。
 
 原始录制可明确选择 `--model-profile codex-6.1-sol`，通过本地已登录的 Codex
@@ -106,6 +111,7 @@ original 与 replay 使用相同且不计时的 app setup：CLI 会 force-stop �
 目标 package，启动第一个目标 app，并确认其处于前台。权限弹窗只有在精确的
 前台 Activity 与请求目标 package 对应时才算 ready，留给计时内的 agent 处理，
 不会提前授权。`OpenAppTaskEval` 保留官方 home 起点，不提前打开候选 app 完成任务。
+原始任务提示允许误离开单 app 后，通过精确逻辑名称执行一次 Launch 恢复，不强制在 Home 停止。
 AndroidWorld
 AccessibilityForwarder 仅在官方初始化和 validator 阶段启用；测量期间暂停，
 Midscene 与 recorder 共用 UIAutomator2 session。设备独占 lease 会拒绝第二个
