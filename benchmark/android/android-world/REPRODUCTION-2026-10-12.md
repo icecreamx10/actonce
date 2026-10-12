@@ -18,13 +18,16 @@ Official AndroidWorld reward must be exactly `1` for original and replay.
 | Broader | SystemBrightnessMin | 290.048 | 6.892 | 42.09× |
 | Broader | SystemBluetoothTurnOff | 48.492 | 4.846 | 10.01× |
 | Broader | SystemBluetoothTurnOn | 61.122 | 2.513 | 24.32× |
+| Broader | MarkorCreateFolder | 44.767 | 3.674 | 12.18× |
+| Broader | AudioRecorderRecordAudio | 80.649 | 6.686 | 12.06× |
 
-All eight have official reward `1/1` and zero AI fallback. **Strict slice: 5/5;
-broader set: 3/19.** No broader 19/19 or full 113-task claim is made.
+All ten have official reward `1/1` and zero AI fallback. **Strict slice: 5/5;
+broader set: 5/19.** No broader 19/19 or full 113-task claim is made.
 macOS, iOS and Android checkout were not rerun in this audit.
 
-These originals used `gpt-6-luna`. Subsequent pending originals will use the
-explicit `codex-6.1-sol` profile; they remain separately labeled. Successful
+The first eight originals used `gpt-6-luna`; MarkorCreateFolder and
+AudioRecorderRecordAudio used `gpt-6.1-sol`. Subsequent pending originals use the
+explicit `codex-6.1-sol` profile. Successful
 originals are reused, not rerun after every SDK repair. The measurements span
 runtime revisions (including persistent-source idle handling and anchored visual
 evaluation), so the table reports per-case raw ratios, **not a same-revision
@@ -36,13 +39,14 @@ the older failed recording nor historical timing artifacts.
 
 - SystemBrightnessMax: complete original, official reward `0`; no synthesis or replay.
 - OpenAppTaskEval: fixture preparation failed before recording/timing; no reward or replay.
-- At the eight-replay audit boundary, 14 broader originals were pending. Continuing
-  runs remain in the campaign manifest; failures are retained and skipped, not
-  silently removed from the 19-case denominator.
-- Next original, CameraTakePhoto (`gpt-6.1-sol`): fixture preparation failed before
-  recording/timing; no reward or duration, no retry. This leaves 13 pending originals.
-  CameraTakeVideo remains unattempted, temporarily deferred while the shared camera
-  preparation is unavailable; it is not labeled an executed failure.
+- CameraTakePhoto and ContactsAddContact (`gpt-6.1-sol`): fixture preparation
+  failed before recording/timing; no reward or duration, no retry.
+- ExpenseAddSingle (`gpt-6.1-sol`): complete original with official reward `1`,
+  84.725 seconds; synthesis/development validation pending, not a scored replay.
+- Nine broader originals remain pending. CameraTakeVideo is among them,
+  temporarily deferred while the shared camera preparation is unavailable; it is
+  not labeled an executed failure. Continuing runs remain in the campaign manifest;
+  failures are retained and skipped, not removed from the 19-case denominator.
 
 ## Evidence locations and persistence
 
@@ -65,6 +69,8 @@ results, and independent provenance. SHA-256 values refer to `evaluation.json`.
 | Brightness minimum | `formal-broader3-20261012/cases/081-system-brightness-min/sample-1` | `d42a345466c3dea3e8cbf7edc746eb6bc64be46db9736fc94173eb52df3730fd` |
 | Bluetooth off | `formal-broader3-20261012/cases/075-system-bluetooth-turn-off/sample-1` | `6f2a8e4908b09c60d9aad611f55faf05524b5f992fbc762c89bc410d5806c9ea` |
 | Bluetooth on | `formal-bluetooth-on-20261012` | `530e4f540d7af988c6527ac19fcc97b625db0c1330a6baff518908d2c5773af0` |
+| Markor folder | `formal-markor-folder-20261012` | `b532e40d0c082298086a454d0b7f71fd6695e6d101520c4131b2547f37d8ebc5` |
+| Audio recording | `formal-audio-20261012` | `b6d359733a975be44683d33803d982b74ca27ae933d7d68d9e8c30a4c1bcf050` |
 
 BrowserMaze's visual checkpoints retain the recorded X-cell facts and pixel
 thresholds while a uniquely evidenced native container anchors translation of
@@ -72,3 +78,14 @@ the screenshot crop. This localizes pixels; it does not replace the visual
 oracle with the native `X` label. Its formal run captured checkpoints in 3.503
 seconds and spent 3.416 seconds settling. Separate screenshot/source durations
 were unavailable and are not invented.
+
+Audio retains the exact recorded 3000-ms media dwell. Its generated default
+filename and model-latency-inflated duration label are incidental, not requested
+values. All seven actions and fourteen native boundaries must complete; the saved
+playable state excludes the pending-name dialog, and official metadata validation
+proves a new/changed nonempty clip. Existing media was not deleted to force a
+literal filename. The legacy microphone-denied fixture is restored from audited
+recorded evidence by the public CLI, outside measured execution. Formal checkpoint
+capture took 1.313 seconds and actual settling 1.132 seconds; no separate native/
+screenshot capture durations are claimed. Original revision `df485aa`, formal
+replay revision `10ec13c`.
