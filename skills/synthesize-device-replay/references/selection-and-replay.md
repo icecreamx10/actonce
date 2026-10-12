@@ -37,6 +37,17 @@ Task-start and task-end checks do not substitute for intermediate action boundar
 
 ## Map actions and observations independently
 
+Before freezing an observed label or value, classify its role: an explicit task
+input, a necessary outcome, an allocator-generated output, or incidental UI state.
+Keep requested values exact. Do not mistake a default generated name/identifier
+or a model-latency-inflated counter for a user requirement. For generated outputs,
+prove the same causal fact (a newly created resource was saved and is usable),
+using a live binding when identity matters or discriminative completion evidence
+when the literal identifier does not. Merely finding any existing resource is not
+enough; reject the nearest incomplete/unsaved state. Document this decision in
+`assertion-decision.json` before execution. Do not clear unrelated pre-existing
+resources solely to make an incidental literal match the demonstration.
+
 | Recorded action source | Runtime lowering |
 |---|---|
 | WDA/iOS logical action | WDA-backed runtime primitive using normalized device points |
