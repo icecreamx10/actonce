@@ -76,6 +76,15 @@ require consecutive visual matches.
 
 The Android checkpoint driver reuses a matched postcondition as the immediately adjacent precondition while no primitive has run. Every primitive invalidates that observation before acting, so do not add fixed sleeps or duplicate source reads between segments.
 
+For a coordinate-driven tap after a scroll or opening animation, target text
+presence alone does not prove that the recorded point can hit the control.
+Inspect that action's native bounds and stable follow-up evidence, or its visual
+readiness evidence when native state is insufficient. Author the smallest guard
+that proves the target is actually reachable at the recorded point, within the
+recorded budget. If live layout differs, diagnose gesture parity, settling and
+fixture state before applying the evidenced selector optimization above; do not
+hide a shared driver defect with a case-specific mapping.
+
 For the initial fresh-fixture pass, schedule every selected primitive once and in
 source order. Do not scan later postconditions or the case-final oracle to decide that
 intermediate work can be skipped. `observe-before-retry` permits checking only the
