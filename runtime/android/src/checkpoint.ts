@@ -189,7 +189,9 @@ export async function compareAndroidVisualScreenshot(
     throw new Error("Visual reference has no dimensions");
   const height = Math.max(
     1,
-    Math.round((width * metadata.height) / metadata.width),
+    // sharp.metadata() describes the input, not pending extract operations.
+    Math.round((width * (expected.region?.height ?? metadata.height)) /
+      (expected.region?.width ?? metadata.width)),
   );
   const [left, right] = await Promise.all([
     reference
