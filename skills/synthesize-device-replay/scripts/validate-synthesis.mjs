@@ -334,6 +334,7 @@ function expectedLoweredOperation(platform, recordedOperation) {
   };
   const android = {
     ...mobile,
+    Launch: "launchApp",
     AndroidBackButton: "back",
     AndroidHomeButton: "home",
     AndroidRecentAppsButton: "recentApps",
