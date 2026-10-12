@@ -20,13 +20,16 @@ Official AndroidWorld reward must be exactly `1` for original and replay.
 | Broader | SystemBluetoothTurnOn | 61.122 | 2.513 | 24.32× |
 | Broader | MarkorCreateFolder | 44.767 | 3.674 | 12.18× |
 | Broader | AudioRecorderRecordAudio | 80.649 | 6.686 | 12.06× |
+| Broader | ExpenseAddSingle | 84.725 | 7.509 | 11.28× |
 
-All ten have official reward `1/1` and zero AI fallback. **Strict slice: 5/5;
-broader set: 5/19.** No broader 19/19 or full 113-task claim is made.
+All eleven have official reward `1/1` and zero AI fallback. **Strict slice: 5/5;
+broader set: 6/19.** ExpenseAddSingle has one recovered checkpoint timeout and
+one deterministic retry, both included in execution time. No broader 19/19 or
+full 113-task claim is made.
 macOS, iOS and Android checkout were not rerun in this audit.
 
-The first eight originals used `gpt-6-luna`; MarkorCreateFolder and
-AudioRecorderRecordAudio used `gpt-6.1-sol`. Subsequent pending originals use the
+The first eight originals used `gpt-6-luna`; MarkorCreateFolder,
+AudioRecorderRecordAudio and ExpenseAddSingle used `gpt-6.1-sol`. Pending originals use the
 explicit `codex-6.1-sol` profile. Successful
 originals are reused, not rerun after every SDK repair. The measurements span
 runtime revisions (including persistent-source idle handling and anchored visual
@@ -41,8 +44,6 @@ the older failed recording nor historical timing artifacts.
 - OpenAppTaskEval: fixture preparation failed before recording/timing; no reward or replay.
 - CameraTakePhoto and ContactsAddContact (`gpt-6.1-sol`): fixture preparation
   failed before recording/timing; no reward or duration, no retry.
-- ExpenseAddSingle (`gpt-6.1-sol`): complete original with official reward `1`,
-  84.725 seconds; synthesis/development validation pending, not a scored replay.
 - Nine broader originals remain pending. CameraTakeVideo is among them,
   temporarily deferred while the shared camera preparation is unavailable; it is
   not labeled an executed failure. Continuing runs remain in the campaign manifest;
@@ -71,6 +72,7 @@ results, and independent provenance. SHA-256 values refer to `evaluation.json`.
 | Bluetooth on | `formal-bluetooth-on-20261012` | `530e4f540d7af988c6527ac19fcc97b625db0c1330a6baff518908d2c5773af0` |
 | Markor folder | `formal-markor-folder-20261012` | `b532e40d0c082298086a454d0b7f71fd6695e6d101520c4131b2547f37d8ebc5` |
 | Audio recording | `formal-audio-20261012` | `b6d359733a975be44683d33803d982b74ca27ae933d7d68d9e8c30a4c1bcf050` |
+| Single expense | `formal-expense-single-20261012` | `0c82aa5bd87401d2f2ab77770b0773e13ec48a5f980c93d282646805dd80228d` |
 
 BrowserMaze's visual checkpoints retain the recorded X-cell facts and pixel
 thresholds while a uniquely evidenced native container anchors translation of
@@ -89,3 +91,15 @@ recorded evidence by the public CLI, outside measured execution. Formal checkpoi
 capture took 1.313 seconds and actual settling 1.132 seconds; no separate native/
 screenshot capture durations are claimed. Original revision `df485aa`, formal
 replay revision `10ec13c`.
+
+ExpenseAddSingle preserves the requested name, amount, category and note. The
+Clothes category is validated visually because the recorded native `selected`
+field does not identify selection. Its unique native selector retains a bounded
+original-coordinate retry gated only by that action's immediate postcondition.
+The formal run needed one such retry after a checkpoint timeout; it still passed
+all seven segments and the official database oracle, with zero AI fallback.
+Capture took 2.271 seconds, actual settling 0.680 seconds, and the retry action
+0.026 seconds. No screenshot/native capture split is available. Original revision
+`10ec13c`, replay revision `223f69d`. The raw entry's development-purpose label is
+preserved; independent formal isolation and one-run provenance are recorded in
+`formal-audit.json`, not inferred from that stale label.
