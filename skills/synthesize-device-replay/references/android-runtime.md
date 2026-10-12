@@ -50,6 +50,12 @@ development-device activity in generated replay.
 
 ## Guarded fragments
 
+For a semantically necessary recorded dwell (such as media capture), author a
+`Sleep` → `sleep` action segment with its own checkpoints and retain `timeMs`
+exactly. Single-action lowering preserves this duration and the plan gate checks
+it. The agent may exclude or replace only unnecessary waits with evidenced
+bounded settling; neither lowerer nor runtime decides which waits to remove.
+
 Compose `replayAndroidPrimitive` calls with `flow.segment`. Guard state transitions with Android UI-tree expectations only when a relevant `checkpoint.captured` native UI artifact supports the fact. A screenshot-backed Midscene Assert/Boolean/Query remains visual even when an Android UI tree exists nearby.
 
 Do not turn every `checkpoint.captured` screenshot into a pixel oracle. Recorder

@@ -10,6 +10,20 @@ const extractor = resolve("skills/synthesize-device-replay/scripts/extract-segme
 const summarizer = resolve("skills/synthesize-device-replay/scripts/summarize-recording.mjs");
 
 describe("synthesize-device-replay contract", () => {
+  it("validates a selected content dwell and forbids shortening its recorded duration", () => {
+    const fixture = createFixture("Sleep", "sleep");
+    const path = join(fixture.root, "events.ndjson");
+    const events = readFileSync(path, "utf8").trim().split("\n").map(line => JSON.parse(line));
+    events[2].normalizedArguments = { timeMs: 3000 };
+    writeFileSync(path, events.map(event => JSON.stringify(event)).join("\n") + "\n");
+    fixture.planValue.segments[0].action.arguments = [3000];
+    writeFileSync(fixture.plan, JSON.stringify(fixture.planValue));
+    expect(run(fixture.root, fixture.ledger).status).toBe(0);
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+    fixture.planValue.segments[0].action.arguments = [1];
+    writeFileSync(fixture.plan, JSON.stringify(fixture.planValue));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+  });
   it("requires explicit selector evidence and retains the recorded coordinate in the plan", () => {
     const fixture = createFixture();
     const path = join(fixture.root, "events.ndjson");
@@ -202,7 +216,7 @@ function createFixture(firstOperation = "Tap", firstLowered = "tap") {
     segments: ledgerValue.segments.map((segment) => ({
       id: segment.id,
       precondition: { id: segment.precondition.checkpointId, expected: { source: { includes: ["before"] } } },
-      action: { operation: segment.loweredOperation, arguments: [] },
+      action: { operation: segment.loweredOperation, arguments: [] as unknown[] },
       postcondition: { id: segment.postcondition.checkpointId, expected: { source: { includes: ["after"] } } },
       idempotency: segment.idempotency,
     })),

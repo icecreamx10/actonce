@@ -17,6 +17,7 @@ export const SUPPORTED_ANDROID_PRIMITIVES = [
   "recentApps",
   "launchApp",
   "terminateApp",
+  "sleep",
 ] as const;
 export type AndroidPrimitiveOperation =
   (typeof SUPPORTED_ANDROID_PRIMITIVES)[number];
@@ -132,7 +133,16 @@ export async function replayAndroidPrimitive(
     case "terminateApp":
       await android.terminate(string(args[0], "terminateApp package"));
       return;
+    case "sleep":
+      await new Promise<void>(resolve => setTimeout(resolve, validateAndroidSleepDuration(args[0])));
+      return;
   }
+}
+
+export function validateAndroidSleepDuration(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 2_147_483_647)
+    throw new TypeError("Android sleep duration must be an integer between 0 and 2147483647 milliseconds");
+  return value;
 }
 function point(value: unknown, label: string): Point {
   if (!value || typeof value !== "object")
