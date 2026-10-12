@@ -114,9 +114,10 @@ every complete official-pass recording. The Skill owns segment selection,
 semantic target mapping, checkpoint decisions, generated code, execution,
 diagnosis, and fresh-fixture repair. Primitive lowering must preserve the raw
 recorded action; never automatically replace a coordinate with a native node
-merely because their bounds overlap. Write `compiled/replay.ts`,
-`recorded-input.ts`, `assertion-decision.json`, `compile-result.json`, and the
-attempt history under the sample directory. A sample-local generated replay is
+merely because their bounds overlap. Save the SDK module, `synthesis-ledger.json`,
+`replay-plan.json`, `replay-oracle.json`, `assertion-decision.json`,
+`execution-environment.json`, per-action lowerings, source hashes, and complete
+development qualification/history under the sample directory. A sample-local generated replay is
 an expected benchmark artifact, not a benchmark-runner code change. Editing the catalog,
 runner, runtime, initializer bridge, validator bridge, or setup patches still
 invalidates the measurement and requires a different fresh agent.
@@ -134,6 +135,9 @@ the replay is incorrect: diagnose the first skipped, mismatched, or over-broad
 checkpoint; repair the compiler/runtime; and recompile and rerun until stable or
 a concrete blocker is proven. These are development validation attempts. Only
 then delegate formal replay measurement to a different zero-context agent.
+
+Require two consecutive independently reset development passes of both runtime
+checkpoints and the official oracle before formal replay delegation.
 
 For new AndroidWorld measurements, generate an SDK replay module and invoke the
 public CLI with `--replay-module <module.ts>` (see the benchmark README).
@@ -153,8 +157,10 @@ npm run android-world:prepare-suite -- --output .cache/android-world/setup
 ```
 
 At each measured original/replay boundary, the CLI force-stops declared target
-packages, opens the first official target app, and verifies it is foreground
-before timing starts. AndroidWorld's AccessibilityForwarder is used for official
+packages and applies the public task start-state policy before timing starts:
+normally it opens/verifies the first target app; `OpenAppTaskEval` retains the
+official Home start rather than pre-completing its goal. A permission modal is
+accepted only when its requester is the target app. AndroidWorld's AccessibilityForwarder is used for official
 initialization/validation but suspended during measurement, where Midscene and
 recorder share one persistent UIAutomator2 session. The CLI releases UIAutomator2
 before returning to the official validator.
