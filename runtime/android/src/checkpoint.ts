@@ -68,11 +68,15 @@ export class AndroidCheckpointDriver
   implements
     CheckpointDriver<AndroidCheckpointExpectation, AndroidCheckpointActual>
 {
+  private lastCheckpointId?: string;
   constructor(private readonly android: AndroidSession) {}
   async verify(
     spec: CheckpointSpec<AndroidCheckpointExpectation>,
     context?: CheckpointVerificationContext,
   ): Promise<CheckpointResult<AndroidCheckpointActual>> {
+    // Stability samples need fresh evidence; distinct adjacent contracts may reuse it.
+    if (this.lastCheckpointId === spec.id) this.android.invalidateObservation();
+    this.lastCheckpointId = spec.id;
     const actual: AndroidCheckpointActual = { captureErrors: [] };
     if (context?.signal.aborted)
       actual.captureErrors.push("checkpoint deadline exceeded before capture");
