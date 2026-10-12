@@ -140,3 +140,37 @@ describe("checkpoint observation freshness", () => {
     expect(capture).toHaveBeenCalledTimes(3);
   });
 });
+
+describe("checkpoint capture timing", () => {
+  it("measures source and screenshot separately without inventing unattempted comparison time", async () => {
+    const clock = vi.fn().mockReturnValueOnce(10).mockReturnValueOnce(22)
+      .mockReturnValueOnce(22).mockReturnValueOnce(39);
+    const driver = new AndroidCheckpointDriver({ source: async () => "ready", screenshot: async () => "image", invalidateObservation: vi.fn() } as never, clock);
+    const result = await driver.verify({ id: "timed", expected: { source: { includes: ["ready"] }, captureScreenshot: true } });
+    expect(result.status).toBe("matched");
+    expect(result.actual?.captureTiming).toEqual({ sourceDurationMs: 12, screenshotDurationMs: 17 });
+  });
+
+  it("preserves error behavior and times attempted failures only", async () => {
+    const screenshot = vi.fn();
+    const clock = vi.fn().mockReturnValueOnce(10).mockReturnValueOnce(15);
+    const driver = new AndroidCheckpointDriver({ source: async () => { throw new Error("source unavailable"); }, screenshot, invalidateObservation: vi.fn() } as never, clock);
+    const result = await driver.verify({ id: "failed", expected: { source: { includes: ["ready"] }, captureScreenshot: true } });
+    expect(result.status).toBe("unknown");
+    expect(result.actual?.captureTiming).toEqual({ sourceDurationMs: 5 });
+    expect(screenshot).not.toHaveBeenCalled();
+  });
+
+  it("keeps actual screenshot comparison inside its own measured stage", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "actonce-capture-timing-"));
+    const referencePath = join(directory, "reference.png");
+    const bytes = await sharp({ create: { width: 20, height: 20, channels: 3, background: "white" } }).png().toBuffer();
+    await writeFile(referencePath, bytes);
+    const clock = vi.fn().mockReturnValueOnce(0).mockReturnValueOnce(11)
+      .mockReturnValueOnce(11).mockReturnValueOnce(26);
+    const driver = new AndroidCheckpointDriver({ screenshot: async () => bytes.toString("base64"), invalidateObservation: vi.fn() } as never, clock);
+    const result = await driver.verify({ id: "visual", expected: { visual: { referencePath } } });
+    expect(result.status).toBe("matched");
+    expect(result.actual?.captureTiming).toEqual({ screenshotDurationMs: 11, visualComparisonDurationMs: 15 });
+  });
+});

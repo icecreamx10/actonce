@@ -31,6 +31,12 @@ transition: callers must retain bounded checkpoint polling and stability checks,
 not assume the first read is settled. Deadlines are not extended to hide slow
 capture; `captureDurationMs` and `settleDelayMs` remain separate metrics.
 
+Each checked observation also reports monotonic `actual.captureTiming` stages:
+`sourceDurationMs`, `screenshotDurationMs`, and `visualComparisonDurationMs`.
+Unattempted stages are omitted; source reads may use the adjacent-observation cache.
+Comparison includes reference loading and pixel processing, not device capture.
+These diagnostics do not change deadlines, freshness, or checkpoint semantics.
+
 Visual checkpoints may specify `visual.anchor: { selector, referenceSourcePath }`
 alongside an explicit `visual.region`. The runtime resolves a unique native node
 in each recorded/live tree and translates the live crop by its physical-pixel

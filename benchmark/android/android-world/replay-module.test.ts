@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
-import { originalTimingBoundary, parseReplayModuleArgs, runReplayModule, validateReplayModule, validateReplaySelection } from "./replay-module.js";
+import { originalTimingBoundary, parseReplayModuleArgs, runReplayModule, summarizeCheckpointCaptureTiming, validateReplayModule, validateReplaySelection } from "./replay-module.js";
 import type { AndroidSession, createAndroidReplayFlow } from "@byted-lynx/actonce-android";
 
 describe("benchmark replay module runner", () => {
+  it("aggregates checked samples once and keeps unavailable legacy timings explicit", () => {
+    const checked = (captureTiming?: Record<string, unknown>) => ({ kind: "replay.checkpoint.checked", checkpoint: { actual: { captureTiming } } });
+    expect(summarizeCheckpointCaptureTiming([checked()])).toBeNull();
+    expect(summarizeCheckpointCaptureTiming([
+      checked({ sourceDurationMs: 10, screenshotDurationMs: 20, visualComparisonDurationMs: 5 }),
+      checked({ sourceDurationMs: 0 }), checked(),
+      { kind: "replay.checkpoint.settle.matched", checkpoint: { actual: { captureTiming: { sourceDurationMs: 10 } } } },
+    ])).toEqual({ checkedSamples: 3, timedSamples: 2, complete: false, source: { samples: 2, durationMs: 10 }, screenshot: { samples: 1, durationMs: 20 }, visualComparison: { samples: 1, durationMs: 5 } });
+    expect(summarizeCheckpointCaptureTiming([checked({ sourceDurationMs: -1, screenshotDurationMs: NaN })])).toMatchObject({ source: { samples: 0 }, screenshot: { samples: 0 } });
+  });
   it.each([false, true])("times connect + execution + close, preserves diagnostics and writes afterwards (failed=%s)", async failure => {
     let time = 0n;
     const order: string[] = [];

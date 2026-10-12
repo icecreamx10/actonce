@@ -26,6 +26,11 @@ await executeAndroidPlan(plan, {
 假设首次读取已稳定。不会为了掩盖读取慢而扩大期限；`captureDurationMs` 与
 `settleDelayMs` 继续分开记录。
 
+每次检查还在 `actual.captureTiming` 中报告单调时钟分项：
+`sourceDurationMs`、`screenshotDurationMs`、`visualComparisonDurationMs`。
+未尝试的阶段省略；source 读取可能使用相邻观察缓存。比较耗时包含参考图片加载和
+像素处理，不等于设备截图耗时。这些诊断不改变期限、新鲜度或 checkpoint 语义。
+
 截图 checkpoint 可在明确的 `visual.region` 上添加
 `visual.anchor: { selector, referenceSourcePath }`。运行时要求录制与当前原生树中的
 锚点均唯一，只按物理像素位移平移当前裁剪区域；缺失、多匹配、隐藏、禁用、尺寸变化

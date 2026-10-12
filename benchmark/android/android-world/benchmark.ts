@@ -131,6 +131,7 @@ async function replay() {
     timingBoundary: args.replayModule ? runtime?.timingBoundary ?? null : { scope: "legacy-entry-reported", managedBy: "authored-entry", reportedBoundary: runtime?.timingBoundary ?? null },
     officialValidator: official,
     replayDiagnostics: runtime?.replayDiagnostics ?? null,
+    checkpointCaptureBreakdown: runtime?.checkpointCaptureBreakdown ?? null,
     processExitCode: processResult.code,
     runtimeResult: "result.json",
   });
@@ -179,6 +180,7 @@ async function evaluate() {
       reductionPercent: speedup === null ? null : (1 - 1 / speedup) * 100,
     },
     replayDiagnostics: replayResult?.replayDiagnostics ?? null,
+    checkpointCaptureBreakdown: replayResult?.checkpointCaptureBreakdown ?? null,
   };
   await writeJson(resolve(outputDir, "evaluation.json"), result);
   return result;
