@@ -80,11 +80,37 @@ describe("AndroidWorld task scaffold", () => {
         setAppNameMapping(value: Record<string, string>) { mapping = value; },
       } as never);
       expect(goal).toContain('already opened the target app "Audio Recorder"');
+      expect(goal).toContain('recover once using Launch with the exact logical name "Audio Recorder"');
       expect(goal).toContain("Create the requested recording");
       expect(mapping).toEqual({ audiorecorder: "com.dimowner.audiorecorder" });
     } finally {
       restoreEnv("ACTONCE_ANDROID_WORLD_GOAL", previousGoal);
       restoreEnv("ACTONCE_ANDROID_WORLD_APPS", previousApps);
+    }
+  });
+});
+
+describe("AndroidWorld official home scaffold", () => {
+  it("does not claim that a candidate app was opened and preserves the requested goal", () => {
+    const previousGoal = process.env.ACTONCE_ANDROID_WORLD_GOAL;
+    const previousApps = process.env.ACTONCE_ANDROID_WORLD_APPS;
+    const previousStart = process.env.ACTONCE_ANDROID_WORLD_START_STATE;
+    process.env.ACTONCE_ANDROID_WORLD_GOAL = "Open the dialer app";
+    process.env.ACTONCE_ANDROID_WORLD_APPS = JSON.stringify([
+      { name: "camera", package: "com.android.camera2" },
+      { name: "dialer", package: "com.android.dialer" },
+    ]);
+    process.env.ACTONCE_ANDROID_WORLD_START_STATE = "official-home";
+    try {
+      const goal = configureAndroidWorldTask({ setAppNameMapping() {} } as never);
+      expect(goal).toContain("official initialized Home screen");
+      expect(goal).toContain('"camera", "dialer"');
+      expect(goal).toContain("Open the dialer app");
+      expect(goal).not.toContain("already opened");
+    } finally {
+      restoreEnv("ACTONCE_ANDROID_WORLD_GOAL", previousGoal);
+      restoreEnv("ACTONCE_ANDROID_WORLD_APPS", previousApps);
+      restoreEnv("ACTONCE_ANDROID_WORLD_START_STATE", previousStart);
     }
   });
 });

@@ -67,18 +67,25 @@ Generated cases persist exact AndroidWorld parameters in a sample-local
 validation must reuse that same state directory.
 
 App-data snapshots do not restore Android runtime permission grants. New original
-runs also capture user-0 grant states in `task-state/runtime-permissions.json`;
+runs also capture user-0 grant states and mutable `user-set`/`user-fixed` flags in `task-state/runtime-permissions.json`;
 replay restores and verifies that baseline before launching the app, outside
 measurement. Preserve this file with parameters when staging a formal replay.
 Only task-declared packages and their installed runtime permissions are accepted;
 the CLI never resets whole-device permissions. Grant state is restored, not
-arbitrary AppOps or system/user permission flags.
+arbitrary AppOps or system permission flags. Restoring denial flags matters:
+`user-fixed` can suppress a permission dialog even when `granted` is already false.
 
 Legacy originals have no automatic baseline. When their raw evidence proves a
 required initial grant state, author an audited fixture file and pass
 `--fixture-permissions <file>` to the public benchmark CLI. Record evidence paths
 and hashes in `execution-environment.json`; do not invent unknown grant states,
 remove permission-dialog actions, or add permission repair to measured replay.
+Legacy grant-only files remain grant-only; flags are not silently reset. When raw
+evidence proves a particular mutable flag, an explicit fixture may include partial
+`permissionFlags: { "android.permission.ACCESS_FINE_LOCATION": { "user-fixed": false } }`
+inside the package entry. Unspecified flags remain unknown/preserved. New captures
+persist both supported mutable flags; all expected grants and flags are verified
+after scoped restoration. Keep old baselines immutable.
 The JSON format is:
 
 ```json
@@ -159,6 +166,8 @@ only when its exact foreground activity is proven to have been requested by the
 target package; it is left for the measured agent to handle, not pre-granted.
 `OpenAppTaskEval` instead retains the official home start without prelaunching any
 candidate app or satisfying the task during preparation.
+The original task scaffold permits one logical-name Launch recovery if the agent
+inadvertently leaves a single target app; it does not require aborting on Home.
 AndroidWorld's AccessibilityForwarder
 is enabled for official initialization and validation, then suspended while the
 shared UIAutomator2 measurement session is active. A device lease rejects a

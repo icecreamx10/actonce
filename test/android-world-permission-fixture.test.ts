@@ -8,7 +8,7 @@ const fixture = { schemaVersion: 1, userId: 0, packages: [{ package: pkg, permis
 describe("AndroidWorld runtime permission fixture", () => {
   it("captures only user-0 runtime permissions, not install permissions or another user", async () => {
     expect(parseRuntimePermissions(dump(true))).toEqual({ [permission]: true });
-    expect(await captureRuntimePermissionFixture([{ package: pkg }, { package: pkg }], async () => dump(false))).toEqual(fixture);
+    expect(await captureRuntimePermissionFixture([{ package: pkg }, { package: pkg }], async () => dump(false))).toEqual({ ...fixture, packages: [{ ...fixture.packages[0], permissionFlags: { [permission]: { "user-set": true, "user-fixed": false } } }] });
     expect(parseRuntimePermissions("  User 0: installed=true\n    runtime permissions:\n  User 10: installed=true\n    runtime permissions:\n      other.permission: granted=true\n")).toEqual({});
     expect(() => parseRuntimePermissions("Unable to find package")).toThrow("user-0");
   });
@@ -41,5 +41,51 @@ describe("AndroidWorld runtime permission fixture", () => {
 
   it("fails closed when the permission command did not restore state", async () => {
     await expect(restoreRuntimePermissionFixture(fixture, [{ package: pkg }], async () => dump(true))).rejects.toThrow("did not match");
+  });
+
+  it("restores flag-only changes and preserves unspecified mutable flags", async () => {
+    const calls: string[][] = [];
+    let fixed = true;
+    const partial = { ...fixture, packages: [{ ...fixture.packages[0], permissionFlags: { [permission]: { "user-fixed": false } } }] };
+    await restoreRuntimePermissionFixture(partial, [{ package: pkg }], async args => {
+      calls.push(args);
+      if (args.includes("clear-permission-flags")) fixed = false;
+      return dump(false).replace("USER_SET", `USER_SET${fixed ? "|USER_FIXED" : ""}`);
+    });
+    expect(calls).toContainEqual(["shell", "pm", "clear-permission-flags", "--user", "0", pkg, permission, "user-fixed"]);
+    expect(calls.some(args => args.includes("grant") || args.includes("revoke"))).toBe(false);
+    expect(calls.filter(args => args.includes("dumpsys"))).toHaveLength(2);
+    expect(calls.filter(args => args.includes("user-set"))).toHaveLength(0);
+  });
+
+  it("applies flags after grant commands that change them", async () => {
+    let granted = true, fixed = false;
+    const flagged = { ...fixture, packages: [{ ...fixture.packages[0], permissionFlags: { [permission]: { "user-fixed": false } } }] };
+    await restoreRuntimePermissionFixture(flagged, [{ package: pkg }], async args => {
+      if (args.includes("revoke")) { granted = false; fixed = true; }
+      if (args.includes("clear-permission-flags")) fixed = false;
+      return dump(granted).replace("USER_SET", fixed ? "USER_FIXED" : "");
+    });
+    expect(fixed).toBe(false);
+  });
+
+  it("validates every flag before writes and rejects system flags, keys, and types", async () => {
+    for (const flags of [{ "system-fixed": false }, { "user-fixed": "false" }, { "USER_FIXED": false }]) {
+      const calls: string[][] = [];
+      await expect(restoreRuntimePermissionFixture({ ...fixture, packages: [{ ...fixture.packages[0], permissionFlags: { [permission]: flags } }] }, [{ package: pkg }], async args => { calls.push(args); return dump(true); })).rejects.toThrow("flag");
+      expect(calls.every(args => args.includes("dumpsys"))).toBe(true);
+    }
+    const calls: string[][] = [];
+    await expect(restoreRuntimePermissionFixture({ ...fixture, packages: [{ ...fixture.packages[0], permissionFlags: { [permission]: { "user-fixed": false } } }, { package: "com.other.app", permissions: {}, permissionFlags: { missing: { "user-fixed": false } } }] }, [{ package: pkg }, { package: "com.other.app" }], async args => { calls.push(args); return dump(true); })).rejects.toThrow("flags");
+    expect(calls.every(args => args.includes("dumpsys"))).toBe(true);
+  });
+
+  it("fails closed on unknown flag data and failed flag verification, but permits grant-only legacy data", async () => {
+    const flagged = { ...fixture, packages: [{ ...fixture.packages[0], permissionFlags: { [permission]: { "user-fixed": false } } }] };
+    await expect(restoreRuntimePermissionFixture(flagged, [{ package: pkg }], async () => dump(false).replace("USER_SET", "USER_FIXED"))).rejects.toThrow("did not match flag");
+    const unknown = dump(false).replace(", flags=[ USER_SET ]", "");
+    await expect(restoreRuntimePermissionFixture(flagged, [{ package: pkg }], async () => unknown)).rejects.toThrow("Unknown");
+    await expect(captureRuntimePermissionFixture([{ package: pkg }], async () => unknown)).rejects.toThrow("Unknown");
+    await expect(restoreRuntimePermissionFixture(fixture, [{ package: pkg }], async () => unknown)).resolves.toBeUndefined();
   });
 });
