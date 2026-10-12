@@ -58,16 +58,57 @@ describe("Android effective display coordinate projection", () => {
     const fake = device as unknown as { shell: (args: string[]) => Promise<string>; sessionRequest: (...args: unknown[]) => Promise<void> };
     let shellCalls = 0;
     let invalid = false;
-    fake.shell = async (args) => { shellCalls++; return args[1] === "size" ? "Physical size: 1080x2400" : `Physical density: ${invalid ? 0 : 420}`; };
-    let payload: unknown;
-    fake.sessionRequest = async (...args) => { payload = args[2]; };
+    const commands: string[][] = [];
+    fake.shell = async (args) => { shellCalls++; commands.push(args); return args[1] === "size" ? "Physical size: 1080x2400" : `Physical density: ${invalid ? 0 : 420}`; };
+    fake.sessionRequest = async () => { throw new Error("coordinate input should use platform injection"); };
     await device.size();
     await device.tap({ x: 387, y: 900 });
-    expect(JSON.stringify(payload)).toContain('"x":1017');
-    expect(shellCalls).toBe(2);
+    expect(commands.at(-1)).toEqual(["input", "swipe", "1017", "2363", "1017", "2363", "150"]);
+    expect(shellCalls).toBe(3);
     invalid = true;
     await expect(device.size()).rejects.toThrow();
     await expect(device.tap({ x: 387, y: 900 })).rejects.toThrow("geometry is unavailable");
+  });
+});
+
+describe("native platform coordinate injection", () => {
+  async function fixture() {
+    const device = Object.create(NativeAndroidDevice.prototype) as NativeAndroidDevice;
+    const commands: string[][] = [];
+    const fake = device as unknown as { shell: (args: string[]) => Promise<string> };
+    fake.shell = async args => {
+      if (args[0] === "wm") return args[1] === "size" ? "Physical size: 1080x2400" : "Physical density: 420";
+      commands.push(args);
+      return "";
+    };
+    await device.size();
+    return { device, commands };
+  }
+  it("preserves the coordinate press hold and caller-supplied durations", async () => {
+    const { device, commands } = await fixture();
+    await device.tap({ x: 387, y: 900 });
+    await device.tap({ x: 387, y: 900 }, 75);
+    expect(commands).toEqual([
+      ["input", "swipe", "1017", "2363", "1017", "2363", "150"],
+      ["input", "swipe", "1017", "2363", "1017", "2363", "75"],
+    ]);
+  });
+  it("preserves swipe endpoints and explicit/default platform durations", async () => {
+    const { device, commands } = await fixture();
+    await device.swipe({ x: 387, y: 900 }, { x: 10, y: 20 }, 1000);
+    await device.swipe({ x: 387, y: 900 }, { x: 10, y: 20 });
+    expect(commands).toEqual([
+      ["input", "swipe", "1017", "2363", "26", "53", "1000"],
+      ["input", "swipe", "1017", "2363", "26", "53", "300"],
+    ]);
+  });
+  it("rejects invalid durations without injecting input", async () => {
+    const { device, commands } = await fixture();
+    for (const duration of [-1, NaN, Infinity, 0.5, 2_147_483_648]) {
+      await expect(device.tap({ x: 1, y: 1 }, duration)).rejects.toThrow("touch duration");
+      await expect(device.swipe({ x: 1, y: 1 }, { x: 2, y: 2 }, duration)).rejects.toThrow("touch duration");
+    }
+    expect(commands).toEqual([]);
   });
 });
 

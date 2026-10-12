@@ -1,5 +1,6 @@
 import type { AndroidSession } from "./session.js";
 import type { Point } from "./types.js";
+import { validateAndroidTouchDuration } from "./native-device.js";
 
 export const SUPPORTED_ANDROID_PRIMITIVES = [
   "tap",
@@ -40,7 +41,7 @@ export async function replayAndroidPrimitive(
   const args = primitive.arguments;
   switch (primitive.operation) {
     case "tap":
-      await android.device.tap(point(args[0], "tap point"));
+      await android.device.tap(point(args[0], "tap point"), args[1] === undefined ? undefined : validateAndroidTouchDuration(args[1]));
       return;
     case "tapUniqueNode":
       await android.device.tapUniqueNode(

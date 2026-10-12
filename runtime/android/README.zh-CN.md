@@ -31,6 +31,12 @@ await executeAndroidPlan(plan, {
 未尝试的阶段省略；source 读取可能使用相邻观察缓存。比较耗时包含参考图片加载和
 像素处理，不等于设备截图耗时。这些诊断不改变期限、新鲜度或 checkpoint 语义。
 
+坐标 tap/swipe 使用 Android 原生 `input swipe` 注入；UIAutomator2 仍负责常驻观察
+与唯一节点 click。`device.tap(point, durationMs?)` 默认明确按住 150 ms，swipe
+保留录制时长（缺省 300 ms）。中性录制中的显式 tap 时长会原样降低并执行。
+缺省按住时间保留已固定原始设备的隐式语义，不再用零时长 W3C down/up；
+注入一致本身不证明 fixture 相同或 UI 确实消费了动作。
+
 截图 checkpoint 可在明确的 `visual.region` 上添加
 `visual.anchor: { selector, referenceSourcePath }`。运行时要求录制与当前原生树中的
 锚点均唯一，只按物理像素位移平移当前裁剪区域；缺失、多匹配、隐藏、禁用、尺寸变化

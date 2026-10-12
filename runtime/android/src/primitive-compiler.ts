@@ -5,6 +5,7 @@ import type {
   RecordedAndroidPrimitive,
 } from "./primitives.js";
 import { validateAndroidSleepDuration } from "./primitives.js";
+import { validateAndroidTouchDuration } from "./native-device.js";
 
 export type RecordedAndroidEvent = {
   kind?: string;
@@ -165,7 +166,11 @@ function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
       arguments: [targetPoint(args.locate), ...(duration === undefined ? [] : [duration])],
     };
   }
-  if (["tap", "doubleClick"].includes(operation))
+  if (operation === "tap") {
+    const duration = args.duration ?? args.durationMs;
+    return { operation, arguments: [targetPoint(args.locate), ...(duration === undefined ? [] : [validateAndroidTouchDuration(duration)])] };
+  }
+  if (operation === "doubleClick")
     return { operation, arguments: [targetPoint(args.locate)] };
   if (operation === "typeText") {
     if (typeof args.value !== "string")

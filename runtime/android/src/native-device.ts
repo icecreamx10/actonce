@@ -200,20 +200,12 @@ export class NativeAndroidDevice {
     return { width: geometry.logicalWidth, height: geometry.logicalHeight };
   }
 
-  async tap(point: Point): Promise<void> {
+  async tap(point: Point, duration = 150): Promise<void> {
+    const hold = validateAndroidTouchDuration(duration);
     const p = this.physical(point);
-    await this.sessionRequest("POST", "/actions", {
-      actions: [{
-        type: "pointer",
-        id: "finger1",
-        parameters: { pointerType: "touch" },
-        actions: [
-          { type: "pointerMove", duration: 0, x: p.x, y: p.y },
-          { type: "pointerDown", button: 0 },
-          { type: "pointerUp", button: 0 },
-        ],
-      }],
-    });
+    // A coordinate press is a real platform touch with an explicit hold, not
+    // a zero-duration W3C down/up. Preserve the input command's event cadence.
+    await this.shell(["input", "swipe", `${p.x}`, `${p.y}`, `${p.x}`, `${p.y}`, `${hold}`]);
   }
   async tapUniqueNode(selector: AndroidNodeSelector, coordinateFallback?: Point): Promise<"selector" | "coordinate-fallback"> {
     if (Object.values(selector).every((value) => value === undefined)) throw new TypeError("Android selector must not be empty");
@@ -238,23 +230,12 @@ export class NativeAndroidDevice {
     }
     throw new Error(`Android selector must match exactly one node; matched ${matches.length}: ${JSON.stringify(selector)}`);
   }
-  async doubleClick(point: Point): Promise<void> { await this.tap(point); await delay(80); await this.tap(point); }
+  async doubleClick(point: Point): Promise<void> { await this.tap(point, 0); await delay(80); await this.tap(point, 0); }
   async longPress(point: Point, duration = 800): Promise<void> { const p = this.physical(point); await this.shell(["input", "swipe", `${p.x}`, `${p.y}`, `${p.x}`, `${p.y}`, `${duration}`]); }
   async swipe(start: Point, end: Point, duration = 300): Promise<void> {
+    const elapsed = validateAndroidTouchDuration(duration);
     const a = this.physical(start), b = this.physical(end);
-    await this.sessionRequest("POST", "/actions", {
-      actions: [{
-        type: "pointer",
-        id: "finger1",
-        parameters: { pointerType: "touch" },
-        actions: [
-          { type: "pointerMove", duration: 0, x: a.x, y: a.y },
-          { type: "pointerDown", button: 0 },
-          { type: "pointerMove", duration, x: b.x, y: b.y },
-          { type: "pointerUp", button: 0 },
-        ],
-      }],
-    });
+    await this.shell(["input", "swipe", `${a.x}`, `${a.y}`, `${b.x}`, `${b.y}`, `${elapsed}`]);
   }
   async typeText(value: string): Promise<void> { await this.shell(["input", "text", encodeAndroidInputText(value)]); }
   async keyboardPress(key: string): Promise<void> { await this.shell(["input", "keyevent", keyCode(key)]); }
@@ -601,4 +582,10 @@ function unionBounds(nodes: AndroidUiTreeNode[]) {
   const right = Math.max(...nodes.map((node) => node.bounds.left + node.bounds.width));
   const bottom = Math.max(...nodes.map((node) => node.bounds.top + node.bounds.height));
   return { left, top, width: right - left, height: bottom - top };
+}
+
+export function validateAndroidTouchDuration(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 2_147_483_647)
+    throw new TypeError("Android touch duration must be an integer between 0 and 2147483647 milliseconds");
+  return value;
 }

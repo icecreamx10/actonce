@@ -3,6 +3,16 @@ import { replayAndroidPrimitive } from "../src/primitives.js";
 import { extractAndroidPrimitives } from "../src/primitive-compiler.js";
 
 describe("replayAndroidPrimitive", () => {
+  it("lowers and dispatches explicit neutral tap duration without losing legacy default", async () => {
+    const tap = vi.fn(async () => undefined);
+    const [explicit, legacy] = extractAndroidPrimitives([
+      { kind: "logical.action.completed", sequence: 1, actionId: "timed-tap", operation: "Tap", normalizedArguments: { locate: { center: [42, 65] }, durationMs: 75 } },
+      { kind: "logical.action.completed", sequence: 2, actionId: "legacy-tap", operation: "Tap", normalizedArguments: { locate: { center: [42, 65] } } },
+    ]);
+    await replayAndroidPrimitive({ device: { tap } } as never, explicit.primitive);
+    await replayAndroidPrimitive({ device: { tap } } as never, legacy.primitive);
+    expect(tap.mock.calls).toEqual([[{ x: 42, y: 65 }, 75], [{ x: 42, y: 65 }, undefined]]);
+  });
   it("preserves content dwell duration without dispatching device input", async () => {
     vi.useFakeTimers();
     try {

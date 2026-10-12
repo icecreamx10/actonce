@@ -37,6 +37,14 @@ Unattempted stages are omitted; source reads may use the adjacent-observation ca
 Comparison includes reference loading and pixel processing, not device capture.
 These diagnostics do not change deadlines, freshness, or checkpoint semantics.
 
+Coordinate taps and swipes use native Android `input swipe` injection, while
+UIAutomator2 remains the persistent observation service and unique-node click
+provider. `device.tap(point, durationMs?)` has an explicit 150-ms default press;
+swipes retain their recorded duration (300 ms when absent). Explicit neutral
+recorded tap durations are lowered and dispatched unchanged. The default press
+preserves the pinned original device's implicit hold rather than a zero-duration
+W3C down/up; it does not establish fixture or UI-consumption equivalence by itself.
+
 Visual checkpoints may specify `visual.anchor: { selector, referenceSourcePath }`
 alongside an explicit `visual.region`. The runtime resolves a unique native node
 in each recorded/live tree and translates the live crop by its physical-pixel
