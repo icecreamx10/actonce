@@ -19,7 +19,7 @@ npm run android-world:catalog -- --selection pass@1 --format lines
 npm run android-world:catalog -- --selection pass@3 --format lines
 ```
 
-## Current formal snapshot
+## Formal snapshots
 
 Original recording can explicitly select `--model-profile codex-6.1-sol` for
 `gpt-6.1-sol` through the authenticated local Codex app server. Verify that profile
@@ -28,7 +28,11 @@ measurement. Existing Luna profiles and defaults are unchanged. Preserve each
 case's actual model/revision provenance; replay stays model-free and successful
 originals are reused rather than re-recorded on a model change.
 
-The current zero-context, one-sample formal slice covers four of the 113 target
+The [October 10–12 audit](REPRODUCTION-2026-10-12.md) freshly verifies all five
+strict-slice tasks and three broader tasks. Its per-case revisions and original
+reuse are explicit; it does not claim full-suite coverage or aggregate unlike revisions.
+
+The earlier zero-context, one-sample formal slice below covers four of the 113 target
 tasks. Every replay passed the official AndroidWorld reward gate with no AI
 fallback or replay retry:
 

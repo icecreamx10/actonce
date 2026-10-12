@@ -18,7 +18,7 @@ npm run android-world:catalog -- --selection pass@1 --format lines
 npm run android-world:catalog -- --selection pass@3 --format lines
 ```
 
-## 当前正式快照
+## 正式快照
 
 原始录制可明确选择 `--model-profile codex-6.1-sol`，通过本地已登录的 Codex
 app server 使用 `gpt-6.1-sol`。计时前运行
@@ -26,7 +26,10 @@ app server 使用 `gpt-6.1-sol`。计时前运行
 既有 Luna profile 和默认值不变；逐 case 保留实际模型与版本来源。Replay 仍不调用
 模型，成功的 original 不因切换模型而重新录制。
 
-当前零上下文、单 sample 的正式切片覆盖 113 个目标任务中的 4 个。每个 replay
+[10 月 10–12 日审计](REPRODUCTION-2026-10-12.md) 已新验证严格切片的全部 5 个任务和
+broader 的 3 个任务，明确逐 case 版本及 original 复用，不声称全量通过，也不汇总不同版本。
+
+以下为较早的零上下文、单 sample 正式切片，覆盖 113 个目标任务中的 4 个。每个 replay
 都通过 AndroidWorld 官方 reward 门禁，AI fallback 与 replay retry 均为 0：
 
 | 任务 | Original | Replay | 加速比 |
