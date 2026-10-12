@@ -11,6 +11,9 @@ async function withFakeAdb(cameraMode: string, body: string) {
   const directory = await mkdtemp(join(tmpdir(), "actonce-camera-start-"));
   try {
     await mkdir(join(directory, "platform-tools"));
+    await mkdir(join(directory, "emulator"));
+    // Prevent the launcher from invoking SDK bootstrap before the reuse check.
+    await writeFile(join(directory, "emulator/emulator"), "#!/usr/bin/env bash\nexit 99\n", { mode: 0o755 });
     await writeFile(join(directory, "platform-tools/adb"), `#!/usr/bin/env bash\nset -euo pipefail\nif [[ "$*" == *get-state ]]; then echo device; exit 0; fi\n${body}\n`, { mode: 0o755 });
     return await exec("bash", [resolve("scripts/android/start-emulator.sh")], {
       timeout: 5000,
