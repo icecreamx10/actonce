@@ -88,4 +88,31 @@ describe("AndroidWorld runtime permission fixture", () => {
     await expect(captureRuntimePermissionFixture([{ package: pkg }], async () => unknown)).rejects.toThrow("Unknown");
     await expect(restoreRuntimePermissionFixture(fixture, [{ package: pkg }], async () => unknown)).resolves.toBeUndefined();
   });
+
+  it("accepts opaque decimal system bits without dropping named mutable flags", async () => {
+    const calls: string[][] = [];
+    let fixed = true;
+    const output = () => dump(false).replace("USER_SET", `USER_SET|USER_SENSITIVE_WHEN_GRANTED|ONE_TIME|524288${fixed ? "|USER_FIXED" : ""}`);
+    const captured = await captureRuntimePermissionFixture([{ package: pkg }], async () => output());
+    expect(captured.packages[0]!.permissionFlags![permission]).toEqual({ "user-set": true, "user-fixed": true });
+    const partial = { ...fixture, packages: [{ ...fixture.packages[0], permissionFlags: { [permission]: { "user-fixed": false } } }] };
+    await restoreRuntimePermissionFixture(partial, [{ package: pkg }], async args => {
+      calls.push(args);
+      if (args.includes("clear-permission-flags")) fixed = false;
+      return args.includes("dumpsys") ? output() : "";
+    });
+    expect(calls).toContainEqual(["shell", "pm", "clear-permission-flags", "--user", "0", pkg, permission, "user-fixed"]);
+    expect(calls.some(args => args.includes("user-set") || args.includes("524288") || args.includes("ONE_TIME"))).toBe(false);
+  });
+
+  it("rejects malformed or ambiguous numeric flags before any writes", async () => {
+    for (const token of ["524288oops", "-524288", "524288.0", "4294967296", "1", "3"]) {
+      const calls: string[][] = [];
+      const output = dump(false).replace("USER_SET", token);
+      const flagged = { ...fixture, packages: [{ ...fixture.packages[0], permissionFlags: { [permission]: { "user-fixed": false } } }] };
+      await expect(restoreRuntimePermissionFixture(flagged, [{ package: pkg }], async args => { calls.push(args); return output; })).rejects.toThrow("Unknown");
+      expect(calls.every(args => args.includes("dumpsys"))).toBe(true);
+      await expect(captureRuntimePermissionFixture([{ package: pkg }], async () => output)).rejects.toThrow("Unknown");
+    }
+  });
 });

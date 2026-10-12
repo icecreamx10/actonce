@@ -31,7 +31,15 @@ function parseRuntimePermissionState(output: string): Record<string, { granted: 
     const permission = line.match(/^\s*([\w.]+): granted=(true|false)(?:,|\s|$)/);
     if (permission) {
       const flags = line.match(/flags=\[([^\]]*)\]/);
-      const flagsKnown = flags && flags[1]!.split(/[|,\s]+/).filter(Boolean).every(flag => /^[A-Z_]+$/.test(flag));
+      const flagsKnown = flags && flags[1]!.split(/[|,\s]+/).filter(Boolean).every(flag => {
+        if (/^[A-Z_]+$/.test(flag)) return true;
+        // dumpsys may render unrecognized flag bits as decimal numbers. They
+        // are opaque, not fixture mutations; never infer tracked mutable bits
+        // from an ambiguous numeric token (USER_SET=1, USER_FIXED=2).
+        if (!/^\d+$/.test(flag)) return false;
+        const bits = Number(flag);
+        return Number.isSafeInteger(bits) && bits <= 0xffffffff && (bits & 3) === 0;
+      });
       result[permission[1]!] = { granted: permission[2] === "true", ...(flagsKnown ? { flags: {
         "user-set": /\bUSER_SET\b/.test(flags[1]!), "user-fixed": /\bUSER_FIXED\b/.test(flags[1]!),
       } } : {}) };
