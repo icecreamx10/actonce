@@ -29,7 +29,7 @@ case's actual model/revision provenance; replay stays model-free and successful
 originals are reused rather than re-recorded on a model change.
 
 The [October 10–12 audit](REPRODUCTION-2026-10-12.md) freshly verifies all five
-strict-slice tasks and five broader tasks. Its per-case revisions and original
+strict-slice tasks and six broader tasks. Its per-case revisions and original
 reuse are explicit; it does not claim full-suite coverage or aggregate unlike revisions.
 
 The earlier zero-context, one-sample formal slice below covers four of the 113 target
