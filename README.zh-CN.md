@@ -24,7 +24,7 @@ Computer-use Agent 擅长探索陌生界面，但每次都重新发现同一个�
 | AndroidWorld · 历史较大验证集 | 1,760.637 秒 | 187.664 秒 | 9.38× | 历史 19/19，fallback 0 |
 | AndroidWorld · 10 月 10–12 日新严格切片 | 逐 case | 逐 case | 3.05–24.80× | 5/5，fallback 0 |
 
-AndroidWorld 完整目标是 Midscene 三轮公开结果中至少通过一次的 113 个任务。新验证覆盖 **严格切片 5/5、较大验证集 16/19 个合格回放**，不是本轮 19/19。较大验证集的 original 现已全部成功；照片、视频、重复账单的 replay 资格验证仍有阻塞。[10 月 10–12 日审计](benchmark/android/android-world/REPRODUCTION-2026-10-12.zh-CN.md) 记录逐 case 结果、失败、计时范围和版本。成功的 original 复用；不同版本及录制/原生会话的开销不合并成同质 suite 总分。其他平台行是历史运行，本轮未重测。
+AndroidWorld 完整目标是 Midscene 三轮公开结果中至少通过一次的 113 个任务。新验证覆盖 **严格切片 5/5、较大验证集 18/19 个合格回放**，不是本轮 19/19。较大验证集的 original 现已全部成功；视频 replay 因权限生命周期证据缺失仍阻塞。[10 月 10–12 日审计](benchmark/android/android-world/REPRODUCTION-2026-10-12.zh-CN.md) 记录逐 case 结果、失败、计时范围和版本。成功 original 和已通过 replay 均复用；不同版本及录制/原生会话的开销不合并成同质 suite 总分。其他平台行是历史运行，本轮未重测。
 
 协议与证据：
 
