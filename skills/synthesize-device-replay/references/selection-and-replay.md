@@ -22,6 +22,11 @@ UI, recorder shutdown, and repairs performed after recording closed.
 The agent must inspect the cited screenshots/native artifacts before deciding. Do not
 derive inclusion or exclusion from event names alone.
 
+Equal UI captures do not prove that an action was side-effect-free. Before excluding
+apparent exploration or recovery, account for permission, persisted-resource and
+lifecycle effects using its own evidence. If those effects matter to the selected
+successful path and cannot be ruled out, retain the transition or report the gap.
+
 ## Author state transitions before actions
 
 Treat every completed top-level state-changing logical action as a candidate transition:
@@ -47,6 +52,13 @@ when the literal identifier does not. Merely finding any existing resource is no
 enough; reject the nearest incomplete/unsaved state. Document this decision in
 `assertion-decision.json` before execution. Do not clear unrelated pre-existing
 resources solely to make an incidental literal match the demonstration.
+
+Read an external oracle's actual contract and wait for its completed result before
+classifying success. A directory-count oracle proves a new entry, not necessarily
+usable media. Preserve the recording's discriminative completion evidence (for
+example, a captured preview rather than merely stopped controls), or prove an
+equivalent recorded/live completion fact. An incidental counter may be generalized,
+but not at the expense of the generated resource's necessary saved/usable semantics.
 
 Native dump fields are not automatically task requirements. In particular, an
 intermediate numeric control value may be a rendering-derived value rather than
