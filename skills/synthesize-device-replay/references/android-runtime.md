@@ -22,6 +22,13 @@ native artifact that proves the selector has exactly one match, include class pl
 semantic field where possible, and pass the normalized recorded coordinate as its
 fallback. `tapUniqueNode` performs a real UIAutomator2 element click; do not emulate
 it by finding node bounds and sending another coordinate event.
+Declare `loweredOperation: "tapUniqueNode"` and an agent-authored ledger
+`optimization: { kind: "native-selector", selector, coordinateFallback,
+uniqueness: "exactly-one", evidence, rationale }`. Evidence must cite that action's
+available before-action native tree; the fallback must equal its recorded logical
+center. The single-action lowerer still emits the original tap. The agent—not the
+lowerer—authors this justified optimization, and plan arguments must preserve the
+declared selector and fallback.
 When the selector click can report success without satisfying its recorded
 postcondition, mark the segment `observe-before-retry` and register the original
 coordinate as its single `deterministicRetry`; let `ReplayFlow` gate and diagnose it.

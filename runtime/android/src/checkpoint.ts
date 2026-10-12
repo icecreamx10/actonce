@@ -10,10 +10,16 @@ import type {
 } from "@byted-lynx/actonce-replay";
 import { ReplayFlow } from "@byted-lynx/actonce-replay";
 import type { AndroidSession } from "./session.js";
+import type { AndroidNodeSelector } from "./types.js";
+import { readFile } from "node:fs/promises";
+
+export type AndroidVisualRegion = { left: number; top: number; width: number; height: number };
 
 export type AndroidVisualExpectation = {
   referencePath: string;
-  region?: { left: number; top: number; width: number; height: number };
+  region?: AndroidVisualRegion;
+  /** Agent-selected landmark, in physical screenshot pixels. Translation only. */
+  anchor?: { selector: AndroidNodeSelector; referenceSourcePath: string };
   resizeWidth?: number;
   pixelThreshold?: number;
   maxDifferenceRatio?: number;
@@ -24,6 +30,8 @@ export type AndroidVisualComparison = {
   meanAbsoluteDifference: number;
   width: number;
   height: number;
+  referenceRegion?: AndroidVisualRegion;
+  actualRegion?: AndroidVisualRegion;
 };
 export type AndroidCheckpointExpectation = {
   source?: { includes?: string[]; excludes?: string[] };
@@ -68,7 +76,7 @@ export class AndroidCheckpointDriver
     const actual: AndroidCheckpointActual = { captureErrors: [] };
     if (context?.signal.aborted)
       actual.captureErrors.push("checkpoint deadline exceeded before capture");
-    if (!actual.captureErrors.length && spec.expected.source)
+    if (!actual.captureErrors.length && (spec.expected.source || spec.expected.visual?.anchor))
       try {
         actual.source = await this.android.source();
       } catch (error) {
@@ -91,6 +99,7 @@ export class AndroidCheckpointDriver
           actual.visual = await compareAndroidVisualScreenshot(
             actual.screenshotBase64,
             spec.expected.visual,
+            actual.source,
           );
       } catch (error) {
         actual.captureErrors.push(`screenshot: ${message(error)}`);
@@ -153,15 +162,23 @@ export function compareAndroidCheckpoint(
 export async function compareAndroidVisualScreenshot(
   actualBase64: string,
   expected: AndroidVisualExpectation,
+  actualSource?: string,
 ): Promise<AndroidVisualComparison> {
   const { default: sharp } = await import("sharp");
   const width = integer(expected.resizeWidth ?? 256);
   const threshold = byte(expected.pixelThreshold ?? 16);
+  const actualRegion = expected.anchor
+    ? resolveAndroidAnchoredRegion(
+        expected,
+        await readFile(expected.anchor.referenceSourcePath, "utf8"),
+        actualSource,
+      )
+    : expected.region;
   const reference = expected.region
     ? sharp(expected.referencePath).extract(expected.region)
     : sharp(expected.referencePath);
-  const actual = expected.region
-    ? sharp(Buffer.from(actualBase64, "base64")).extract(expected.region)
+  const actual = actualRegion
+    ? sharp(Buffer.from(actualBase64, "base64")).extract(actualRegion)
     : sharp(Buffer.from(actualBase64, "base64"));
   const metadata = await reference.clone().metadata();
   if (!metadata.width || !metadata.height)
@@ -193,7 +210,62 @@ export async function compareAndroidVisualScreenshot(
     meanAbsoluteDifference: absolute / left.length,
     width,
     height,
+    referenceRegion: expected.region,
+    actualRegion,
   };
+}
+
+/** Resolve a proven landmark without searching the image for a favorable match. */
+export function resolveAndroidAnchoredRegion(
+  expected: AndroidVisualExpectation,
+  referenceSource: string,
+  actualSource?: string,
+): AndroidVisualRegion {
+  if (!expected.anchor || !expected.region)
+    throw new TypeError("visual anchor requires an explicit reference region");
+  const selector = expected.anchor.selector;
+  if (!Object.values(selector).some(value => typeof value === "string" && value.length > 0))
+    throw new TypeError("visual anchor selector must not be empty");
+  const reference = uniqueAnchorBounds(referenceSource, selector);
+  const actual = uniqueAnchorBounds(actualSource, selector);
+  if (reference.width !== actual.width || reference.height !== actual.height)
+    throw new Error("visual anchor size changed; translation-only alignment refused");
+  const region = {
+    ...expected.region,
+    left: expected.region.left + actual.left - reference.left,
+    top: expected.region.top + actual.top - reference.top,
+  };
+  if (!Number.isInteger(region.left) || !Number.isInteger(region.top) || region.left < 0 || region.top < 0
+      || !Number.isInteger(region.width) || region.width <= 0 || !Number.isInteger(region.height) || region.height <= 0)
+    throw new Error("visual anchor resolved an invalid crop");
+  return region;
+}
+
+function uniqueAnchorBounds(source: string | undefined, selector: AndroidNodeSelector): AndroidVisualRegion {
+  if (!source) throw new Error("visual anchor requires native source evidence");
+  const matches: Record<string, unknown>[] = [];
+  const visit = (value: unknown): void => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    const node = value as Record<string, unknown>;
+    if (typeof node.class === "string"
+        && (selector.type === undefined || node.class === selector.type)
+        && (selector.text === undefined || node.text === selector.text)
+        && (selector.contentDescription === undefined || node["content-desc"] === selector.contentDescription)
+        && (selector.resourceId === undefined || node["resource-id"] === selector.resourceId)) matches.push(node);
+    Object.values(node).forEach(visit);
+  };
+  visit(JSON.parse(source));
+  if (matches.length !== 1) throw new Error(`visual anchor requires exactly one native node, found ${matches.length}`);
+  const node = matches[0]!;
+  if (node.enabled === "false" || node["visible-to-user"] === "false")
+    throw new Error("visual anchor is disabled or not visible");
+  const bounds = typeof node.bounds === "string" && node.bounds.match(/^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$/);
+  if (!bounds) throw new Error("visual anchor has invalid physical bounds");
+  const left = Number(bounds[1]), top = Number(bounds[2]);
+  const width = Number(bounds[3]) - left, height = Number(bounds[4]) - top;
+  if (width <= 0 || height <= 0) throw new Error("visual anchor has empty bounds");
+  return { left, top, width, height };
 }
 function integer(value: number): number {
   if (!Number.isInteger(value) || value <= 0)
