@@ -2,6 +2,23 @@
 
 面向 ActOnce 生成脚本的确定性 Android replay runtime。
 
+### 显式逻辑应用名
+
+Primitive/plan 必须保留录制的原始 `Launch` URI。若 URI 是逻辑名称而非包名，
+调用者必须根据原始运行证据提供映射：
+
+```ts
+await executeAndroidPlan(plan, {
+  session: { appNameMapping: { dialer: "com.google.android.dialer" } },
+});
+```
+
+`AndroidSession.connect` 与 `runAndroidScripts` 的 `session` 配置也支持该选项。
+先精确匹配，再去除首尾空白、合并连续空白并转为小写匹配。连接设备前验证并复制
+整个映射：空名称、非法包名、访问器和规范化后重名均拒绝（即使目标包名相同）。
+直接包名保持原样，映射不能重定向包名；未知别名不会模糊匹配、枚举应用或调用 AI。
+示例不是内置别名，实际包名必须由原始运行证据确定。
+
 它连接一个明确的 ADB device，把已完成的 Midscene Android 动作机械降低为固定 primitive，并用 Android UI tree 与截图 checkpoint 驱动 replay。相邻 segment 之间如果没有动作发生，上一段成功的 postcondition 会直接作为下一段 precondition 的同一份观察；任何 primitive 执行前都会使缓存失效，因此不会削弱状态边界。
 
 读取 source 时关闭 UIAutomator2 内部的隐式 idle 等待，但每次仍刷新 accessibility/window

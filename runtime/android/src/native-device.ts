@@ -62,15 +62,17 @@ export class NativeAndroidDevice {
     readonly serial: string,
     private readonly adbPath: string,
     private readonly systemPort: number,
+    private readonly appNameMapping: Readonly<Record<string, string>>,
   ) {}
 
   static async connect(options: AndroidSessionOptions = {}): Promise<NativeAndroidDevice> {
+    const appNameMapping = validateAndroidAppNameMapping(options.appNameMapping);
     const adbPath = options.androidAdbPath ?? process.env.ACTONCE_ADB_PATH ?? process.env.ANDROID_ADB_PATH ?? "adb";
     const connected = await adb(adbPath, undefined, ["devices"]);
     const serials = connected.split("\n").slice(1).map((line) => line.trim().split(/\s+/)).filter((parts) => parts[1] === "device").map((parts) => parts[0]);
     const serial = options.serial ?? process.env.ACTONCE_ANDROID_SERIAL ?? serials[0];
     if (!serial || !serials.includes(serial)) throw new Error(`Android device ${serial ?? "<none>"} is not connected`);
-    const device = new NativeAndroidDevice(serial, adbPath, resolveAndroidSystemPort(options.systemPort));
+    const device = new NativeAndroidDevice(serial, adbPath, resolveAndroidSystemPort(options.systemPort), appNameMapping);
     await device.start();
     return device;
   }
@@ -239,7 +241,8 @@ export class NativeAndroidDevice {
   async home(): Promise<void> { await this.keyboardPress("HOME"); }
   async recentApps(): Promise<void> { await this.keyboardPress("APP_SWITCH"); }
   async launch(packageName: string): Promise<void> {
-    await activateAndroidPackage(packageName, (args) => this.shell(args));
+    const resolvedPackage = resolveAndroidAppName(packageName, this.appNameMapping);
+    await activateAndroidPackage(resolvedPackage, (args) => this.shell(args));
   }
   async terminate(packageName: string): Promise<void> { await this.shell(["am", "force-stop", packageName]); }
 
@@ -287,6 +290,58 @@ export class NativeAndroidDevice {
 }
 
 type AndroidShell = (args: string[]) => Promise<string>;
+
+const ANDROID_PACKAGE_NAME = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/;
+
+function normalizeAndroidAppName(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** Validate the complete caller mapping before any device I/O and snapshot it. */
+export function validateAndroidAppNameMapping(
+  mapping: AndroidSessionOptions["appNameMapping"],
+): Readonly<Record<string, string>> {
+  const result: Record<string, string> = Object.create(null);
+  const normalized = new Set<string>();
+  if (mapping === undefined) return Object.freeze(result);
+  if (mapping === null || typeof mapping !== "object" || Array.isArray(mapping)
+    || (Object.getPrototypeOf(mapping) !== Object.prototype
+      && Object.getPrototypeOf(mapping) !== null)
+    || Reflect.ownKeys(mapping).some((key) => typeof key !== "string")) {
+    throw new TypeError("Invalid Android appNameMapping: expected a plain string record");
+  }
+  for (const [name, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(mapping))) {
+    const key = normalizeAndroidAppName(name);
+    const packageName: unknown = descriptor.value;
+    if (!key || !("value" in descriptor) || typeof packageName !== "string"
+      || !ANDROID_PACKAGE_NAME.test(packageName)) {
+      throw new TypeError(`Invalid Android appNameMapping entry: ${name}`);
+    }
+    if (normalized.has(key)) {
+      throw new TypeError(`Ambiguous Android appNameMapping name: ${name}`);
+    }
+    if (ANDROID_PACKAGE_NAME.test(name) && name !== packageName) {
+      throw new TypeError(`Android appNameMapping cannot redirect package: ${name}`);
+    }
+    normalized.add(key);
+    result[name] = packageName;
+  }
+  return Object.freeze(result);
+}
+
+/** Exact name first, then trim/collapse whitespace + lowercase; never discover apps. */
+export function resolveAndroidAppName(
+  name: string,
+  mapping?: AndroidSessionOptions["appNameMapping"],
+): string {
+  const validated = validateAndroidAppNameMapping(mapping);
+  if (ANDROID_PACKAGE_NAME.test(name)) return name;
+  if (Object.hasOwn(validated, name)) return validated[name]!;
+  const key = normalizeAndroidAppName(name);
+  const match = Object.keys(validated).find((candidate) => normalizeAndroidAppName(candidate) === key);
+  if (match !== undefined) return validated[match]!;
+  throw new TypeError(`Unmapped Android app name: ${name}`);
+}
 
 /**
  * Encodes a logical string for Android's `input text` command. `adb shell`
