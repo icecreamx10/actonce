@@ -16,6 +16,7 @@ import {
 } from "./chrome-fixture.js";
 import { captureRuntimePermissionFixture, restoreRuntimePermissionFixture } from "./permission-fixture.js";
 import { initialTargetPolicy, isInitialTargetForeground } from "./initial-target.js";
+import { originalTimingBoundary, validateReplaySelection } from "./replay-module.js";
 
 type Mode = "all" | "original" | "replay" | "evaluate";
 const args = parseArgs(process.argv.slice(2));
@@ -67,6 +68,7 @@ async function original() {
   const official = await task("evaluate");
   const manifest = await json(resolve(runDir, "manifest.json"));
   const duration = manifestDuration(manifest) ?? processResult.durationMs;
+  if (processResult.code !== 0 || official.reward !== 1) process.exitCode = 2;
   await writeJson(resolve(runDir, "result.json"), {
     schemaVersion: 1,
     benchmark: benchmarkId(),
@@ -79,6 +81,8 @@ async function original() {
     apps: initialized.apps,
     permissionFixture,
     executionDurationMs: duration,
+    childProcessDurationMs: processResult.durationMs,
+    timingBoundary: { scope: manifestDuration(manifest) !== null ? "recording-session" : "child-process", managedBy: "recorder-manifest", includesRecorderOverhead: true },
     officialValidator: official,
     processExitCode: processResult.code,
     model: modelProfileProvenance(args.modelProfile),
@@ -101,14 +105,15 @@ async function replay() {
   const replayEntry = args.replayEntry ?? (args.task === "SystemBrightnessMax"
     ? "benchmark/android/android-world/system-brightness-max-replay.ts"
     : undefined);
-  if (!replayEntry) throw new Error(`--replay-entry is required for ${args.task}`);
+  if (!replayEntry && !args.replayModule) throw new Error(`--replay-module or --replay-entry is required for ${args.task}`);
   const processResult = await run(
     "node_modules/.bin/tsx",
-    [replayEntry],
+    args.replayModule ? ["benchmark/android/android-world/replay-module.ts", "--replay-module", args.replayModule, "--serial", process.env.ACTONCE_ANDROID_SERIAL || "emulator-5554", "--output", runDir] : [replayEntry!],
     { ACTONCE_BENCHMARK_OUTPUT_DIR: runDir },
   );
   const official = await task("evaluate");
   const runtime = await json(resolve(runDir, "result.json"));
+  if (processResult.code !== 0 || runtime?.status !== "passed" || official.reward !== 1) process.exitCode = 2;
   await writeJson(resolve(runDir, "benchmark-result.json"), {
     schemaVersion: 1,
     benchmark: benchmarkId(),
@@ -120,6 +125,8 @@ async function replay() {
     params: initialized.params,
     permissionFixture,
     executionDurationMs: runtime?.executionDurationMs ?? processResult.durationMs,
+    childProcessDurationMs: processResult.durationMs,
+    timingBoundary: args.replayModule ? runtime?.timingBoundary ?? null : { scope: "legacy-entry-reported", managedBy: "authored-entry", reportedBoundary: runtime?.timingBoundary ?? null },
     officialValidator: official,
     replayDiagnostics: runtime?.replayDiagnostics ?? null,
     processExitCode: processResult.code,
@@ -133,7 +140,10 @@ async function evaluate() {
   const passed = originalResult?.status === "passed" && replayResult?.status === "passed";
   const originalMs = number(originalResult?.executionDurationMs);
   const replayMs = number(replayResult?.executionDurationMs);
-  const comparable = passed && originalMs !== null && replayMs !== null && replayMs > 0;
+  const originalBoundary = object(originalTimingBoundary(originalResult, await json(resolve(outputDir, "original/manifest.json"))));
+  const replayBoundary = object(replayResult?.timingBoundary);
+  const knownTimingScopes = originalBoundary?.scope === "recording-session" && replayBoundary?.scope === "device-session";
+  const comparable = passed && knownTimingScopes && originalMs !== null && replayMs !== null && replayMs > 0;
   const speedup = comparable ? originalMs / replayMs : null;
   const result = {
     schemaVersion: 1,
@@ -158,6 +168,9 @@ async function evaluate() {
     },
     performance: {
       comparable,
+      originalTimingBoundary: originalBoundary,
+      replayTimingBoundary: replayBoundary,
+      timingCaveat: knownTimingScopes ? "Recorded original includes recorder overhead; replay measures native device-session setup, execution and teardown. These are documented, not identical, scopes." : "Timing scopes are legacy, missing, or otherwise unverified; no formal speedup is asserted.",
       originalExecutionDurationMs: originalMs,
       replayExecutionDurationMs: replayMs,
       speedup,
@@ -343,12 +356,14 @@ function parseArgs(values: string[]): {
   seed?: number;
   originalEntry?: string;
   replayEntry?: string;
+  replayModule?: string;
   fixturePermissions?: string;
   modelProfile: AndroidWorldModelProfile;
 } {
   let mode: Mode = "all", output: string | undefined, task = "SystemBrightnessMax";
   let seed: number | undefined, originalEntry: string | undefined, replayEntry: string | undefined;
   let fixturePermissions: string | undefined;
+  let replayModule: string | undefined;
   let modelProfile: AndroidWorldModelProfile = "codex-luna";
   for (let index = 0; index < values.length; index += 1) {
     if (values[index] === "--mode") mode = values[++index] as Mode;
@@ -357,6 +372,10 @@ function parseArgs(values: string[]): {
     else if (values[index] === "--seed") seed = Number(values[++index]);
     else if (values[index] === "--original-entry") originalEntry = values[++index];
     else if (values[index] === "--replay-entry") replayEntry = values[++index];
+    else if (values[index] === "--replay-module") {
+      replayModule = values[++index];
+      if (!replayModule || replayModule.startsWith("--")) throw new Error("--replay-module requires a path");
+    }
     else if (values[index] === "--fixture-permissions") {
       fixturePermissions = values[++index];
       if (!fixturePermissions || fixturePermissions.startsWith("--")) throw new Error("--fixture-permissions requires a path");
@@ -367,7 +386,8 @@ function parseArgs(values: string[]): {
   if (!["all", "original", "replay", "evaluate"].includes(mode)) throw new Error(`Unknown mode: ${mode}`);
   if (seed !== undefined && !Number.isInteger(seed)) throw new Error(`Invalid seed: ${seed}`);
   requireAndroidWorldModelProfile(modelProfile);
-  return { mode, output, task, seed, originalEntry, replayEntry, fixturePermissions, modelProfile };
+  validateReplaySelection(replayModule, replayEntry);
+  return { mode, output, task, seed, originalEntry, replayEntry, replayModule, fixturePermissions, modelProfile };
 }
 
 async function json(path: string): Promise<Record<string, unknown> | null> {

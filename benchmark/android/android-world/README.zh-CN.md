@@ -1,5 +1,25 @@
 # AndroidWorld Benchmark
 
+## 新回放的计时协议
+
+新评测使用 `--replay-module <module.ts>`：agent 生成 SDK module，默认导出
+接收 `{ android, flow }` 的执行函数；可选导出 `config` 提供原生 session 配置。
+module 不自行连接、关闭、计时或写 benchmark 结果。调用：
+
+```bash
+npm run benchmark:android:android-world -- --mode replay --task <task> --output <sample> --replay-module <module.ts>
+```
+
+CLI 使用单调时钟，从连接前计时至关闭后，包含动作、checkpoint、重试和最终
+截图/原生树采集；module 加载与文件写入不计时。未解决的 checkpoint 失败不能
+因 module 捕获异常而变成成功。最终证据保存为文件引用及 hash。
+
+成功 original 可携带完整 manifest 原样复用；旧结果仅在时长与完整 manifest
+精确对应时推导 recording 边界，不改写原文件。original 包含 recorder 开销，
+replay 包含原生设备 session 生命周期，两个范围明确但并非完全相同。
+旧 `--replay-entry` 仍兼容，然而自定义计时边界未经验证，不用于新的正式加速比。
+此前 CameraTakePhoto 仅动作阶段的时长也不能与 original 完整录制时长直接比较。
+
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 该 harness 运行官方 AndroidWorld `SystemBrightnessMax` 任务；Midscene 在

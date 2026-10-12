@@ -109,7 +109,7 @@ recording coverage only. Agent synthesis and an independently measured replay ar
 still required before reporting ActOnce speedup.
 
 There is intentionally no benchmark CLI compile phase. After the original
-phase, invoke the published `compile-device-recording` Skill separately for
+phase, invoke the published `synthesize-device-replay` Skill separately for
 every complete official-pass recording. The Skill owns segment selection,
 semantic target mapping, checkpoint decisions, generated code, execution,
 diagnosis, and fresh-fixture repair. Primitive lowering must preserve the raw
@@ -134,6 +134,16 @@ the replay is incorrect: diagnose the first skipped, mismatched, or over-broad
 checkpoint; repair the compiler/runtime; and recompile and rerun until stable or
 a concrete blocker is proven. These are development validation attempts. Only
 then delegate formal replay measurement to a different zero-context agent.
+
+For new AndroidWorld measurements, generate an SDK replay module and invoke the
+public CLI with `--replay-module <module.ts>` (see the benchmark README).
+The module receives the runner-owned `android` session and `flow`; it must not
+connect, close, measure duration, or write its own benchmark result. The CLI's
+monotonic clock includes connection, actions/checkpoints/retries, final evidence
+capture, and close. Module loading and artifact writing are outside the clock.
+Legacy `--replay-entry` results retain correctness evidence but have an unverified
+authored timing boundary; do not claim a new formal speedup from them. Reuse a
+successful original and its complete manifest when validating a new replay module.
 
 Before delegating formal suite work, the coordinator must run the resumable
 measurement-external setup and require `24 ready / 0 failed / 0 pending`:
