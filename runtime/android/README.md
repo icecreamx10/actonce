@@ -4,6 +4,12 @@ Deterministic Android replay runtime for ActOnce-generated scripts.
 
 It connects to one explicit ADB device, mechanically lowers recorded Android actions to fixed primitives, and gates replay segments with Android accessibility-tree and screenshot checkpoints. The runtime starts one persistent Appium UIAutomator2 server per replay session and reads `/source` from that process; it does not invoke a cold `uiautomator dump` for every checkpoint and does not depend on Midscene. A successful postcondition is reused as the next adjacent precondition until a primitive invalidates the observation.
 
+Source reads disable UIAutomator2's implicit idle wait and still refresh its
+accessibility/window caches on each capture. A fresh snapshot may show a
+transition: callers must retain bounded checkpoint polling and stability checks,
+not assume the first read is settled. Deadlines are not extended to hide slow
+capture; `captureDurationMs` and `settleDelayMs` remain separate metrics.
+
 ```bash
 actonce-android doctor --serial emulator-5554
 actonce-android compile-primitives recordings/<id> --output replay.ts
