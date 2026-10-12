@@ -45,12 +45,27 @@ describe("content-anchored visual checkpoints", () => {
     const positive = await compareAndroidVisualScreenshot((await image(5)).toString("base64"), spec, source(45));
     const negative = await compareAndroidVisualScreenshot((await image(5, true)).toString("base64"), spec, source(45));
     expect(positive.differenceRatio).toBe(0);
+    expect(positive.height).toBe(80);
     expect(positive.actualRegion?.top).toBe(5);
     expect(negative.differenceRatio).toBeGreaterThan(0.03);
     const sourceCapture = vi.fn(async () => source(45));
     const driver = new AndroidCheckpointDriver({ source: sourceCapture, screenshot: async () => (await image(5)).toString("base64"), invalidateObservation: vi.fn() } as never);
     expect((await driver.verify({ id: "anchored", expected: { visual: spec } })).status).toBe("matched");
     expect(sourceCapture).toHaveBeenCalledOnce();
+  });
+});
+
+describe("visual crop aspect ratio", () => {
+  it("uses the crop aspect instead of the original portrait frame", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "actonce-crop-aspect-"));
+    const referencePath = join(directory, "reference.png");
+    const image = await sharp({ create: { width: 120, height: 360, channels: 3, background: "white" } }).png().toBuffer();
+    await writeFile(referencePath, image);
+    const region = { left: 10, top: 20, width: 100, height: 20 };
+    const cropped = await compareAndroidVisualScreenshot(image.toString("base64"), { referencePath, region, resizeWidth: 50 });
+    expect(cropped).toMatchObject({ width: 50, height: 10, differenceRatio: 0, referenceRegion: region });
+    const whole = await compareAndroidVisualScreenshot(image.toString("base64"), { referencePath, resizeWidth: 50 });
+    expect(whole).toMatchObject({ width: 50, height: 150, differenceRatio: 0 });
   });
 });
 
