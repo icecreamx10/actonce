@@ -44,6 +44,15 @@ const LEGACY_MODEL_PROFILES = {
 
 export const ANDROID_WORLD_MODEL_PROFILES = {
   ...LEGACY_MODEL_PROFILES,
+  "codex-6.1-sol": {
+    ...LEGACY_MODEL_PROFILES["codex-luna"],
+    id: "codex-6.1-sol",
+    model: "gpt-6.1-sol",
+    env: {
+      ...LEGACY_MODEL_PROFILES["codex-luna"].env,
+      MIDSCENE_MODEL_NAME: "gpt-6.1-sol",
+    },
+  },
   "codex-6-luna": {
     ...LEGACY_MODEL_PROFILES["codex-luna"],
     id: "codex-6-luna",

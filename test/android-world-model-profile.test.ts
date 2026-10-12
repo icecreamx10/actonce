@@ -38,6 +38,14 @@ describe("AndroidWorld model profiles", () => {
     expect(() => requireAndroidWorldModelProfile("unknown")).toThrow(/Unknown AndroidWorld model profile/);
   });
 
+  it("keeps the explicit GPT-6.1 Sol profile separate from existing Luna profiles", () => {
+    const profile = requireAndroidWorldModelProfile("codex-6.1-sol");
+    expect(profile.env.MIDSCENE_MODEL_NAME).toBe("gpt-6.1-sol");
+    expect(modelProfileProvenance("codex-6.1-sol").model).toBe("gpt-6.1-sol");
+    expect(requireAndroidWorldModelProfile("codex-6-luna").env.MIDSCENE_MODEL_NAME).toBe("gpt-6-luna");
+    expect(requireAndroidWorldModelProfile("codex-luna").env.MIDSCENE_MODEL_NAME).toBe("gpt-5.6-luna");
+  });
+
   it("uses the requested GPT-6 Luna for both execution and provenance", () => {
     const profile = requireAndroidWorldModelProfile("codex-6-luna");
     expect(profile.env.MIDSCENE_MODEL_NAME).toBe("gpt-6-luna");
