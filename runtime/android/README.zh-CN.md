@@ -40,7 +40,7 @@ actonce-android compile-primitives recordings/<id> --output replay.ts
 actonce-android run replay.ts --serial emulator-5554
 ```
 
-生成代码必须调用 `replayAndroidPrimitive`，不能内联 ADB 命令。坐标使用 Midscene 录制的逻辑坐标，并由 `AndroidDevice` 转换到物理显示坐标。
+生成代码必须调用 `replayAndroidPrimitive`，不能内联 ADB 命令。坐标使用录制的逻辑坐标；原生后端根据有效 `wm size` 和密度（优先显式 override）计算取整后的逻辑视口，再按各轴的物理尺寸 / 逻辑尺寸分别投影。几何信息在连接时缓存，由 `size()` 刷新，不在每次动作时读取；无效几何信息会直接报错。显示配置变化后需调用 `size()`，此机制不提供自动旋转跟踪。原生 selector 匹配和点击保持不变；导出的原生树 bounds 仍按密度转换，不能作为替代的坐标投影契约。
 
 `sleep(timeMs)` 保留 Agent 明确选择的录制停留，例如媒体采集期间的等待。Primitive
 lowering 不再静默删除 `Sleep`；必要等待还是可替换的有界状态等待由 Agent 判断，

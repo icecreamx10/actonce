@@ -48,7 +48,7 @@ actonce-android compile-primitives recordings/<id> --output replay.ts
 actonce-android run replay.ts --serial emulator-5554
 ```
 
-Generated code must use `replayAndroidPrimitive`; do not inline ADB commands. Coordinates are normalized logical points and the native backend converts them to physical ADB coordinates using the device density.
+Generated code must use `replayAndroidPrimitive`; do not inline ADB commands. Coordinates are normalized logical points. The native backend derives the rounded logical viewport from effective `wm size` and density (explicit overrides take precedence), then projects each axis using physical extent / logical extent. Geometry is cached at connection and refreshed by `size()`, never per action; invalid geometry fails closed. Refresh `size()` after display configuration changes. This is not automatic rotation tracking. Native selector matching/clicks remain unchanged; exported native-tree bounds retain their density-based conversion and are not a replacement coordinate projection contract.
 
 `sleep(timeMs)` preserves an explicitly selected recorded dwell, for example while
 capturing media. Primitive lowering no longer silently deletes `Sleep` actions.

@@ -14,7 +14,62 @@ import {
   UIAUTOMATOR2_CHECKPOINT_SETTINGS,
   resolveAndroidSystemPort,
   waitForInstrumentationExit,
+  parseAndroidDisplayGeometry,
+  projectAndroidPoint,
+  NativeAndroidDevice,
 } from "../src/native-device.js";
+
+describe("Android effective display coordinate projection", () => {
+  it("projects fractional density using the rounded logical viewport", () => {
+    const geometry = parseAndroidDisplayGeometry("Physical size: 1080x2400", "Physical density: 420");
+    expect([geometry.logicalWidth, geometry.logicalHeight]).toEqual([411, 914]);
+    expect(projectAndroidPoint({ x: 387, y: 900 }, geometry)).toEqual({ x: 1017, y: 2363 });
+    expect(projectAndroidPoint({ x: 411, y: 914 }, geometry)).toEqual({ x: 1080, y: 2400 });
+  });
+
+  it("rounds independently on each axis and preserves integral-density projection", () => {
+    const geometry = parseAndroidDisplayGeometry("Physical size: 101x103", "Physical density: 240");
+    expect(projectAndroidPoint({ x: 34, y: 34 }, geometry)).toEqual({ x: 51, y: 51 });
+    expect(projectAndroidPoint({ x: 66, y: 66 }, geometry)).toEqual({ x: 99, y: 99 });
+    expect(projectAndroidPoint({ x: 67, y: 67 }, geometry)).toEqual({ x: 101, y: 100 });
+    const integral = parseAndroidDisplayGeometry("Physical size: 1080x2400", "Physical density: 480");
+    expect(projectAndroidPoint({ x: 30.5, y: 100.5 }, integral)).toEqual({ x: 92, y: 302 });
+  });
+
+  it("selects explicit overrides regardless of physical-first output order", () => {
+    const geometry = parseAndroidDisplayGeometry("Physical size: 1080x2400\nOverride size: 720x1280", "Physical density: 420\nOverride density: 320");
+    expect(geometry).toEqual({ physicalWidth: 720, physicalHeight: 1280, logicalWidth: 360, logicalHeight: 640, densityScale: 2 });
+  });
+
+  it("fails closed for missing, malformed, zero, unsafe and zero-logical geometry", () => {
+    for (const [size, density] of [
+      ["", "Physical density: 420"], ["Physical size: 0x2400", "Physical density: 420"],
+      ["Physical size: 1080x2400\nOverride size: invalid", "Physical density: 420"],
+      ["Physical size: 1080x2400", "Physical density: 420\nOverride density: 0"],
+      ["Physical size: 1080x2400", "Physical density: NaN"],
+      ["Physical size: 9007199254740992x2400", "Physical density: 420"],
+      ["Physical size: 1x1", "Physical density: 10000"],
+    ]) expect(() => parseAndroidDisplayGeometry(size, density)).toThrow();
+  });
+
+  it("refreshes cached geometry only at size reads and invalidates it on failure", async () => {
+    // Host-only fake transport: no connect(), device, adb or HTTP request.
+    const device = Object.create(NativeAndroidDevice.prototype) as NativeAndroidDevice;
+    const fake = device as unknown as { shell: (args: string[]) => Promise<string>; sessionRequest: (...args: unknown[]) => Promise<void> };
+    let shellCalls = 0;
+    let invalid = false;
+    fake.shell = async (args) => { shellCalls++; return args[1] === "size" ? "Physical size: 1080x2400" : `Physical density: ${invalid ? 0 : 420}`; };
+    let payload: unknown;
+    fake.sessionRequest = async (...args) => { payload = args[2]; };
+    await device.size();
+    await device.tap({ x: 387, y: 900 });
+    expect(JSON.stringify(payload)).toContain('"x":1017');
+    expect(shellCalls).toBe(2);
+    invalid = true;
+    await expect(device.size()).rejects.toThrow();
+    await expect(device.tap({ x: 387, y: 900 })).rejects.toThrow("geometry is unavailable");
+  });
+});
 
 describe("Android caller-supplied appNameMapping", () => {
   const mapping = { dialer: "com.google.android.dialer", "Phone App": "com.example.phone" };
