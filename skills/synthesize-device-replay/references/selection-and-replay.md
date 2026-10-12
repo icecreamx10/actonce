@@ -48,6 +48,16 @@ enough; reject the nearest incomplete/unsaved state. Document this decision in
 `assertion-decision.json` before execution. Do not clear unrelated pre-existing
 resources solely to make an incidental literal match the demonstration.
 
+Native dump fields are not automatically task requirements. In particular, an
+intermediate numeric control value may be a rendering-derived value rather than
+an exact requested input. If a displayed summary conflicts with the official
+initializer or that action's coherent control/follow-up evidence, first prove and
+document the contradiction and field role. Do not freeze a stale summary as a
+required precondition. Re-express only the necessary, evidenced semantic state,
+and prove the replacement rejects the nearest relevant negative; exact requested
+values and the final oracle remain unchanged. Insufficient evidence is a blocker,
+not permission to broaden an assertion.
+
 | Recorded action source | Runtime lowering |
 |---|---|
 | WDA/iOS logical action | WDA-backed runtime primitive using normalized device points |

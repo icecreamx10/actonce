@@ -5,6 +5,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
+import { AndroidSession } from "../src/session.js";
+import { replayAndroidPrimitive } from "../src/primitives.js";
 
 const selector = { type: "android.widget.Button", text: "Down" };
 function source(top: number, count = 1, width = 20) {
@@ -82,5 +84,44 @@ describe("compareAndroidCheckpoint", () => {
     const result = await driver.verify({ id: "product", expected: { source: { includes: ["Add to cart"] } } });
     expect(result.status).toBe("mismatched");
     expect(invalidateObservation).toHaveBeenCalledOnce();
+  });
+});
+
+describe("checkpoint observation freshness", () => {
+  function fixture() {
+    const capture = vi.fn()
+      .mockResolvedValueOnce("ready")
+      .mockResolvedValueOnce("moving")
+      .mockResolvedValueOnce("ready");
+    const tap = vi.fn(async () => {});
+    const android: AndroidSession = Reflect.construct(AndroidSession, [
+      { source: capture, tap }, "host-only-fake",
+    ]);
+    return { android, capture, tap, driver: new AndroidCheckpointDriver(android) };
+  }
+  const checkpoint = (id: string) => ({
+    id, expected: { source: { includes: ["ready"] } },
+  });
+
+  it("refreshes repeated checkpoint IDs even with separately constructed specs", async () => {
+    const { driver, capture } = fixture();
+    expect((await driver.verify(checkpoint("stable"))).status).toBe("matched");
+    expect((await driver.verify(checkpoint("stable"))).status).toBe("mismatched");
+    expect(capture).toHaveBeenCalledTimes(2);
+    expect((await driver.verify(checkpoint("stable"))).status).toBe("matched");
+    expect(capture).toHaveBeenCalledTimes(3);
+  });
+
+  it("reuses matched post evidence for distinct adjacent pre until a primitive invalidates", async () => {
+    const { android, driver, capture, tap } = fixture();
+    expect((await driver.verify(checkpoint("post"))).status).toBe("matched");
+    expect((await driver.verify(checkpoint("next-pre"))).status).toBe("matched");
+    expect(capture).toHaveBeenCalledTimes(1);
+    await replayAndroidPrimitive(android, { operation: "tap", arguments: [{ x: 1, y: 1 }] });
+    expect(tap).toHaveBeenCalledOnce();
+    expect((await driver.verify(checkpoint("after-primitive"))).status).toBe("mismatched");
+    expect(capture).toHaveBeenCalledTimes(2);
+    expect((await driver.verify(checkpoint("retry"))).status).toBe("matched");
+    expect(capture).toHaveBeenCalledTimes(3);
   });
 });
