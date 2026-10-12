@@ -4,7 +4,8 @@
 
 This audit re-recorded the five strict-slice tasks and continued the separate
 historical 19-case set. The remaining thirteen now have successful originals;
-ten received qualified independent replay measurements, three remain blocked.
+twelve received qualified independent replay measurements; video qualification
+remains blocked. Already-passed cases were not rerun during the latest repairs.
 Each qualified replay was authored from immutable
 recording evidence by an agent, passed two consecutive fresh-fixture development
 validations, then received one independent zero-context replay-only measurement.
@@ -35,9 +36,11 @@ Official AndroidWorld reward must be exactly `1` for original and replay.
 | Broader | SimpleCalendarDeleteOneEvent | 61.573 | 1.794 | 34.32× |
 | Broader | SimpleCalendarDeleteEventsOnRelativeDay | 74.166 | 3.689 | 20.10× |
 | Broader | SimpleSmsSend | 69.671 | 5.290 | 13.17× |
+| Broader | CameraTakePhoto | 43.968 | 2.505 | 17.55× |
+| Broader | ExpenseDeleteDuplicates | 167.344 | 4.118 | 40.64× |
 
-All twenty-one have official reward `1/1` and zero AI fallback. **Strict slice: 5/5;
-broader set: 16/19 qualified formal replays.** The latest ten also have zero
+All twenty-three have official reward `1/1` and zero AI fallback. **Strict slice: 5/5;
+broader set: 18/19 qualified formal replays.** The latest twelve also have zero
 deterministic retries and checkpoint timeouts. ExpenseAddSingle has one recovered checkpoint timeout and
 one deterministic retry, both included in execution time. No broader 19/19 or
 full 113-task claim is made.
@@ -61,31 +64,52 @@ the older failed recording nor historical timing artifacts.
   original plus one forward-scaffold original, never averaged.
 - CameraTakePhoto: a previous legacy replay passed the official oracle, but its
   action-only clock excluded connection/close; no speedup is claimed from it.
-  Latest SDK-module qualification is blocked because fresh initialization starts
-  at a Camera location modal over Launcher instead of recorded onboarding.
-  No input was dispatched on that divergence. Cause remains unproven; legacy
-  permission data cannot justify inventing missing flags or app preferences.
+  An initial modal-over-Launcher divergence did not recur after emulator restart;
+  its cause remains unproven. Public initialization restored the source app
+  preferences exactly, without inventing unavailable legacy permission flags.
+  The fresh module guards the actual shutter glyph, not incidental preview pixels,
+  and rejects the recorded transition state. Two development passes and an
+  independent formal run passed all three segments and the official oracle.
 - ExpenseDeleteDuplicates: all seven actions executed and official reward was
   `1`, but final checkpoint qualification failed. The first native/visual match
   took 717 ms; a second fresh match did not fit the authored 750-ms budget.
   That deadline and match count are conservative synthesis choices, not exact
   recorded literals. Aggregate capture time has no source/screenshot split;
-  no shared performance cause is claimed. It is not counted as a formal PASS.
+  no shared performance cause is claimed. A fresh evidence-backed module retains
+  seven raw taps and validates all six remaining names and amounts plus the visual
+  final state. Its 1000-ms window and two fresh matches passed two independent
+  development resets and a fresh formal run. The earlier 750-ms failure remains
+  preserved; the revised window is an authored bound, not a literal source wait.
+  One formal setup failure (emulator unavailable before initialization/timing)
+  also remains preserved without a reward or duration; a different fresh agent
+  performed the subsequent formal run.
 - CameraTakeVideo: numeric system permission flags initially blocked setup;
   the reusable parser repair passed eleven tests. A fresh synthesis then
-  preserved six development failures. Attempt 4 saved media (official reward
-  `1`) but failed its thumbnail checkpoint. Full twelve-action source-order
+  preserved six development failures. Attempt 4 produced a new filename (official
+  reward `1`) but lacked the recorded saved-thumbnail checkpoint; the official
+  filename-count oracle does not prove usable media. Full twelve-action source-order
   attempts reached Home without the recorded location modal, so the subsequent
   permission action could not safely execute. No two-pass qualification or
   formal measurement; no invented recovery input. The permission difference is
   not proven to cause the thumbnail delay.
+  Three further native-parity development attempts preserved this failure.
+  Installed-app code and live execution establish that a preview-focus exploration
+  makes Camera consume Back; excluding that transient action restores Back → Home.
+  Disappearance of the focus ring alone does not prove internal idle state.
+  The second recorded location request still has no live counterpart: live
+  preferences mark permission dialogs seen, location is denied with `USER_FIXED`,
+  and no requester activity remains. The source records the initial mutable
+  permission baseline, but not post-denial preferences, flags or caller stack.
+  No general fixture-restore defect was established. Creating a request, changing
+  flags, or deleting the grant transition would be unsupported by this recording.
 
-These three remain in the denominator. All writers have released the device;
-the campaign is completed with qualification blockers, not full-catalog coverage.
+Video remains in the denominator. Its development attempts are not formal
+measurements. All device writers are released; this campaign retains a concrete
+source-evidence blocker and is not full-catalog coverage.
 
 ## Latest module timing and fixture provenance
 
-The latest ten use public `--replay-module`: the CLI owns a monotonic clock from
+The latest twelve use public `--replay-module`: the CLI owns a monotonic clock from
 before native connection through execution, final screenshot/source capture and
 close. Module loading and artifact writes are outside it. Reused complete original
 manifests prove the recording-session duration exactly, including recorder
@@ -98,6 +122,20 @@ BrightnessMax `9ed0a1c`/`1a99712`; recipes, calendars and SMS
 `0df0c86`/`1a99712`. Later permission-parser repair is `d717eda`.
 Shared repairs were committed before fresh independent synthesis; their timings
 must not be combined into a same-revision aggregate.
+
+Photo original/replay revisions are `e5524ec`/`00b163f`; duplicate expenses are
+`0df0c86`/`c976c94`. Their checkpoint stage timings are separately instrumented:
+
+| Task | Native source ms | Screenshot ms | Visual comparison ms | Settle delay ms |
+| --- | ---: | ---: | ---: | ---: |
+| CameraTakePhoto | 691.252 | 407.720 | 68.218 | 244 |
+| ExpenseDeleteDuplicates | 2183.26 | 224.85 | 86.92 | 365 |
+
+These capture totals exclude the final CLI evidence collection and are not the
+whole replay duration. Source timing may include an adjacent-checkpoint cache hit.
+The native coordinate touch-parity repair `8604b87` and detached-emulator startup
+repair `528b3d3` postdate these formal runs; already-passed cases were not retested
+on those revisions.
 
 Prepared fixture RNG recovery is source-attested for Markor, recipes, calendars,
 SMS and duplicate expenses. Legacy originals retain explicit `legacy-uncontrolled`
@@ -147,6 +185,8 @@ The following paths are relative to `readme-remaining-20261012/`:
 | Delete event | `formal-calendar-one-module` | `4595b30dbf671d85e79cc2e512641f0f7515704766c47e6ed1fca1fb6d7daffc` |
 | Relative-day events | `formal-calendar-relative-module` | `faae89b89cd8b2ff8c91c543a22769616f2e4dec867a471e7fbd3ef09b1fde0c` |
 | SMS | `formal-sms-module` | `966c36492fc918d38a6bcb1cc6cc02bdfa8848c7523dc3e94cfe784887d8d423` |
+| Photo | `formal-camera-photo-module-v4` | `d354c9e26bf54ebeec3c64c73b44512f9154b7fcd5691085935d520254393c92` |
+| Duplicate expenses | `formal-expense-duplicates-module-v3-forward` | `c4ee6efcab3365fa41135cd8426e4ed40737f1b6e11b92a79e2309753bd6e80c` |
 
 BrowserMaze's visual checkpoints retain the recorded X-cell facts and pixel
 thresholds while a uniquely evidenced native container anchors translation of

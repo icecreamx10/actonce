@@ -85,6 +85,18 @@ recorded budget. If live layout differs, diagnose gesture parity, settling and
 fixture state before applying the evidenced selector optimization above; do not
 hide a shared driver defect with a case-specific mapping.
 
+Transient readiness has hidden state as well as pixels. A disappeared animation
+or focus indicator does not by itself prove the app will dispatch the next
+gesture: the app may still consume it while busy. Validate a proposed readiness
+fact against the recorded next transition and fresh execution. If it is not
+discriminative, inspect available app/lifecycle evidence; do not substitute an
+arbitrary delay or assume that visually identical states are behaviorally equal.
+Exclude an exploratory action only after accounting for all of its effects and
+proving the selected settled boundary remains equivalent. A missing subsequent
+permission request is a separate hidden-state divergence, not permission to drop
+grant-affecting actions or manufacture a new request. Preserve the failure when
+the immutable recording cannot establish that transition's necessary state.
+
 For the initial fresh-fixture pass, schedule every selected primitive once and in
 source order. Do not scan later postconditions or the case-final oracle to decide that
 intermediate work can be skipped. `observe-before-retry` permits checking only the
