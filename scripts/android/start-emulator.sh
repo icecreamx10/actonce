@@ -76,10 +76,11 @@ if [[ "${HEADED}" == "false" ]]; then
 fi
 
 echo "Starting ${ACTONCE_AVD_NAME} as ${ACTONCE_ANDROID_SERIAL}..."
-nohup emulator "${EMULATOR_ARGS[@]}" </dev/null >"${LOG_PATH}" 2>&1 &
-EMULATOR_PID=$!
 if [[ "${FOREGROUND}" == "false" ]]; then
-  disown "${EMULATOR_PID}" 2>/dev/null || true
+  EMULATOR_PID="$(node "${SCRIPT_DIR}/spawn-detached.mjs" "${LOG_PATH}" "$(command -v emulator)" "${EMULATOR_ARGS[@]}")"
+else
+  nohup emulator "${EMULATOR_ARGS[@]}" </dev/null >"${LOG_PATH}" 2>&1 &
+  EMULATOR_PID=$!
 fi
 echo "${EMULATOR_PID}" >"${PID_PATH}"
 
