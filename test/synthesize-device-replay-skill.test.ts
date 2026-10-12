@@ -10,6 +10,16 @@ const extractor = resolve("skills/synthesize-device-replay/scripts/extract-segme
 const summarizer = resolve("skills/synthesize-device-replay/scripts/summarize-recording.mjs");
 
 describe("synthesize-device-replay contract", () => {
+  it("accepts recorded Android Launch only as launchApp through both gates", () => {
+    const fixture = createFixture("Launch", "launchApp");
+    expect(run(fixture.root, fixture.ledger).status).toBe(0);
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+
+    fixture.planValue.segments[0].action.operation = "tap";
+    writeFileSync(fixture.plan, JSON.stringify(fixture.planValue));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+  });
+
   it("accepts one agent-authored segment per recorded action", () => {
     const fixture = createFixture();
     const result = run(fixture.root, fixture.ledger, fixture.plan);
@@ -116,10 +126,10 @@ function run(root: string, ledger: string, plan?: string) {
   });
 }
 
-function createFixture() {
+function createFixture(firstOperation = "Tap", firstLowered = "tap") {
   const root = mkdtempSync(join(tmpdir(), "actonce-synthesis-"));
   const actions = [
-    { id: "action-1", operation: "Tap", lowered: "tap", before: 1, after: 2, completed: 3 },
+    { id: "action-1", operation: firstOperation, lowered: firstLowered, before: 1, after: 2, completed: 3 },
     { id: "action-2", operation: "Input", lowered: "typeText", before: 4, after: 5, completed: 6 },
   ];
   const events = actions.flatMap((action) => [
