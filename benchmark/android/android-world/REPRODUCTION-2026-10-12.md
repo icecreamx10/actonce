@@ -1,7 +1,11 @@
 # AndroidWorld reproduction audit · October 10–12, 2026
 
-This audit re-recorded the five strict-slice tasks and began the separate
-historical 19-case set. Each qualified replay was authored from immutable
+[简体中文](REPRODUCTION-2026-10-12.zh-CN.md)
+
+This audit re-recorded the five strict-slice tasks and continued the separate
+historical 19-case set. The remaining thirteen now have successful originals;
+ten received qualified independent replay measurements, three remain blocked.
+Each qualified replay was authored from immutable
 recording evidence by an agent, passed two consecutive fresh-fixture development
 validations, then received one independent zero-context replay-only measurement.
 Official AndroidWorld reward must be exactly `1` for original and replay.
@@ -21,16 +25,27 @@ Official AndroidWorld reward must be exactly `1` for original and replay.
 | Broader | MarkorCreateFolder | 44.767 | 3.674 | 12.18× |
 | Broader | AudioRecorderRecordAudio | 80.649 | 6.686 | 12.06× |
 | Broader | ExpenseAddSingle | 84.725 | 7.509 | 11.28× |
+| Broader | OpenAppTaskEval | 22.464 | 1.643 | 13.67× |
+| Broader | ContactsAddContact | 78.220 | 5.287 | 14.79× |
+| Broader | MarkorDeleteNote | 63.622 | 3.645 | 17.46× |
+| Broader | ExpenseDeleteSingle | 43.896 | 1.995 | 22.00× |
+| Broader | SystemBrightnessMax | 82.046 | 7.684 | 10.68× |
+| Broader | RecipeDeleteSingleRecipe | 56.732 | 4.025 | 14.09× |
+| Broader | RecipeDeleteDuplicateRecipes | 115.335 | 3.762 | 30.66× |
+| Broader | SimpleCalendarDeleteOneEvent | 61.573 | 1.794 | 34.32× |
+| Broader | SimpleCalendarDeleteEventsOnRelativeDay | 74.166 | 3.689 | 20.10× |
+| Broader | SimpleSmsSend | 69.671 | 5.290 | 13.17× |
 
-All eleven have official reward `1/1` and zero AI fallback. **Strict slice: 5/5;
-broader set: 6/19.** ExpenseAddSingle has one recovered checkpoint timeout and
+All twenty-one have official reward `1/1` and zero AI fallback. **Strict slice: 5/5;
+broader set: 16/19 qualified formal replays.** The latest ten also have zero
+deterministic retries and checkpoint timeouts. ExpenseAddSingle has one recovered checkpoint timeout and
 one deterministic retry, both included in execution time. No broader 19/19 or
 full 113-task claim is made.
 macOS, iOS and Android checkout were not rerun in this audit.
 
 The first eight originals used `gpt-6-luna`; MarkorCreateFolder,
-AudioRecorderRecordAudio and ExpenseAddSingle used `gpt-6.1-sol`. Pending originals use the
-explicit `codex-6.1-sol` profile. Successful
+AudioRecorderRecordAudio and ExpenseAddSingle used `gpt-6.1-sol`. The remaining
+thirteen originals used the explicit `codex-6.1-sol` profile. Successful
 originals are reused, not rerun after every SDK repair. The measurements span
 runtime revisions (including persistent-source idle handling and anchored visual
 evaluation), so the table reports per-case raw ratios, **not a same-revision
@@ -40,18 +55,62 @@ the older failed recording nor historical timing artifacts.
 
 ## Exclusions and remaining coverage
 
-- SystemBrightnessMax: complete original, official reward `0`; no synthesis or replay.
-- OpenAppTaskEval: fixture preparation failed before recording/timing; no reward or replay.
-- CameraTakePhoto and ContactsAddContact (`gpt-6.1-sol`): fixture preparation
-  failed before recording/timing; no reward or duration, no retry.
-- Nine broader originals remain pending. CameraTakeVideo is among them,
-  temporarily deferred while the shared camera preparation is unavailable; it is
-  not labeled an executed failure. Continuing runs remain in the campaign manifest;
-  failures are retained and skipped, not removed from the 19-case denominator.
+- Earlier setup/original failures remain preserved. After committed environment
+  repairs, all nineteen broader cases have a latest successful original; this is
+  not a nineteen-case replay PASS claim. CameraTakeVideo retains its failed
+  original plus one forward-scaffold original, never averaged.
+- CameraTakePhoto: a previous legacy replay passed the official oracle, but its
+  action-only clock excluded connection/close; no speedup is claimed from it.
+  Latest SDK-module qualification is blocked because fresh initialization starts
+  at a Camera location modal over Launcher instead of recorded onboarding.
+  No input was dispatched on that divergence. Cause remains unproven; legacy
+  permission data cannot justify inventing missing flags or app preferences.
+- ExpenseDeleteDuplicates: all seven actions executed and official reward was
+  `1`, but final checkpoint qualification failed. The first native/visual match
+  took 717 ms; a second fresh match did not fit the authored 750-ms budget.
+  That deadline and match count are conservative synthesis choices, not exact
+  recorded literals. Aggregate capture time has no source/screenshot split;
+  no shared performance cause is claimed. It is not counted as a formal PASS.
+- CameraTakeVideo: numeric system permission flags initially blocked setup;
+  the reusable parser repair passed eleven tests. A fresh synthesis then
+  preserved six development failures. Attempt 4 saved media (official reward
+  `1`) but failed its thumbnail checkpoint. Full twelve-action source-order
+  attempts reached Home without the recorded location modal, so the subsequent
+  permission action could not safely execute. No two-pass qualification or
+  formal measurement; no invented recovery input. The permission difference is
+  not proven to cause the thumbnail delay.
+
+These three remain in the denominator. All writers have released the device;
+the campaign is completed with qualification blockers, not full-catalog coverage.
+
+## Latest module timing and fixture provenance
+
+The latest ten use public `--replay-module`: the CLI owns a monotonic clock from
+before native connection through execution, final screenshot/source capture and
+close. Module loading and artifact writes are outside it. Reused complete original
+manifests prove the recording-session duration exactly, including recorder
+overhead. These are documented **non-identical scopes**, so ratios are raw
+operational comparisons, not isolated AI-versus-native action costs.
+
+Original/replay revisions: OpenApp and Contacts `9ed0a1c`/`0df0c86`;
+MarkorDeleteNote `0df0c86`/`665337f`; ExpenseDeleteSingle `0df0c86`/`51fc35a`;
+BrightnessMax `9ed0a1c`/`1a99712`; recipes, calendars and SMS
+`0df0c86`/`1a99712`. Later permission-parser repair is `d717eda`.
+Shared repairs were committed before fresh independent synthesis; their timings
+must not be combined into a same-revision aggregate.
+
+Prepared fixture RNG recovery is source-attested for Markor, recipes, calendars,
+SMS and duplicate expenses. Legacy originals retain explicit `legacy-uncontrolled`
+provenance where unavailable, not a claim of identical hidden RNG state.
+ExpenseDeleteSingle's original outer wrapper exit was not captured, though its
+child exit, complete recording and official reward were verified. The obsolete
+`compile-result.json` is absent; its ledger, source hashes and two-pass
+qualification were independently audited instead.
 
 ## Evidence locations and persistence
 
-Local raw artifacts are under `.cache/android-world/readme-fresh-20261010/`.
+Local raw artifacts are under `.cache/android-world/readme-fresh-20261010/`
+and `.cache/android-world/readme-remaining-20261012/`.
 They are ignored local outputs, **not bundled with this report**. A clean clone
 does not contain the exact recorded inputs or fixtures; this report preserves
 the results and audit hashes, not a self-contained reproduction package.
@@ -73,6 +132,21 @@ results, and independent provenance. SHA-256 values refer to `evaluation.json`.
 | Markor folder | `formal-markor-folder-20261012` | `b532e40d0c082298086a454d0b7f71fd6695e6d101520c4131b2547f37d8ebc5` |
 | Audio recording | `formal-audio-20261012` | `b6d359733a975be44683d33803d982b74ca27ae933d7d68d9e8c30a4c1bcf050` |
 | Single expense | `formal-expense-single-20261012` | `0c82aa5bd87401d2f2ab77770b0773e13ec48a5f980c93d282646805dd80228d` |
+
+The following paths are relative to `readme-remaining-20261012/`:
+
+| Task | Local formal directory | Evaluation SHA-256 |
+| --- | --- | --- |
+| Open app | `formal-open-app-module` | `ad9e9fcc1a4ecd4e5fc4737c5528e8aaceb4f041fdbe7e679ceed2de2492ca3f` |
+| Contact | `formal-contacts-module` | `ae32b69d8ba493e057513690959704a6036c7ff1502ec19935807c9399788bae` |
+| Delete note | `formal-markor-delete-module` | `9dcb934cd842069cfa0d96f766676086c6f47de55839c46176a88f725c192c63` |
+| Delete expense | `formal-expense-delete-module` | `382976c44dfc5bef95474dfa4aa91b922f66214e65246952bc54c30a64db2084` |
+| Brightness maximum | `formal-brightness-max-module` | `59db270f36503c1bdc045b0a81612985edf9386a84213bf58734cb810c0f219a` |
+| Delete recipe | `formal-recipe-single-module` | `ad60be5c34a8abf724ef298982e363e14070512b5f91282b25adf1f9951c5d93` |
+| Duplicate recipes | `formal-recipe-duplicates-module` | `2b3d43af6bacb71effd960a57d0fa238ff578701d67dd141a0fdf04bd3719676` |
+| Delete event | `formal-calendar-one-module` | `4595b30dbf671d85e79cc2e512641f0f7515704766c47e6ed1fca1fb6d7daffc` |
+| Relative-day events | `formal-calendar-relative-module` | `faae89b89cd8b2ff8c91c543a22769616f2e4dec867a471e7fbd3ef09b1fde0c` |
+| SMS | `formal-sms-module` | `966c36492fc918d38a6bcb1cc6cc02bdfa8848c7523dc3e94cfe784887d8d423` |
 
 BrowserMaze's visual checkpoints retain the recorded X-cell facts and pixel
 thresholds while a uniquely evidenced native container anchors translation of
