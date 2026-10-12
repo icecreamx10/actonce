@@ -10,6 +10,17 @@ transition: callers must retain bounded checkpoint polling and stability checks,
 not assume the first read is settled. Deadlines are not extended to hide slow
 capture; `captureDurationMs` and `settleDelayMs` remain separate metrics.
 
+Visual checkpoints may specify `visual.anchor: { selector, referenceSourcePath }`
+alongside an explicit `visual.region`. The runtime resolves a unique native node
+in each recorded/live tree and translates the live crop by its physical-pixel
+displacement. Missing, ambiguous, hidden, disabled, resized or invalid anchors
+fail closed. It never searches pixels, rescales content, uses OCR, or relaxes the
+threshold; `actual.visual` records both crop regions. The agent must prove the
+landmark and visual fact share one rigid content container from the action's own
+evidence, and reject the nearest negative state. Anchoring localizes pixels; a
+native label never substitutes for screenshot-only correctness. Source and
+screenshot are bounded observations, not an atomic snapshot; settling still applies.
+
 ```bash
 actonce-android doctor --serial emulator-5554
 actonce-android compile-primitives recordings/<id> --output replay.ts

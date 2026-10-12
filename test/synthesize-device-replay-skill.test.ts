@@ -10,6 +10,36 @@ const extractor = resolve("skills/synthesize-device-replay/scripts/extract-segme
 const summarizer = resolve("skills/synthesize-device-replay/scripts/summarize-recording.mjs");
 
 describe("synthesize-device-replay contract", () => {
+  it("requires explicit selector evidence and retains the recorded coordinate in the plan", () => {
+    const fixture = createFixture();
+    const path = join(fixture.root, "events.ndjson");
+    const events = readFileSync(path, "utf8").trim().split("\n").map(line => JSON.parse(line));
+    events[0].evidence.nativeUi = { status: "available" };
+    events[2].normalizedArguments = { locate: { center: [10, 20] } };
+    writeFileSync(path, events.map(event => JSON.stringify(event)).join("\n") + "\n");
+    const ledger = JSON.parse(JSON.stringify(fixture.ledgerValue));
+    ledger.segments[0].loweredOperation = "tapUniqueNode";
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
+    expect(run(fixture.root, fixture.ledger).status).toBe(1);
+    ledger.segments[0].optimization = {
+      kind: "native-selector", selector: { type: "android.widget.Button", text: "Next" },
+      coordinateFallback: { x: 10, y: 20 }, uniqueness: "exactly-one",
+      evidence: [{ sequence: 1, modality: "native" }], rationale: "Unique Next control verified in its own native evidence",
+    };
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
+    expect(run(fixture.root, fixture.ledger).status).toBe(0);
+    const plan = JSON.parse(JSON.stringify(fixture.planValue));
+    plan.segments[0].action = { operation: "tapUniqueNode", arguments: [ledger.segments[0].optimization.selector, { x: 10, y: 20 }] };
+    writeFileSync(fixture.plan, JSON.stringify(plan));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+    plan.segments[0].action.arguments[1].x = 11;
+    writeFileSync(fixture.plan, JSON.stringify(plan));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+    ledger.segments[0].optimization.evidence[0].sequence = 2;
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
+    expect(run(fixture.root, fixture.ledger).status).toBe(1);
+  });
+
   it("accepts recorded Android Launch only as launchApp through both gates", () => {
     const fixture = createFixture("Launch", "launchApp");
     expect(run(fixture.root, fixture.ledger).status).toBe(0);

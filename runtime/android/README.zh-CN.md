@@ -9,6 +9,14 @@
 假设首次读取已稳定。不会为了掩盖读取慢而扩大期限；`captureDurationMs` 与
 `settleDelayMs` 继续分开记录。
 
+截图 checkpoint 可在明确的 `visual.region` 上添加
+`visual.anchor: { selector, referenceSourcePath }`。运行时要求录制与当前原生树中的
+锚点均唯一，只按物理像素位移平移当前裁剪区域；缺失、多匹配、隐藏、禁用、尺寸变化
+或无效区域均拒绝对齐。不搜索像素、不缩放内容、不做 OCR、不放宽阈值，并在
+`actual.visual` 记录前后裁剪区域。Agent 必须从该动作自己的证据证明锚点与视觉事实
+属于同一刚性内容容器，且对比能拒绝最近的负例。锚点只负责定位截图，不以原生标签
+代替截图正确性。原生树与截图仍是有界观察而非原子快照，需要正常的有界稳定性检查。
+
 ```bash
 actonce-android doctor --serial emulator-5554
 actonce-android compile-primitives recordings/<id> --output replay.ts
