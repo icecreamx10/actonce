@@ -4,6 +4,11 @@
 
 它连接一个明确的 ADB device，把已完成的 Midscene Android 动作机械降低为固定 primitive，并用 Android UI tree 与截图 checkpoint 驱动 replay。相邻 segment 之间如果没有动作发生，上一段成功的 postcondition 会直接作为下一段 precondition 的同一份观察；任何 primitive 执行前都会使缓存失效，因此不会削弱状态边界。
 
+读取 source 时关闭 UIAutomator2 内部的隐式 idle 等待，但每次仍刷新 accessibility/window
+缓存。新鲜快照可能处于切换中，所以必须保留有界 checkpoint 轮询和稳定性检查，不能
+假设首次读取已稳定。不会为了掩盖读取慢而扩大期限；`captureDurationMs` 与
+`settleDelayMs` 继续分开记录。
+
 ```bash
 actonce-android doctor --serial emulator-5554
 actonce-android compile-primitives recordings/<id> --output replay.ts

@@ -9,6 +9,7 @@ import {
   normalizeAndroidSource,
   isInvalidSessionError,
   UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS,
+  UIAUTOMATOR2_CHECKPOINT_SETTINGS,
   resolveAndroidSystemPort,
   waitForInstrumentationExit,
 } from "../src/native-device.js";
@@ -95,6 +96,14 @@ describe("activateAndroidPackage", () => {
 });
 
 describe("persistent UIAutomator2 session", () => {
+  it("keeps source capture fresh without implicit UI-idle settling", () => {
+    expect(UIAUTOMATOR2_CHECKPOINT_SETTINGS).toEqual({
+      enableNotificationListener: false,
+      waitForIdleTimeout: 0,
+      deferAccessibilityCacheReset: false,
+    });
+    expect(Object.isFrozen(UIAUTOMATOR2_CHECKPOINT_SETTINGS)).toBe(true);
+  });
   it("waits for asynchronous instrumentation cleanup without killing its connection", async () => {
     const child = Object.assign(new EventEmitter(), { exitCode: null, signalCode: null });
     const waiting = waitForInstrumentationExit(child as ChildProcess);

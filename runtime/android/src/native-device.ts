@@ -11,6 +11,14 @@ const INSTRUMENTATION = `${TEST_PACKAGE}/androidx.test.runner.AndroidJUnitRunner
 // observations. Keep the persistent checkpoint session alive longer than the
 // pinned model timeout (10 minutes).
 export const UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS = 1_200;
+export const UIAUTOMATOR2_CHECKPOINT_SETTINGS = Object.freeze({
+  enableNotificationListener: false,
+  // /source resets its cache through Device.waitForIdle(). Let checkpoint
+  // polling own UI settling instead of hiding idle waits inside capture I/O.
+  waitForIdleTimeout: 0,
+  // Faster reads must still invalidate accessibility/window caches each time.
+  deferAccessibilityCacheReset: false,
+});
 
 /** DELETE /session finishes instrumentation asynchronously. Keep its adb
  * connection alive until Android has disconnected UiAutomation. */
@@ -105,7 +113,7 @@ export class NativeAndroidDevice {
     // AccessibilityNodeInfo internals that are absent on some Android builds.
     // Disable only that listener; the normal accessibility tree remains intact.
     await this.request("POST", this.sessionPath("/appium/settings"), {
-      settings: { enableNotificationListener: false },
+      settings: UIAUTOMATOR2_CHECKPOINT_SETTINGS,
     });
   }
 
