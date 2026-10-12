@@ -52,11 +52,50 @@ export function resolveAndroidSystemPort(
   return port;
 }
 
+export interface AndroidDisplayGeometry {
+  physicalWidth: number;
+  physicalHeight: number;
+  logicalWidth: number;
+  logicalHeight: number;
+  densityScale: number;
+}
+
+/** wm reports physical first, but an explicit override is the effective value. */
+export function parseAndroidDisplayGeometry(sizeOutput: string, densityOutput: string): AndroidDisplayGeometry {
+  const effective = (output: string, field: string): string => {
+    const lines = output.split(/\r?\n/);
+    const line = lines.find((value) => value.trim().startsWith(`Override ${field}:`))
+      ?? lines.find((value) => value.trim().startsWith(`Physical ${field}:`));
+    if (!line) throw new Error(`Cannot parse Android display ${field}: ${output}`);
+    return line.slice(line.indexOf(":") + 1).trim();
+  };
+  const size = effective(sizeOutput, "size").match(/^(\d+)x(\d+)$/);
+  const density = effective(densityOutput, "density");
+  if (!size || !/^\d+$/.test(density)) throw new Error("Invalid Android display geometry");
+  const physicalWidth = Number(size[1]), physicalHeight = Number(size[2]), dpi = Number(density);
+  if (![physicalWidth, physicalHeight, dpi].every((value) => Number.isSafeInteger(value) && value > 0))
+    throw new Error("Invalid Android display geometry");
+  const densityScale = dpi / 160;
+  const logicalWidth = Math.round(physicalWidth / densityScale);
+  const logicalHeight = Math.round(physicalHeight / densityScale);
+  if (![logicalWidth, logicalHeight].every((value) => Number.isSafeInteger(value) && value > 0))
+    throw new Error("Invalid Android logical display geometry");
+  return { physicalWidth, physicalHeight, logicalWidth, logicalHeight, densityScale };
+}
+
+export function projectAndroidPoint(point: Point, geometry: AndroidDisplayGeometry): Point {
+  return {
+    x: Math.round(point.x * geometry.physicalWidth / geometry.logicalWidth),
+    y: Math.round(point.y * geometry.physicalHeight / geometry.logicalHeight),
+  };
+}
+
 export class NativeAndroidDevice {
   private instrumentation?: ChildProcess;
   private sessionId?: string;
   private sessionRecovery?: Promise<void>;
   private densityScale = 1;
+  private displayGeometry?: AndroidDisplayGeometry;
 
   private constructor(
     readonly serial: string,
@@ -94,9 +133,7 @@ export class NativeAndroidDevice {
     });
     await waitUntil(async () => (await fetch(this.url("/status"))).ok, 30_000, "UIAutomator2 server did not become ready");
     await this.createSession();
-    const density = await this.shell(["wm", "density"]);
-    const match = density.match(/(?:Override|Physical) density:\s*(\d+)/);
-    this.densityScale = match ? Number(match[1]) / 160 : 1;
+    await this.size();
   }
 
   private async createSession(): Promise<void> {
@@ -153,7 +190,15 @@ export class NativeAndroidDevice {
     if (!value) throw new Error("UIAutomator2 screenshot response did not contain base64 data");
     return value;
   }
-  async size(): Promise<{ width: number; height: number }> { const output = await this.shell(["wm", "size"]); const match = output.match(/(?:Override|Physical) size:\s*(\d+)x(\d+)/); if (!match) throw new Error(`Cannot parse Android display size: ${output}`); return { width: Math.round(Number(match[1]) / this.densityScale), height: Math.round(Number(match[2]) / this.densityScale) }; }
+  async size(): Promise<{ width: number; height: number }> {
+    // Failed refreshes must not leave actions using stale display geometry.
+    this.displayGeometry = undefined;
+    const [size, density] = await Promise.all([this.shell(["wm", "size"]), this.shell(["wm", "density"])]);
+    const geometry = parseAndroidDisplayGeometry(size, density);
+    this.displayGeometry = geometry;
+    this.densityScale = geometry.densityScale;
+    return { width: geometry.logicalWidth, height: geometry.logicalHeight };
+  }
 
   async tap(point: Point): Promise<void> {
     const p = this.physical(point);
@@ -246,7 +291,10 @@ export class NativeAndroidDevice {
   }
   async terminate(packageName: string): Promise<void> { await this.shell(["am", "force-stop", packageName]); }
 
-  private physical(point: Point): Point { return { x: Math.round(point.x * this.densityScale), y: Math.round(point.y * this.densityScale) }; }
+  private physical(point: Point): Point {
+    if (!this.displayGeometry) throw new Error("Android display geometry is unavailable; refresh size() before coordinate actions");
+    return projectAndroidPoint(point, this.displayGeometry);
+  }
   private async isKeyboardShown(): Promise<boolean> {
     const output = await this.shell(["dumpsys", "input_method"]);
     return /mInputShown=true\b/.test(output);
