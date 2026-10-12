@@ -93,6 +93,16 @@ node is not a substitute for a separately recorded label, value, or visual outco
 
 ## Verification
 
+For this repository's AndroidWorld benchmark, read
+`benchmark/android/android-world/README.md` and author an SDK replay module for
+`--replay-module`, not a self-running entry. Export a default function receiving
+the runner-owned `{ android, flow }` and optional `config: AndroidSessionOptions`.
+Keep the agent-authored plan and per-action gates; do not connect/close the device,
+create a second flow, measure time, or write benchmark results inside the module.
+Run fresh-fixture validation through the public benchmark CLI, which owns those
+lifecycle operations and captures final evidence inside its execution clock.
+This benchmark-specific protocol does not change ordinary SDK runner usage.
+
 ```bash
 actonce-android doctor --serial emulator-5554
 actonce-android run setup.js actions.js assertions.js --serial emulator-5554

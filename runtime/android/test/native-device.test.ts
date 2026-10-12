@@ -44,7 +44,7 @@ describe("Android caller-supplied appNameMapping", () => {
     expect(() => validateAndroidAppNameMapping({ dialer: "bad;package" })).toThrow("Invalid");
     expect(() => validateAndroidAppNameMapping({ "com.example.app": mapping.dialer })).toThrow("redirect");
     expect(() => validateAndroidAppNameMapping([] as unknown as Record<string, string>)).toThrow("Invalid");
-    expect(() => validateAndroidAppNameMapping({ get dialer() { throw new Error("getter ran"); } }))
+    expect(() => validateAndroidAppNameMapping({ get dialer(): string { throw new Error("getter ran"); } }))
       .toThrow("Invalid");
   });
 

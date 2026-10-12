@@ -21,6 +21,37 @@ npm run android-world:catalog -- --selection pass@3 --format lines
 
 ## Formal snapshots
 
+### Replay measurement contract
+
+New measurements use `--replay-module <module.ts>`, with an agent-authored SDK
+module rather than a self-running timed entry:
+
+```ts
+import type { AndroidReplayScript } from "@byted-lynx/actonce-android";
+
+export default (async ({ android, flow }) => {
+  // Execute the validated agent-authored plan with per-action flow.segment gates.
+}) satisfies AndroidReplayScript;
+```
+
+Optional `config` exports may provide native session options such as an explicit
+`appNameMapping`; the serial must match the CLI-leased device. Run with
+`npm run benchmark:android:android-world -- --mode replay --task <task> --output <sample> --replay-module <module.ts>`.
+The CLI measures monotonic elapsed time from before session connection until
+after close, including actions, checkpoints, retries and final screenshot/native
+source capture. Module loading and artifact writes are outside the clock.
+It persists final evidence references/hashes, diagnostics and cleanup errors.
+Unresolved checkpoint outcomes remain failures even if a module catches an error.
+
+Successful original recordings may be reused with their immutable complete
+manifest. Exact legacy manifest duration matches can establish their recording
+boundary without rewriting original results. Original time includes recorder
+overhead; replay time includes native device-session setup/execution/teardown.
+These documented scopes are not identical. Legacy `--replay-entry` remains
+supported, but its authored timing is unverified and produces no new formal
+speedup. In particular, the earlier CameraTakePhoto action-only development
+timing must not be compared with the original's full recording-session duration.
+
 Original recording can explicitly select `--model-profile codex-6.1-sol` for
 `gpt-6.1-sol` through the authenticated local Codex app server. Verify that profile
 with `npm run android-world:model:verify -- --model-profile codex-6.1-sol` before
