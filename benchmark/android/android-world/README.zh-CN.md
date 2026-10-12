@@ -57,6 +57,11 @@ broader 的 6 个任务，明确逐 case 版本及 original 复用，不声称�
 
 完整 suite 的 App 安装及 snapshot 属于测量外 setup：
 
+启动脚本默认使用软件模拟的前后摄像头，不调用本机 webcam。可通过
+`ACTONCE_EMULATOR_CAMERA_BACK`、`ACTONCE_EMULATOR_CAMERA_FRONT` 覆盖配置
+（包括 `none`）。要求启用的摄像头必须枚举成功才报告 ready；旧模拟器若关闭了
+摄像头，须重启而不能静默复用来测试 Camera。重启不清空 app 数据。
+
 ```bash
 npm run android-world:prepare-suite
 ```
@@ -98,7 +103,10 @@ Midscene 和 recorder 共用一个常驻 UIAutomator2 session 读取原生树；
 `uiautomator dump` 进程。
 
 original 与 replay 使用相同且不计时的 app setup：CLI 会 force-stop 官方声明的
-目标 package，启动第一个目标 app，并确认其处于前台。AndroidWorld
+目标 package，启动第一个目标 app，并确认其处于前台。权限弹窗只有在精确的
+前台 Activity 与请求目标 package 对应时才算 ready，留给计时内的 agent 处理，
+不会提前授权。`OpenAppTaskEval` 保留官方 home 起点，不提前打开候选 app 完成任务。
+AndroidWorld
 AccessibilityForwarder 仅在官方初始化和 validator 阶段启用；测量期间暂停，
 Midscene 与 recorder 共用 UIAutomator2 session。设备独占 lease 会拒绝第二个
 benchmark 进程，避免两个执行流操作同一 emulator。

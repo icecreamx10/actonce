@@ -51,6 +51,13 @@ official validator.
 
 Full-suite app installation and snapshots are measurement-external setup:
 
+The emulator launcher defaults to software-emulated front/back cameras, never
+the host webcam. `ACTONCE_EMULATOR_CAMERA_BACK` and
+`ACTONCE_EMULATOR_CAMERA_FRONT` can override them (including `none`). Requested
+cameras must enumerate before the launcher declares readiness; an older running
+emulator with disabled cameras must be restarted, not silently reused for camera
+tasks. No app data is wiped by that restart.
+
 ```bash
 npm run android-world:prepare-suite
 ```
@@ -147,7 +154,12 @@ tree reads. This preserves accessibility checkpoints while avoiding a new
 
 Original and replay use the same measurement-external app setup: the CLI
 force-stops declared target packages, launches the first official target app,
-and verifies foreground focus before timing. AndroidWorld's AccessibilityForwarder
+and verifies foreground focus before timing. A permission modal counts as ready
+only when its exact foreground activity is proven to have been requested by the
+target package; it is left for the measured agent to handle, not pre-granted.
+`OpenAppTaskEval` instead retains the official home start without prelaunching any
+candidate app or satisfying the task during preparation.
+AndroidWorld's AccessibilityForwarder
 is enabled for official initialization and validation, then suspended while the
 shared UIAutomator2 measurement session is active. A device lease rejects a
 second benchmark process targeting the same emulator.
