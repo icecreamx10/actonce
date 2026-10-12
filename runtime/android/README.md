@@ -29,6 +29,14 @@ actonce-android run replay.ts --serial emulator-5554
 
 Generated code must use `replayAndroidPrimitive`; do not inline ADB commands. Coordinates are normalized logical points and the native backend converts them to physical ADB coordinates using the device density.
 
+`sleep(timeMs)` preserves an explicitly selected recorded dwell, for example while
+capturing media. Primitive lowering no longer silently deletes `Sleep` actions.
+The agent decides whether a wait is semantically necessary or can instead be
+replaced by evidenced bounded settling; the lowerer never makes that decision.
+Retained dwell keeps its exact integer duration (0–2147483647 ms, no timer
+overflow/clamping), invalidates observations, and remains inside measured replay
+execution time. It does not replace the action's required before/after checkpoints.
+
 `typeText` preserves Midscene's Android replace and keyboard-dismiss semantics,
 including a bounded three-second IME dismissal observation window before trying
 the guarded secondary key path.

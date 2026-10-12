@@ -3,6 +3,25 @@ import { replayAndroidPrimitive } from "../src/primitives.js";
 import { extractAndroidPrimitives } from "../src/primitive-compiler.js";
 
 describe("replayAndroidPrimitive", () => {
+  it("preserves content dwell duration without dispatching device input", async () => {
+    vi.useFakeTimers();
+    try {
+      let completed = false;
+      const invalidateObservation = vi.fn();
+      const promise = replayAndroidPrimitive({ device: {}, invalidateObservation } as never, { operation: "sleep", arguments: [3000] })
+        .then(() => { completed = true; });
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(completed).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await promise;
+      expect(completed).toBe(true);
+      expect(invalidateObservation).toHaveBeenCalledOnce();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each([undefined, -1, "3000", 0.5, Infinity, 2_147_483_648])("refuses invalid sleep duration %s", async duration => {
+    await expect(replayAndroidPrimitive({ device: {} } as never, { operation: "sleep", arguments: [duration] })).rejects.toThrow("sleep duration");
+  });
   it.each([
     ["up", 400, { x: 206, y: 831 }],
     ["down", 300, { x: 206, y: 131 }],

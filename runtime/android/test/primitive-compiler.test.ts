@@ -26,7 +26,7 @@ describe("compileAndroidPrimitives", () => {
     }])).toThrow("LongPress duration");
   });
 
-  it("lowers completed logical actions and omits waits", () => {
+  it("preserves explicitly selected waits instead of choosing omissions", () => {
     const result = compileAndroidPrimitives(
       [
         {
@@ -46,11 +46,17 @@ describe("compileAndroidPrimitives", () => {
       ],
       { recordingId: "android-case" },
     );
-    expect(result.primitiveCount).toBe(1);
-    expect(result.omittedWaitCount).toBe(1);
-    expect(result.sequenceRange).toEqual({ from: 8, to: 8 });
+    expect(result.primitiveCount).toBe(2);
+    expect(result.omittedWaitCount).toBe(0);
+    expect(result.sequenceRange).toEqual({ from: 4, to: 8 });
+    expect(extractAndroidPrimitives([{ kind: "logical.action.completed", sequence: 1, actionId: "wait", operation: "Sleep", normalizedArguments: { timeMs: 3000 } }])[0].primitive)
+      .toEqual({ operation: "sleep", arguments: [3000] });
     expect(result.source).toContain('"operation": "tap"');
     expect(result.source).toContain('"x": 107');
+  });
+
+  it.each([undefined, null, "3000", -1, 0.5, NaN, Infinity, 2_147_483_648])("rejects invalid Sleep duration %s", timeMs => {
+    expect(() => extractAndroidPrimitives([{ kind: "logical.action.completed", sequence: 1, actionId: "wait", operation: "Sleep", normalizedArguments: { timeMs } }])).toThrow("sleep duration");
   });
 
   it("fails closed for unsupported actions", () => {

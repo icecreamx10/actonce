@@ -4,6 +4,7 @@ import type {
   AndroidPrimitiveOperation,
   RecordedAndroidPrimitive,
 } from "./primitives.js";
+import { validateAndroidSleepDuration } from "./primitives.js";
 
 export type RecordedAndroidEvent = {
   kind?: string;
@@ -32,10 +33,8 @@ export function compileAndroidPrimitives(
     sequenceRange?: { from: number; to: number };
   } = {},
 ): CompileAndroidPrimitivesResult {
-  const completed = events.filter((event) => event.kind === "logical.action.completed");
-  const omittedWaitCount = completed.filter(
-    (event) => event.operation === "Sleep",
-  ).length;
+  // Action selection and wait optimization belong to the agent, not this lowerer.
+  const omittedWaitCount = 0;
   const actions = extractAndroidPrimitives(events);
   const range =
     provenance.sequenceRange ??
@@ -74,7 +73,7 @@ export function extractAndroidPrimitives(
   return events
     .filter(
       (event) =>
-        event.kind === "logical.action.completed" && event.operation !== "Sleep",
+        event.kind === "logical.action.completed",
     )
     .map((event) => {
       if (!event.actionId || !Number.isInteger(event.sequence))
@@ -125,6 +124,7 @@ function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
   const mapping: Record<string, AndroidPrimitiveOperation> = {
     Launch: "launchApp",
     Terminate: "terminateApp",
+    Sleep: "sleep",
     Tap: "tap",
     DoubleClick: "doubleClick",
     LongPress: "longPress",
@@ -143,6 +143,8 @@ function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
     throw new Error(
       `Unsupported recorded Android action: ${String(event.operation)}`,
     );
+  if (operation === "sleep")
+    return { operation, arguments: [validateAndroidSleepDuration(args.timeMs)] };
   if (["back", "home", "recentApps"].includes(operation))
     return { operation, arguments: [] };
   if (["launchApp", "terminateApp"].includes(operation)) {

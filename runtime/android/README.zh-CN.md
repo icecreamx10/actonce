@@ -24,3 +24,8 @@ actonce-android run replay.ts --serial emulator-5554
 ```
 
 生成代码必须调用 `replayAndroidPrimitive`，不能内联 ADB 命令。坐标使用 Midscene 录制的逻辑坐标，并由 `AndroidDevice` 转换到物理显示坐标。
+
+`sleep(timeMs)` 保留 Agent 明确选择的录制停留，例如媒体采集期间的等待。Primitive
+lowering 不再静默删除 `Sleep`；必要等待还是可替换的有界状态等待由 Agent 判断，
+不是脚本决定。保留的停留时长必须与录制一致，为 0–2147483647 毫秒整数（拒绝定时器
+溢出或隐式裁短），会失效观察缓存并计入 replay 执行时间；前后 checkpoint 仍必须保留。

@@ -242,6 +242,11 @@ function validatePlan(candidate, sourceLedger, sourceSegments, platform, target)
       target.push(`${at}.action must be { operation: string, arguments: unknown[] }`);
     } else if (planSegment.action.operation !== ledgerSegment.loweredOperation) {
       target.push(`${at}.action.operation must equal ledger loweredOperation ${ledgerSegment.loweredOperation}`);
+    } else if (ledgerSegment.loweredOperation === "sleep") {
+      const duration = completedActions.get(ledgerSegment.actionId)?.normalizedArguments?.timeMs;
+      if (!Number.isInteger(duration) || duration < 0 || duration > 2_147_483_647
+          || planSegment.action.arguments.length !== 1 || planSegment.action.arguments[0] !== duration)
+        target.push(`${at}.action must preserve the recorded Sleep timeMs exactly`);
     } else if (ledgerSegment.loweredOperation === "tapUniqueNode") {
       const [selector, fallback] = planSegment.action.arguments;
       if (!sameObject(selector, ledgerSegment.optimization?.selector)
@@ -378,6 +383,7 @@ function expectedLoweredOperation(platform, recordedOperation) {
   const android = {
     ...mobile,
     Launch: "launchApp",
+    Sleep: "sleep",
     AndroidBackButton: "back",
     AndroidHomeButton: "home",
     AndroidRecentAppsButton: "recentApps",
