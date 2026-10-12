@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import {
   AndroidAgent,
   AndroidDevice,
@@ -145,6 +146,8 @@ export async function agentForRecordedAndroid(
   };
 }
 
+export const ANDROID_AFTER_ACTION_FOLLOWUP_DELAY_MS = 250;
+
 export function createAndroidCheckpointCapture(
   device: AndroidDevice,
   checkpointDevice: Pick<NativeAndroidDevice, "source">,
@@ -154,7 +157,12 @@ export function createAndroidCheckpointCapture(
     artifact: import("../core/source-interceptor.js").ArtifactReference;
   }) => void,
 ): CaptureCheckpoint {
-  return async (phase, actionId, correlation) => {
+  const captureOnce = async (
+    phase: Parameters<CaptureCheckpoint>[0],
+    actionId: string | null,
+    correlation: Parameters<CaptureCheckpoint>[2],
+    sampling: Record<string, unknown>,
+  ) => {
     const captureId = randomUUID();
     const startedMonotonicNs = context.monotonicNs();
     try {
@@ -179,6 +187,7 @@ export function createAndroidCheckpointCapture(
         captureId,
         actionId,
         phase,
+        sampling,
         evidence: {
           screenshot,
           deviceMetadata: { platform: "android", viewport },
@@ -217,6 +226,11 @@ export function createAndroidCheckpointCapture(
         captureId,
         actionId,
         phase,
+        sampling,
+        timing: {
+          startedMonotonicNs,
+          completedMonotonicNs: context.monotonicNs(),
+        },
         error: { message: message(error) },
         correlation,
       });
@@ -225,6 +239,25 @@ export function createAndroidCheckpointCapture(
         { eventSequence: receipt.sequence },
       );
     }
+  };
+  return async (phase, actionId, correlation) => {
+    const immediate = await captureOnce(phase, actionId, correlation, {
+      ordinal: 0,
+      trigger: "action-hook",
+    });
+    if (phase !== "after-action") return immediate;
+    // Dispatch completion is not renderer completion. Keep the first sample
+    // intact and collect a separately timestamped raw observation; this is not
+    // an assertion of UI consumption or stability.
+    await delay(ANDROID_AFTER_ACTION_FOLLOWUP_DELAY_MS);
+    return captureOnce(phase, actionId, correlation, {
+      ordinal: 1,
+      trigger: "post-action-followup",
+      followsCaptureId: immediate.captureId,
+      followsSequence: immediate.sequence,
+      scheduledDelayMs: ANDROID_AFTER_ACTION_FOLLOWUP_DELAY_MS,
+      stability: "not-evaluated",
+    });
   };
 }
 function checkpointSystemPort(): number {

@@ -45,6 +45,14 @@ proxy profile. `midscene-android` fixes `midscene + normalized Android actions +
 checkpoint`, including screenshot and UI-tree capture. Add and test a new named CLI profile when another combination is
 needed.
 
+Android action checkpoints preserve the immediate after-action screenshot/UI-tree
+pair and add a separate follow-up pair 250 ms after that capture completes.
+`sampling` records the ordinal, trigger, earlier capture reference and scheduled
+delay; both samples keep their actual capture timestamps and action correlation.
+This is raw observational evidence, not a claim of UI consumption or stability.
+Before-action/manual observations remain single samples. The extra capture cost
+is included in original execution time; do not confuse it with replay settling.
+
 ## iOS / WDA
 
 The iOS interceptor is ActOnce's passive flight recorder for WebDriverAgent traffic.
