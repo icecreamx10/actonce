@@ -2,6 +2,27 @@
 
 Deterministic Android replay runtime for ActOnce-generated scripts.
 
+### Explicit logical app names
+
+Keep the original recorded `Launch` URI in primitives/plans. When it is a logical
+name rather than a package, the caller must supply an evidence-backed mapping:
+
+```ts
+await executeAndroidPlan(plan, {
+  session: { appNameMapping: { dialer: "com.google.android.dialer" } },
+});
+// Also supported by AndroidSession.connect({ appNameMapping: ... }) and
+// runAndroidScripts(paths, { session: { appNameMapping: ... } }).
+```
+
+Names resolve exactly first, then by trimming, collapsing whitespace and
+lowercasing. The entire mapping is validated and copied before connection:
+empty names, invalid packages, accessors and duplicate normalized names fail
+closed (even when their targets agree). Direct package names remain unchanged;
+mapping keys cannot redirect a package. Unknown aliases fail without fuzzy
+matching, app enumeration, or AI dependencies. The example is not a built-in
+alias: use the package established by the original run's evidence.
+
 It connects to one explicit ADB device, mechanically lowers recorded Android actions to fixed primitives, and gates replay segments with Android accessibility-tree and screenshot checkpoints. The runtime starts one persistent Appium UIAutomator2 server per replay session and reads `/source` from that process; it does not invoke a cold `uiautomator dump` for every checkpoint and does not depend on Midscene. A successful postcondition is reused as the next adjacent precondition until a primitive invalidates the observation.
 
 Source reads disable UIAutomator2's implicit idle wait and still refresh its

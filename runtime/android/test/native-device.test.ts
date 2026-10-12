@@ -4,6 +4,8 @@ import type { ChildProcess } from "node:child_process";
 import {
   androidUiAutomatorXmlToUiTree,
   activateAndroidPackage,
+  resolveAndroidAppName,
+  validateAndroidAppNameMapping,
   encodeAndroidInputText,
   findAndroidUiTreeNodes,
   normalizeAndroidSource,
@@ -13,6 +15,48 @@ import {
   resolveAndroidSystemPort,
   waitForInstrumentationExit,
 } from "../src/native-device.js";
+
+describe("Android caller-supplied appNameMapping", () => {
+  const mapping = { dialer: "com.google.android.dialer", "Phone App": "com.example.phone" };
+
+  it("resolves exact and normalized logical names without changing packages", () => {
+    expect(resolveAndroidAppName("dialer", mapping)).toBe("com.google.android.dialer");
+    expect(resolveAndroidAppName("  DIALER  ", mapping)).toBe("com.google.android.dialer");
+    expect(resolveAndroidAppName(" phone   APP ", mapping)).toBe("com.example.phone");
+    expect(resolveAndroidAppName("com.example.app", mapping)).toBe("com.example.app");
+    expect(resolveAndroidAppName("com.example.app")).toBe("com.example.app");
+  });
+
+  it("does not fuzzy-match or discover unmapped aliases", () => {
+    expect(() => resolveAndroidAppName("dial", mapping)).toThrow("Unmapped");
+    expect(() => resolveAndroidAppName("dialer")).toThrow("Unmapped");
+  });
+
+  it("rejects every normalized collision, even before an exact match", () => {
+    for (const target of ["com.example.other", "com.google.android.dialer"]) {
+      expect(() => resolveAndroidAppName("dialer", { dialer: mapping.dialer, " DIALER ": target }))
+        .toThrow("Ambiguous");
+    }
+  });
+
+  it("rejects invalid entries and package redirection", () => {
+    expect(() => validateAndroidAppNameMapping({ " ": mapping.dialer })).toThrow("Invalid");
+    expect(() => validateAndroidAppNameMapping({ dialer: "bad;package" })).toThrow("Invalid");
+    expect(() => validateAndroidAppNameMapping({ "com.example.app": mapping.dialer })).toThrow("redirect");
+    expect(() => validateAndroidAppNameMapping([] as unknown as Record<string, string>)).toThrow("Invalid");
+    expect(() => validateAndroidAppNameMapping({ get dialer() { throw new Error("getter ran"); } }))
+      .toThrow("Invalid");
+  });
+
+  it("snapshots caller configuration and safely handles special record keys", () => {
+    const input = { dialer: mapping.dialer };
+    const snapshot = validateAndroidAppNameMapping(input);
+    input.dialer = "com.example.other";
+    expect(resolveAndroidAppName("dialer", snapshot)).toBe(mapping.dialer);
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(resolveAndroidAppName("constructor", { constructor: "com.example.app" })).toBe("com.example.app");
+  });
+});
 
 describe("encodeAndroidInputText", () => {
   it("preserves apostrophes through the remote adb shell transport", () => {
