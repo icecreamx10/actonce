@@ -15,6 +15,7 @@ import {
   nextChromeFixtureAction,
 } from "./chrome-fixture.js";
 import { captureRuntimePermissionFixture, restoreRuntimePermissionFixture } from "./permission-fixture.js";
+import { initialTargetPolicy, isInitialTargetForeground } from "./initial-target.js";
 
 type Mode = "all" | "original" | "replay" | "evaluate";
 const args = parseArgs(process.argv.slice(2));
@@ -245,19 +246,13 @@ async function preparePermissionFixture(mode: "original" | "replay", value: unkn
 }
 
 async function prepareInitialTargetApp(value: unknown) {
-  if (!Array.isArray(value)) return;
   const adb = process.env.MIDSCENE_ADB_PATH || "adb";
   const serial = process.env.ACTONCE_ANDROID_SERIAL || "emulator-5554";
-  const packages = new Set(value.flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const packageName = (item as Record<string, unknown>).package;
-    return typeof packageName === "string" && packageName.length > 0 ? [packageName] : [];
-  }));
+  const { packages, initialPackage } = initialTargetPolicy(args.task, value);
   for (const packageName of packages) {
     const result = await runCapture(adb, ["-s", serial, "shell", "am", "force-stop", packageName]);
     if (result.code !== 0) throw new Error(`Failed to force-stop target app ${packageName}: ${result.stderr}`);
   }
-  const initialPackage = packages.values().next().value as string | undefined;
   if (!initialPackage) return;
   const resolved = await runCapture(adb, [
     "-s", serial, "shell", "cmd", "package", "resolve-activity", "--brief", initialPackage,
@@ -276,8 +271,9 @@ async function prepareInitialTargetApp(value: unknown) {
   while (Date.now() < deadline) {
     const focus = await runCapture(adb, ["-s", serial, "shell", "dumpsys", "window"]);
     if (focus.code !== 0) throw new Error(`Failed to inspect foreground app: ${focus.stderr}`);
-    const current = focus.stdout.split("\n").find((line) => line.includes("mCurrentFocus="));
-    if (current?.includes(initialPackage)) {
+    const activities = await runCapture(adb, ["-s", serial, "shell", "dumpsys", "activity", "activities"]);
+    if (activities.code !== 0) throw new Error(`Failed to inspect foreground activity: ${activities.stderr}`);
+    if (isInitialTargetForeground(initialPackage, focus.stdout, activities.stdout)) {
       await canonicalizeInitialAppState(adb, serial, initialPackage);
       return;
     }

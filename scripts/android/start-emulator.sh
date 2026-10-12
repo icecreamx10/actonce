@@ -26,7 +26,26 @@ if [[ ! -x "${ANDROID_SDK_ROOT}/emulator/emulator" ]]; then
   source "${SCRIPT_DIR}/env.sh"
 fi
 
+verify_camera_availability() {
+  if [[ "${ACTONCE_EMULATOR_CAMERA_BACK}" == "none" && "${ACTONCE_EMULATOR_CAMERA_FRONT}" == "none" ]]; then
+    return
+  fi
+  local camera_state camera_deadline
+  camera_deadline=$((SECONDS + 30))
+  while (( SECONDS < camera_deadline )); do
+    camera_state="$(adb -s "${ACTONCE_ANDROID_SERIAL}" shell dumpsys media.camera)"
+    if printf '%s\n' "${camera_state}" | grep -E '^[[:space:]]*Number of camera devices: [1-9][0-9]*' >/dev/null; then
+      return
+    fi
+    sleep 1
+  done
+  echo "Emulator has no camera devices, but cameras are requested. Restart ${ACTONCE_ANDROID_SERIAL} with this script; existing emulator launch options cannot be changed live." >&2
+  printf '%s\n' "${camera_state}" | head -15 >&2
+  return 1
+}
+
 if adb -s "${ACTONCE_ANDROID_SERIAL}" get-state 2>/dev/null | grep -q "device"; then
+  verify_camera_availability
   echo "Emulator already running: ${ACTONCE_ANDROID_SERIAL}"
   exit 0
 fi
@@ -43,8 +62,8 @@ EMULATOR_ARGS=(
   -no-boot-anim
   -no-audio
   -gpu "${ACTONCE_EMULATOR_GPU}"
-  -camera-back none
-  -camera-front none
+  -camera-back "${ACTONCE_EMULATOR_CAMERA_BACK}"
+  -camera-front "${ACTONCE_EMULATOR_CAMERA_FRONT}"
   -partition-size "${ACTONCE_PARTITION_SIZE_MB}"
 )
 
@@ -89,6 +108,7 @@ adb -s "${ACTONCE_ANDROID_SERIAL}" shell settings put global transition_animatio
 adb -s "${ACTONCE_ANDROID_SERIAL}" shell settings put global animator_duration_scale 0
 adb -s "${ACTONCE_ANDROID_SERIAL}" shell svc power stayon true
 adb -s "${ACTONCE_ANDROID_SERIAL}" shell input keyevent 82
+verify_camera_availability
 
 echo "Android emulator ready: ${ACTONCE_ANDROID_SERIAL}"
 echo "Log: ${LOG_PATH}"
