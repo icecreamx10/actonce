@@ -1,5 +1,19 @@
 # AndroidWorld Benchmark
 
+生成的任务状态在官方参数生成后、任务构造前保存 Python 与可选 NumPy RNG
+检查点。初始化在连接设备前验证主机状态，并在连接后恢复该边界。旧状态重建
+要求已记录或明确提供且一致的 seed，并严格验证官方参数重新生成结果，绝不
+改写原始状态。seed 与参数相等本身不能证明旧 original 使用了该 RNG 边界；
+只有另有原始参数生成来源证据，才能宣称 fixture 一致。
+无检查点的旧状态保持历史初始化行为，明确输出 `fixtureRng: legacy-uncontrolled`，
+该状态不能证明 fixture 一致。确认 original 的参数确实刚生成后，先复制
+状态目录，再在测量外运行主机命令 `task.py prepare-fixture-rng --task <task>
+--state-dir <staged-copy> --original-state-dir <immutable-original>
+--legacy-generated-params`，仅在副本写入声明及源文件哈希。复用过旧参数的
+original 不得使用该声明。无状态的固定 canary 保持原行为，不保存 RNG 检查点。
+新 original 录制会传入 `--record-fixture-rng`：复用无检查点的参数时捕获当下
+真实 RNG 边界，不重新设 seed、不声称恢复旧 original。已有检查点只恢复不覆盖。
+
 ## 新回放的计时协议
 
 新评测使用 `--replay-module <module.ts>`：agent 生成 SDK module，默认导出

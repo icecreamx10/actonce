@@ -7,6 +7,26 @@ Midscene reported as PASS in round 1. It pins AndroidWorld commit
 `3e50888527ef9f29b9157ecd537e408008bb1c85`, a Pixel 6/API 33 AVD, the task's
 fixed `max` parameters, and AndroidWorld's own initializer and reward validator.
 
+Generated task state records Python and optional NumPy RNG checkpoints immediately
+after official parameter generation, before task construction. Initialization
+validates host state before connecting and restores that boundary after connection.
+Legacy reconstruction requires a recorded or explicit matching seed and exact
+official parameter regeneration; it never rewrites original state. Seed/parameter
+equality alone does not prove that a legacy original used this RNG boundary:
+original-generation provenance is also required before claiming fixture parity.
+Legacy initialization without a checkpoint retains historical behavior but emits
+`fixtureRng: legacy-uncontrolled`; this is not evidence of fixture equivalence.
+With evidence of
+fresh original parameter generation, copy the state directory and run the host-only
+`task.py prepare-fixture-rng --task <task> --state-dir <staged-copy>
+--original-state-dir <immutable-original> --legacy-generated-params` before replay.
+This records attestation and source hashes only in the staged copy; the flag must
+not be used for originals that reused saved parameters. The fixed no-state canary
+remains unchanged and has no persisted RNG checkpoint.
+Original recording also passes `--record-fixture-rng`: when reusing uncaptured
+params for a new recording, it captures the actual current RNG boundary without
+reseeding or asserting legacy parity. Existing checkpoints are restored, not overwritten.
+
 ## Coverage target
 
 The pinned Midscene report contains 116 AndroidWorld tasks. Round 1 passed 108;

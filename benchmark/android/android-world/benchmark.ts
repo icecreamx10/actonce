@@ -47,7 +47,7 @@ async function original() {
   const runDir = resolve(outputDir, "original");
   await mkdir(runDir, { recursive: true });
   await releaseStaleCheckpointService();
-  const initialized = await task("initialize");
+  const initialized = await task("initialize", true);
   await suspendAndroidWorldAccessibilityForwarder();
   const permissionFixture = await preparePermissionFixture("original", initialized.apps);
   await prepareInitialTargetApp(initialized.apps);
@@ -80,6 +80,7 @@ async function original() {
     params: initialized.params,
     apps: initialized.apps,
     permissionFixture,
+    fixtureRng: initialized.fixtureRng ?? "unknown",
     executionDurationMs: duration,
     childProcessDurationMs: processResult.durationMs,
     timingBoundary: { scope: manifestDuration(manifest) !== null ? "recording-session" : "child-process", managedBy: "recorder-manifest", includesRecorderOverhead: true },
@@ -124,6 +125,7 @@ async function replay() {
     goal: initialized.goal,
     params: initialized.params,
     permissionFixture,
+    fixtureRng: initialized.fixtureRng ?? "unknown",
     executionDurationMs: runtime?.executionDurationMs ?? processResult.durationMs,
     childProcessDurationMs: processResult.durationMs,
     timingBoundary: args.replayModule ? runtime?.timingBoundary ?? null : { scope: "legacy-entry-reported", managedBy: "authored-entry", reportedBoundary: runtime?.timingBoundary ?? null },
@@ -182,9 +184,10 @@ async function evaluate() {
   return result;
 }
 
-async function task(command: "initialize" | "evaluate") {
+async function task(command: "initialize" | "evaluate", recordFixtureRng = false) {
   const taskArgs = [taskCli, command, "--task", args.task, "--state-dir", stateDir];
   if (command === "initialize" && args.seed !== undefined) taskArgs.push("--seed", String(args.seed));
+  if (command === "initialize" && recordFixtureRng) taskArgs.push("--record-fixture-rng");
   const result = await runCapture(python, taskArgs, {
     GRPC_VERBOSITY: "ERROR",
   });
