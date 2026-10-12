@@ -20,6 +20,17 @@ npm run android-world:catalog -- --selection pass@3 --format lines
 
 ## 正式快照
 
+App-data snapshot 不恢复 Android 运行时权限授予状态。新的 original 会自动保存
+`task-state/runtime-permissions.json`（user 0）；replay 在启动 App、开始计时前恢复并
+验证，正式评测复制参数时也需保留此文件。只允许任务声明 App 已请求的运行时权限，
+不清空全机权限，也不任意恢复 AppOps 或系统/用户权限 flags。
+
+旧录制没有该基线。仅当原始证据证明所需初始授权状态时，才能编写有证据路径和哈希
+审计的 fixture，并用公共 CLI 的 `--fixture-permissions <file>`；不能编造未知权限、
+删除权限弹窗动作，或把权限修复放进计时内回放。格式为
+`{ "schemaVersion": 1, "userId": 0, "packages": [{ "package": "com.example.app", "permissions": { "android.permission.RECORD_AUDIO": false } }] }`。
+缺失的旧基线在结果中明确标为 unavailable；命令或验证失败则停止 setup，不弱化 checkpoint。
+
 原始录制可明确选择 `--model-profile codex-6.1-sol`，通过本地已登录的 Codex
 app server 使用 `gpt-6.1-sol`。计时前运行
 `npm run android-world:model:verify -- --model-profile codex-6.1-sol` 验证。

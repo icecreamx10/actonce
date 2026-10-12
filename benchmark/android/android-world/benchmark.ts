@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { MIDSCENE_ANDROID_WORLD_CASES, MIDSCENE_ANDROID_WORLD_REPORT } from "./catalog.js";
@@ -13,6 +14,7 @@ import {
   isChromeReady,
   nextChromeFixtureAction,
 } from "./chrome-fixture.js";
+import { captureRuntimePermissionFixture, restoreRuntimePermissionFixture } from "./permission-fixture.js";
 
 type Mode = "all" | "original" | "replay" | "evaluate";
 const args = parseArgs(process.argv.slice(2));
@@ -45,6 +47,7 @@ async function original() {
   await releaseStaleCheckpointService();
   const initialized = await task("initialize");
   await suspendAndroidWorldAccessibilityForwarder();
+  const permissionFixture = await preparePermissionFixture("original", initialized.apps);
   await prepareInitialTargetApp(initialized.apps);
   const originalEntry = args.originalEntry ?? "benchmark/android/android-world/generic-task.ts";
   const processResult = await run("node_modules/.bin/tsx", [
@@ -72,6 +75,7 @@ async function original() {
     goal: initialized.goal,
     params: initialized.params,
     apps: initialized.apps,
+    permissionFixture,
     executionDurationMs: duration,
     officialValidator: official,
     processExitCode: processResult.code,
@@ -89,6 +93,7 @@ async function replay() {
   await releaseStaleCheckpointService();
   const initialized = await task("initialize");
   await suspendAndroidWorldAccessibilityForwarder();
+  const permissionFixture = await preparePermissionFixture("replay", initialized.apps);
   await prepareInitialTargetApp(initialized.apps);
   const replayEntry = args.replayEntry ?? (args.task === "SystemBrightnessMax"
     ? "benchmark/android/android-world/system-brightness-max-replay.ts"
@@ -110,6 +115,7 @@ async function replay() {
     status: processResult.code === 0 && runtime?.status === "passed" && official.reward === 1 ? "passed" : "failed",
     goal: initialized.goal,
     params: initialized.params,
+    permissionFixture,
     executionDurationMs: runtime?.executionDurationMs ?? processResult.durationMs,
     officialValidator: official,
     replayDiagnostics: runtime?.replayDiagnostics ?? null,
@@ -215,6 +221,29 @@ async function suspendAndroidWorldAccessibilityForwarder() {
   throw new Error("Timed out waiting for AndroidWorld AccessibilityForwarder to unbind");
 }
 
+async function preparePermissionFixture(mode: "original" | "replay", value: unknown) {
+  const apps = Array.isArray(value) ? value as Array<{ package?: string | null }> : [];
+  const defaultPath = resolve(stateDir, "runtime-permissions.json");
+  const path = args.fixturePermissions ? resolve(args.fixturePermissions) : defaultPath;
+  const fixture = await json(path);
+  const adb = process.env.MIDSCENE_ADB_PATH || "adb";
+  const serial = process.env.ACTONCE_ANDROID_SERIAL || "emulator-5554";
+  const command = async (values: string[]) => {
+    const result = await runCapture(adb, ["-s", serial, ...values]);
+    if (result.code !== 0) throw new Error(`Permission fixture command failed: ${result.stderr || result.stdout}`);
+    return result.stdout;
+  };
+  if (fixture) {
+    await restoreRuntimePermissionFixture(fixture, apps, command);
+    if (mode === "original" && path !== defaultPath) await writeJson(defaultPath, fixture);
+    return { status: "restored", path, sha256: createHash("sha256").update(await readFile(path)).digest("hex") };
+  }
+  if (args.fixturePermissions) throw new Error(`Explicit permission fixture not found: ${path}`);
+  if (mode === "replay") return { status: "unavailable", reason: "Legacy original has no permission baseline; supply an evidence-backed --fixture-permissions file if needed" };
+  await writeJson(defaultPath, await captureRuntimePermissionFixture(apps, command));
+  return { status: "captured", path: defaultPath, sha256: createHash("sha256").update(await readFile(defaultPath)).digest("hex") };
+}
+
 async function prepareInitialTargetApp(value: unknown) {
   if (!Array.isArray(value)) return;
   const adb = process.env.MIDSCENE_ADB_PATH || "adb";
@@ -316,10 +345,12 @@ function parseArgs(values: string[]): {
   seed?: number;
   originalEntry?: string;
   replayEntry?: string;
+  fixturePermissions?: string;
   modelProfile: AndroidWorldModelProfile;
 } {
   let mode: Mode = "all", output: string | undefined, task = "SystemBrightnessMax";
   let seed: number | undefined, originalEntry: string | undefined, replayEntry: string | undefined;
+  let fixturePermissions: string | undefined;
   let modelProfile: AndroidWorldModelProfile = "codex-luna";
   for (let index = 0; index < values.length; index += 1) {
     if (values[index] === "--mode") mode = values[++index] as Mode;
@@ -328,13 +359,17 @@ function parseArgs(values: string[]): {
     else if (values[index] === "--seed") seed = Number(values[++index]);
     else if (values[index] === "--original-entry") originalEntry = values[++index];
     else if (values[index] === "--replay-entry") replayEntry = values[++index];
+    else if (values[index] === "--fixture-permissions") {
+      fixturePermissions = values[++index];
+      if (!fixturePermissions || fixturePermissions.startsWith("--")) throw new Error("--fixture-permissions requires a path");
+    }
     else if (values[index] === "--model-profile") modelProfile = values[++index] as AndroidWorldModelProfile;
     else throw new Error(`Unknown argument: ${values[index]}`);
   }
   if (!["all", "original", "replay", "evaluate"].includes(mode)) throw new Error(`Unknown mode: ${mode}`);
   if (seed !== undefined && !Number.isInteger(seed)) throw new Error(`Invalid seed: ${seed}`);
   requireAndroidWorldModelProfile(modelProfile);
-  return { mode, output, task, seed, originalEntry, replayEntry, modelProfile };
+  return { mode, output, task, seed, originalEntry, replayEntry, fixturePermissions, modelProfile };
 }
 
 async function json(path: string): Promise<Record<string, unknown> | null> {
