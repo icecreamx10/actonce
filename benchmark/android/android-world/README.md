@@ -62,6 +62,10 @@ after close, including actions, checkpoints, retries and final screenshot/native
 source capture. Module loading and artifact writes are outside the clock.
 It persists final evidence references/hashes, diagnostics and cleanup errors.
 Unresolved checkpoint outcomes remain failures even if a module catches an error.
+`checkpointCaptureBreakdown` aggregates checked observations' source, screenshot
+and visual comparison durations separately from actual settle delays. Stage sample
+counts and timing coverage are explicit; legacy missing timing stays `null`.
+Source stages include cache hits; the breakdown excludes final evidence capture.
 
 Successful original recordings may be reused with their immutable complete
 manifest. Exact legacy manifest duration matches can establish their recording

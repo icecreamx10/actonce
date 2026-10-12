@@ -15,6 +15,29 @@ export function originalTimingBoundary(result: Record<string, unknown> | null, m
 
 type Evidence = { screenshot?: Buffer; source?: string };
 
+export function summarizeCheckpointCaptureTiming(events: unknown[]) {
+  let checkedSamples = 0, timedSamples = 0;
+  const source = { samples: 0, durationMs: 0 };
+  const screenshot = { samples: 0, durationMs: 0 };
+  const visualComparison = { samples: 0, durationMs: 0 };
+  for (const value of events) {
+    const event = value as { kind?: string; checkpoint?: { actual?: { captureTiming?: Record<string, unknown> } } } | null;
+    if (event?.kind !== "replay.checkpoint.checked") continue;
+    checkedSamples++;
+    const timing = event.checkpoint?.actual?.captureTiming;
+    if (!timing || typeof timing !== "object" || Array.isArray(timing)) continue;
+    timedSamples++;
+    for (const [key, stage] of [["sourceDurationMs", source], ["screenshotDurationMs", screenshot], ["visualComparisonDurationMs", visualComparison]] as const) {
+      const duration = timing[key];
+      if (typeof duration === "number" && Number.isFinite(duration) && duration >= 0) {
+        stage.samples++;
+        stage.durationMs += duration;
+      }
+    }
+  }
+  return timedSamples ? { checkedSamples, timedSamples, complete: timedSamples === checkedSamples, source, screenshot, visualComparison } : null;
+}
+
 export const DEVICE_SESSION_TIMING_BOUNDARY = {
   scope: "device-session", clock: "monotonic", managedBy: "benchmark-replay-module-runner",
   start: "before AndroidSession.connect", end: "after AndroidSession.close",
@@ -85,7 +108,7 @@ export async function runReplayModule(options: {
   const segments = (replayDiagnostics as { segments?: Array<{ outcome: string }> } | null)?.segments ?? [];
   if (segments.some(segment => !["matched", "recovered"].includes(segment.outcome))) failed("diagnostics", new Error("Replay diagnostics contain an unresolved segment outcome"));
   const artifact = (path: string, bytes: Buffer | string | undefined) => bytes === undefined ? null : { path, sha256: createHash("sha256").update(bytes).digest("hex") };
-  const result = { schemaVersion: 1, mode: "replay", status: errors.length ? "failed" : "passed", executionDurationMs, timingBoundary: DEVICE_SESSION_TIMING_BOUNDARY, replayDiagnostics, errors, artifacts: { screenshot: artifact("final.png", evidence.screenshot), source: artifact("final-source.json", evidence.source), events: "events.json" } };
+  const result = { schemaVersion: 1, mode: "replay", status: errors.length ? "failed" : "passed", executionDurationMs, timingBoundary: DEVICE_SESSION_TIMING_BOUNDARY, replayDiagnostics, checkpointCaptureBreakdown: summarizeCheckpointCaptureTiming(events), errors, artifacts: { screenshot: artifact("final.png", evidence.screenshot), source: artifact("final-source.json", evidence.source), events: "events.json" } };
   await (dependencies.writeArtifacts ?? writeArtifacts)(options.outputDir, result, events, evidence);
   return result;
 }

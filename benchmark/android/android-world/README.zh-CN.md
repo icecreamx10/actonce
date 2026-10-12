@@ -24,6 +24,10 @@ module 不自行连接、关闭、计时或写 benchmark 结果。调用：
 npm run benchmark:android:android-world -- --mode replay --task <task> --output <sample> --replay-module <module.ts>
 ```
 
+`checkpointCaptureBreakdown` 将逐次检查的 source、截图、视觉比较耗时分别聚合，
+不与真正的 settle delay 混合。阶段样本数与计时覆盖度明确记录；旧产物缺失计时
+时保留 `null`。source 分项包含缓存命中；此细分不包含最终取证采集。
+
 CLI 使用单调时钟，从连接前计时至关闭后，包含动作、checkpoint、重试和最终
 截图/原生树采集；module 加载与文件写入不计时。未解决的 checkpoint 失败不能
 因 module 捕获异常而变成成功。最终证据保存为文件引用及 hash。

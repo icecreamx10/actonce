@@ -43,6 +43,12 @@ export type AndroidCheckpointActual = {
   screenshotBase64?: string;
   visual?: AndroidVisualComparison;
   captureErrors: string[];
+  /** Monotonic stage durations; omitted stages were not attempted. Source may use its cache. */
+  captureTiming?: {
+    sourceDurationMs?: number;
+    screenshotDurationMs?: number;
+    visualComparisonDurationMs?: number;
+  };
 };
 export type AndroidReplayFlowOptions = {
   policy?: FallbackPolicy;
@@ -69,7 +75,10 @@ export class AndroidCheckpointDriver
     CheckpointDriver<AndroidCheckpointExpectation, AndroidCheckpointActual>
 {
   private lastCheckpointId?: string;
-  constructor(private readonly android: AndroidSession) {}
+  constructor(
+    private readonly android: AndroidSession,
+    private readonly now: () => number = () => performance.now(),
+  ) {}
   async verify(
     spec: CheckpointSpec<AndroidCheckpointExpectation>,
     context?: CheckpointVerificationContext,
@@ -77,21 +86,30 @@ export class AndroidCheckpointDriver
     // Stability samples need fresh evidence; distinct adjacent contracts may reuse it.
     if (this.lastCheckpointId === spec.id) this.android.invalidateObservation();
     this.lastCheckpointId = spec.id;
-    const actual: AndroidCheckpointActual = { captureErrors: [] };
+    const actual: AndroidCheckpointActual = { captureErrors: [], captureTiming: {} };
     if (context?.signal.aborted)
       actual.captureErrors.push("checkpoint deadline exceeded before capture");
-    if (!actual.captureErrors.length && (spec.expected.source || spec.expected.visual?.anchor))
+    if (!actual.captureErrors.length && (spec.expected.source || spec.expected.visual?.anchor)) {
+      const started = this.now();
       try {
         actual.source = await this.android.source();
       } catch (error) {
         actual.captureErrors.push(`source: ${message(error)}`);
+      } finally {
+        actual.captureTiming!.sourceDurationMs = this.now() - started;
       }
+    }
     if (
       !actual.captureErrors.length &&
       (spec.expected.captureScreenshot || spec.expected.visual)
-    )
+    ) {
       try {
-        actual.screenshotBase64 = await this.android.screenshot();
+        const started = this.now();
+        try {
+          actual.screenshotBase64 = await this.android.screenshot();
+        } finally {
+          actual.captureTiming!.screenshotDurationMs = this.now() - started;
+        }
         if (
           context?.signal.aborted ||
           Date.now() > (context?.deadlineMs ?? Infinity)
@@ -99,15 +117,22 @@ export class AndroidCheckpointDriver
           actual.captureErrors.push(
             "checkpoint deadline exceeded during screenshot capture",
           );
-        else if (spec.expected.visual)
-          actual.visual = await compareAndroidVisualScreenshot(
-            actual.screenshotBase64,
-            spec.expected.visual,
-            actual.source,
-          );
+        else if (spec.expected.visual) {
+          const started = this.now();
+          try {
+            actual.visual = await compareAndroidVisualScreenshot(
+              actual.screenshotBase64,
+              spec.expected.visual,
+              actual.source,
+            );
+          } finally {
+            actual.captureTiming!.visualComparisonDurationMs = this.now() - started;
+          }
+        }
       } catch (error) {
         actual.captureErrors.push(`screenshot: ${message(error)}`);
       }
+    }
     const differences = compareAndroidCheckpoint(spec.expected, actual);
     const result: CheckpointResult<AndroidCheckpointActual> = {
       status: actual.captureErrors.length
