@@ -23,8 +23,9 @@ Correctness is a hard gate: ActOnce reports speed only when the replay passes th
 | Android · checkout | 140.446 s | 17.412 s | 8.07× | 2/2, fallback 0 |
 | AndroidWorld · historical broader validation | 1,760.637 s | 187.664 s | 9.38× | Historical 19/19, fallback 0 |
 | AndroidWorld · fresh strict slice, Oct 10–12 | Per-case | Per-case | 3.05–24.80× | 5/5, fallback 0 |
+| AndroidWorld · CameraTakeVideo, Oct 13 | 125.921 s | 12.352 s | 10.19× | Reward 1/1, 9 checkpoints, fallback 0 |
 
-The AndroidWorld target is all 113 tasks that passed at least once in Midscene's three published rounds. Fresh verification covers **5/5 strict cases and 18/19 qualified broader replays**—not a fresh 19/19. All broader cases have a successful original; video replay remains blocked by missing permission-lifecycle evidence. See the [Oct 10–12 audit](benchmark/android/android-world/REPRODUCTION-2026-10-12.md) for per-case results, failures, timing scopes and revisions. Successful originals and already-passed replays are reused; mixed revisions and recorder/native-session overhead are not combined into a homogeneous suite score. Other platform rows are earlier runs, not rerun in this audit.
+The AndroidWorld target is all 113 tasks that passed at least once in Midscene's three published rounds. The Oct 10–13 audits now cover **5/5 strict cases and 19/19 qualified broader replays**, across different revisions—not the full catalog or one homogeneous suite run. Video was re-recorded with a frozen pregranted-permission/startup/media-publication baseline; already-passed cases were not rerun. See the [Oct 10–12 audit](benchmark/android/android-world/REPRODUCTION-2026-10-12.md) and [Oct 13 video audit](benchmark/android/android-world/REPRODUCTION-2026-10-13.md). Original recording time includes recorder overhead; replay includes native connection, checkpoints, final evidence and close. Per-case raw ratios are not combined into a same-scope aggregate. Other platform rows remain historical.
 
 Protocols and evidence:
 

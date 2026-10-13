@@ -83,9 +83,10 @@ measurement. Existing Luna profiles and defaults are unchanged. Preserve each
 case's actual model/revision provenance; replay stays model-free and successful
 originals are reused rather than re-recorded on a model change.
 
-The [October 10–12 audit](REPRODUCTION-2026-10-12.md) freshly verifies all five
-strict-slice tasks and six broader tasks. Its per-case revisions and original
-reuse are explicit; it does not claim full-suite coverage or aggregate unlike revisions.
+The [October 10–12 audit](REPRODUCTION-2026-10-12.md) and
+[October 13 video audit](REPRODUCTION-2026-10-13.md) verify all five strict-slice
+tasks and nineteen broader tasks across revisions. Passed cases are reused,
+not rerun for the video repair; no full-suite or homogeneous aggregate is claimed.
 
 The earlier zero-context, one-sample formal slice below covers four of the 113 target
 tasks. Every replay passed the official AndroidWorld reward gate with no AI

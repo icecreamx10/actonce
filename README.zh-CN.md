@@ -23,8 +23,9 @@ Computer-use Agent 擅长探索陌生界面，但每次都重新发现同一个�
 | Android · checkout | 140.446 秒 | 17.412 秒 | 8.07× | 2/2，fallback 0 |
 | AndroidWorld · 历史较大验证集 | 1,760.637 秒 | 187.664 秒 | 9.38× | 历史 19/19，fallback 0 |
 | AndroidWorld · 10 月 10–12 日新严格切片 | 逐 case | 逐 case | 3.05–24.80× | 5/5，fallback 0 |
+| AndroidWorld · 10 月 13 日 CameraTakeVideo | 125.921 秒 | 12.352 秒 | 10.19× | Reward 1/1，9 个 checkpoint，fallback 0 |
 
-AndroidWorld 完整目标是 Midscene 三轮公开结果中至少通过一次的 113 个任务。新验证覆盖 **严格切片 5/5、较大验证集 18/19 个合格回放**，不是本轮 19/19。较大验证集的 original 现已全部成功；视频 replay 因权限生命周期证据缺失仍阻塞。[10 月 10–12 日审计](benchmark/android/android-world/REPRODUCTION-2026-10-12.zh-CN.md) 记录逐 case 结果、失败、计时范围和版本。成功 original 和已通过 replay 均复用；不同版本及录制/原生会话的开销不合并成同质 suite 总分。其他平台行是历史运行，本轮未重测。
+AndroidWorld 完整目标是 Midscene 三轮公开结果中至少通过一次的 113 个任务。10 月 10–13 日审计现覆盖 **严格切片 5/5、较大验证集 19/19 个合格回放**；结果跨版本，不是完整目录或一次同质 suite 测试。视频在固定预授权、启动和媒体发布基线后重新录制；其他已通过 case 未重跑。见 [10 月 10–12 日审计](benchmark/android/android-world/REPRODUCTION-2026-10-12.zh-CN.md) 和 [10 月 13 日视频审计](benchmark/android/android-world/REPRODUCTION-2026-10-13.zh-CN.md)。original 包含 recorder 开销，replay 包含原生连接、checkpoint、最终证据和关闭；逐 case 原始比例不合并成同口径总分。其他平台行仍是历史运行。
 
 协议与证据：
 

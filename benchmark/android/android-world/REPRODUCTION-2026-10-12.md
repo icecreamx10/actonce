@@ -2,6 +2,10 @@
 
 [简体中文](REPRODUCTION-2026-10-12.zh-CN.md)
 
+Historical snapshot: the subsequent [October 13 video audit](REPRODUCTION-2026-10-13.md)
+closes the remaining video case with a new baseline. The results and blockers
+below describe October 10–12 and remain unchanged.
+
 This audit re-recorded the five strict-slice tasks and continued the separate
 historical 19-case set. The remaining thirteen now have successful originals;
 twelve received qualified independent replay measurements; video qualification
