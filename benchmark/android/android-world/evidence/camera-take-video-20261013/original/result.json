@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "android-world-camera-take-video",
+  "suite": "AndroidWorld",
+  "task": "CameraTakeVideo",
+  "mode": "original",
+  "status": "passed",
+  "goal": "Take one video.",
+  "params": {},
+  "apps": [
+    {
+      "name": "camera",
+      "package": "com.android.camera2"
+    }
+  ],
+  "permissionFixture": {
+    "status": "normalized",
+    "permissionPolicy": "grant-all",
+    "path": "/Users/bytedance/Documents/ChatGPT/device use record/.cache/android-world/video-pregranted-20261013/published-sample-1/task-state/runtime-permissions.json"
+  },
+  "startEnvironment": {
+    "status": "verified",
+    "permissionPolicy": "grant-all",
+    "path": "/Users/bytedance/Documents/ChatGPT/device use record/.cache/android-world/video-pregranted-20261013/published-sample-1/task-state/start-environment.json",
+    "sha256": "29ba8952d3d858e3601b77156ca8023c6b4ab9cc928a2996278b30257c6bc3be",
+    "publicationCleanup": {
+      "removedRows": {
+        "Pictures": 0,
+        "Movies": 0
+      },
+      "quarantinedFiles": [],
+      "quarantineDirectory": null
+    },
+    "setupAttemptCount": 1,
+    "startupFailures": []
+  },
+  "fixtureRng": "checkpoint-restored",
+  "executionDurationMs": 125921,
+  "childProcessDurationMs": 126962.179959,
+  "timingBoundary": {
+    "scope": "recording-session",
+    "managedBy": "recorder-manifest",
+    "includesRecorderOverhead": true
+  },
+  "officialValidator": {
+    "status": "passed",
+    "task": "CameraTakeVideo",
+    "reward": 1,
+    "validator": "android_world.task_evals.single.camera.CameraTakeVideo.is_successful"
+  },
+  "processExitCode": 0,
+  "model": {
+    "profile": "codex-6.1-sol",
+    "provider": "codex-app-server",
+    "model": "gpt-6.1-sol",
+    "family": "gpt-5",
+    "reasoning": {
+      "enabled": true,
+      "effort": "medium"
+    }
+  },
+  "executionScaffold": {
+    "logicalAppMapping": [
+      {
+        "name": "camera",
+        "package": "com.android.camera2"
+      }
+    ],
+    "startState": "target-app",
+    "adbShellExposed": false
+  }
+}

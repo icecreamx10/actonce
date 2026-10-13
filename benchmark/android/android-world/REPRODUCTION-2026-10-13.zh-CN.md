@@ -63,8 +63,10 @@ Checkpoint capture 合计 4867 毫秒（事件计时经过取整），不包含 
 
 本地根目录：`.cache/android-world/video-pregranted-20261013/`。
 新录制 `published-sample-1/original`，编译 `published-sample-1/synthesized-v1`，
-正式结果 `published-sample-1/formal-replay`。这些原始产物被 Git 忽略，干净 clone 不包含它们；
-可使用公开 harness 和 synthesis Skill 生成新证据，本审计不是自包含的精确复现包。
+正式结果 `published-sample-1/formal-replay`。现已提交经过检查的
+[发布投影](evidence/camera-take-video-20261013/README.zh-CN.md)：真实动作、全部 checkpoint
+产物、原样的正式脚本及回放证据。模型日志和不透明 snapshot 仍仅留本地，投影明确列出
+差异与原件哈希。可用公开 harness 和 synthesis Skill 生成新证据，但不是完整模拟器恢复包。
 
 原录制、环境、脚本、计划、正式结果和 evaluation 的 SHA-256 见
 [英文版证据表](REPRODUCTION-2026-10-13.md#evidence-identities)。正式执行前后均验证原录制未改变、

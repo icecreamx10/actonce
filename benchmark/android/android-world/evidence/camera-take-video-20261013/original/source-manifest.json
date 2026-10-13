@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "recorderVersion": "0.3.0",
+  "recordingId": "original",
+  "platform": "android",
+  "recorder": "midscene-android-profile",
+  "startedAt": "2026-10-13T04:40:50.083Z",
+  "completedAt": "2026-10-13T04:42:56.004Z",
+  "status": "complete",
+  "integrity": "complete",
+  "integrityReasons": [],
+  "eventCount": 210,
+  "sources": [
+    {
+      "type": "checkpoint",
+      "instanceId": "android-checkpoint",
+      "eventCount": 27
+    },
+    {
+      "type": "midscene",
+      "instanceId": "midscene-agent",
+      "eventCount": 183
+    }
+  ],
+  "metadata": {
+    "profile": "midscene-android",
+    "serial": "emulator-5554",
+    "displayId": 0
+  }
+}
