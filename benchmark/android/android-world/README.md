@@ -164,6 +164,21 @@ policy cannot change in place; stable policies reject `--fixture-permissions`.
 Stable replay without its original contract fails closed rather than silently
 switching a legacy recording to a new baseline.
 
+Video stable contracts use schema 2: the official Camera initializer clears
+`/sdcard/Pictures` and `/sdcard/Movies`, but leaves MediaStore entries and hidden
+pending outputs. With AndroidWorld's fixed clock, repeated filenames can collide
+with stale publication metadata. Setup verifies these output directories, removes
+only their scoped orphan image/video index rows via MediaProvider, and quarantines
+strictly Camera-named `.pending-*` outputs under
+`/data/local/tmp/actonce-android-world/quarantined-camera-publication/<uuid>`.
+Thumbnail caches and unrelated directories/indexes are preserved. Existing completed
+files, unknown pending names or scope mismatches stop setup instead of being deleted.
+Provider mutations use Android shell attribution and user 0, not direct database edits.
+Cleanup counts/recoverable quarantine paths are reported outside the frozen contract.
+The contract requires zero output rows/pending captures; replay must start from the
+same baseline. Schema-1 video recordings remain immutable and require a new original
+in a fresh sample, not retroactive reinterpretation.
+
 App-data snapshots do not restore Android runtime permission grants. New original
 runs also capture user-0 grant states and mutable `user-set`/`user-fixed` flags in `task-state/runtime-permissions.json`;
 replay restores and verifies that baseline before launching the app, outside
