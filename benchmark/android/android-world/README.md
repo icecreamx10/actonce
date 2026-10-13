@@ -139,6 +139,14 @@ grants and mutable flags are verified before and after launch. No global permiss
 reset, app-data wipe, or measured permission repair is used. Pregranted runs reject
 a remaining permission-request window.
 
+Stable profiles also require a visible, drawn, nonzero focused window across a
+bounded readiness interval. Correct display settings are not rewritten. A launch
+failure permits only one full official-fixture reinitialization before timing;
+`setup-startup-failure-*.json` and result `setupAttemptCount`/`startupFailures`
+preserve it. Contract/permission mismatches are never retried, and there is no
+automatic retry after recorded/replayed actions begin. Setup recovery costs are
+outside device-session time, not hidden as measured action retries.
+
 `task-state/start-environment.json` freezes the task/policy, API 33 Pixel 6
 geometry (1080×2400, density 420), gestural navigation, fixed portrait rotation,
 restored pre-launch shared-preference hashes and permission baseline. Subsequent

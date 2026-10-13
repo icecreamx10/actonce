@@ -15,6 +15,13 @@ npm run benchmark:android:android-world -- --mode original --task CameraTakeVide
 不重置全机权限、不清空 app 数据，不向计时中的 replay 注入权限修复。
 预授权启动后若仍出现权限请求窗口，setup 失败。
 
+稳定策略还验证目标焦点窗口可见、已绘制、尺寸非零，并在有限窗口内保持
+该状态；配置已正确时不再重复修改显示参数。启动失败最多完整重新初始化
+官方 fixture 一次，发生在计时前，保留 `setup-startup-failure-*.json` 及
+结果中的 `setupAttemptCount`/`startupFailures`。权限/契约不匹配不重试，
+录制或回放动作开始后也不会自动重跑。启动恢复成本在 setup 范围外显，
+不混作计时中的操作重试。
+
 `task-state/start-environment.json` 固定任务/策略、API 33 Pixel 6 几何
 （1080×2400、density 420）、手势导航、固定竖屏、官方恢复后启动前的
 shared preferences 哈希及权限基线。后续初始化不一致就拒绝开始测量。
