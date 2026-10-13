@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeStartEnvironment, permissionPolicy, startEnvironmentParity, verifyStartEnvironment, verifyStableForeground } from "../benchmark/android/android-world/start-environment.js";
+import { isDrawnTargetWindow, normalizeStartEnvironment, permissionPolicy, startEnvironmentParity, TargetStartupError, verifyStartEnvironment, verifyStableForeground, withStableStartupRecovery } from "../benchmark/android/android-world/start-environment.js";
 
 const pkg = "com.android.camera2", name = "android.permission.CAMERA";
 function mock() {
@@ -52,10 +52,41 @@ describe("stable AndroidWorld start environment", () => {
     expect(calls).toContainEqual(["shell", "pm", "revoke", "--user", "0", pkg, name]);
     expect(calls).toContainEqual(["shell", "pm", "grant", "--user", "0", pkg, name]);
     expect(calls.some(args => args.includes("reset-permissions") || args.includes("clear") || args.includes("input"))).toBe(false);
+    expect(calls.some(args => args.includes("reset") || args.includes("put"))).toBe(false);
     expect(result.permissions.packages[0]!.permissions[name]).toBe(true);
     expect(result.preferences[pkg]).toMatch(/^[a-f0-9]{64}$/);
     verifyStartEnvironment(structuredClone(result), result);
     expect(() => verifyStartEnvironment({ ...result, preferences: {} }, result)).toThrow("differs");
+  });
+
+  it("requires the exact focused window's drawn, visible nonzero surface", () => {
+    const component = `${pkg}/com.android.camera.CameraActivity`;
+    const header = `mCurrentFocus=Window{abc u0 ${component}}\nWindow #0 Window{abc u0 ${component}}:\n`;
+    const surface = "mViewVisibility=0x0 mHasSurface=true\nFrames: frame=[0,0][1080,2400]\nmDrawState=HAS_DRAWN\n";
+    expect(isDrawnTargetWindow(pkg, header + surface)).toBe(true);
+    expect(isDrawnTargetWindow(pkg, header + surface.replace("[1080,2400]", "[0,0]"))).toBe(false);
+    expect(isDrawnTargetWindow(pkg, header + surface.replace("HAS_DRAWN", "DRAW_PENDING"))).toBe(false);
+    expect(isDrawnTargetWindow(pkg, header + surface.replace("0x0", "0x8"))).toBe(false);
+    expect(isDrawnTargetWindow(pkg, header + surface.replace("true", "false"))).toBe(false);
+    expect(isDrawnTargetWindow(pkg, header.replace("Window #0 Window{abc", "Window #0 Window{old") + surface)).toBe(false);
+  });
+
+  it("preserves startup failure and resets the official fixture before one bounded retry", async () => {
+    const calls: string[] = [];
+    let count = 0;
+    const result = await withStableStartupRecovery(async () => { calls.push("attempt"); if (++count === 1) throw new TargetStartupError("crash"); return "ready"; }, async () => { calls.push("reset"); }, async f => { calls.push(`preserve${f.attempt}`); });
+    expect(calls).toEqual(["attempt", "preserve1", "reset", "attempt"]);
+    expect(result).toEqual({ value: "ready", setupAttemptCount: 2, startupFailures: [{ attempt: 1, error: "crash" }] });
+  });
+
+  it("never retries a contract mismatch, never runs a third launch", async () => {
+    let attempts = 0, resets = 0;
+    const failures: unknown[] = [];
+    await expect(withStableStartupRecovery(async () => { attempts++; throw new Error("contract mismatch"); }, async () => { resets++; }, async f => { failures.push(f); })).rejects.toThrow("contract mismatch");
+    expect([attempts, resets, failures.length]).toEqual([1, 0, 0]);
+    attempts = 0;
+    await expect(withStableStartupRecovery(async () => { attempts++; throw new TargetStartupError("crash"); }, async () => { resets++; }, async f => { failures.push(f); })).rejects.toThrow("crash");
+    expect([attempts, resets, failures.length]).toEqual([2, 1, 2]);
   });
 
   it("denied first-request baseline clears refusal history without granting or wiping app data", async () => {

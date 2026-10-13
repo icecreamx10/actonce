@@ -18,7 +18,7 @@ import {
 import { captureRuntimePermissionFixture, restoreRuntimePermissionFixture } from "./permission-fixture.js";
 import { initialTargetPolicy, isInitialTargetForeground } from "./initial-target.js";
 import { originalTimingBoundary, validateReplaySelection } from "./replay-module.js";
-import { normalizeStartEnvironment, permissionPolicy, startEnvironmentParity, verifyStartEnvironment, verifyStableForeground } from "./start-environment.js";
+import { isDrawnTargetWindow, normalizeStartEnvironment, permissionPolicy, startEnvironmentParity, TargetStartupError, verifyStartEnvironment, verifyStableForeground, withStableStartupRecovery, type PermissionPolicy } from "./start-environment.js";
 
 type Mode = "all" | "original" | "replay" | "evaluate" | "setup";
 const args = parseArgs(process.argv.slice(2));
@@ -280,6 +280,21 @@ async function preparePermissionFixture(mode: "original" | "replay", value: unkn
 }
 
 async function prepareBoundary(mode: "original" | "replay" | "setup", apps: unknown) {
+  const recovered = await withStableStartupRecovery(
+    () => prepareBoundaryOnce(mode, apps),
+    async () => {
+      // Restart the entire official fixture, not just a crashed app whose
+      // startup may have mutated preferences. No recorded actions have run.
+      const initialized = await task("initialize", mode !== "replay");
+      await suspendAndroidWorldAccessibilityForwarder();
+      apps = initialized.apps;
+    },
+    async failure => writeJson(resolve(outputDir, `setup-startup-failure-${failure.attempt}.json`), { status: "failed", phase: "before-measurement", task: args.task, ...failure }),
+  );
+  return { ...recovered.value, startEnvironment: { ...recovered.value.startEnvironment, setupAttemptCount: recovered.setupAttemptCount, startupFailures: recovered.startupFailures } };
+}
+
+async function prepareBoundaryOnce(mode: "original" | "replay" | "setup", apps: unknown) {
   const contractPath = resolve(stateDir, "start-environment.json");
   const saved = await json(contractPath);
   const policy = permissionPolicy(args.task, args.permissionPolicy, saved ?? undefined);
@@ -305,7 +320,7 @@ async function prepareBoundary(mode: "original" | "replay" | "setup", apps: unkn
   const existingPermissions = await json(permissionsPath);
   if (existingPermissions && !isDeepStrictEqual(existingPermissions, actual.permissions)) throw new Error("Saved permission fixture conflicts with stable setup contract");
   if (!existingPermissions) await writeJson(permissionsPath, actual.permissions);
-  await prepareInitialTargetApp(apps);
+  await prepareInitialTargetApp(apps, policy);
   verifyStableForeground(policy, await command(["shell", "dumpsys", "window"]));
   // App startup must not silently replace the permanent grants with a new
   // request; verify once more before recording/replay clocks can start.
@@ -317,7 +332,7 @@ async function prepareBoundary(mode: "original" | "replay" | "setup", apps: unkn
   };
 }
 
-async function prepareInitialTargetApp(value: unknown) {
+async function prepareInitialTargetApp(value: unknown, policy: PermissionPolicy = "recorded") {
   const adb = process.env.MIDSCENE_ADB_PATH || "adb";
   const serial = process.env.ACTONCE_ANDROID_SERIAL || "emulator-5554";
   const { packages, initialPackage } = initialTargetPolicy(args.task, value);
@@ -338,20 +353,29 @@ async function prepareInitialTargetApp(value: unknown) {
     "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER",
     "-f", "0x10200000", "-n", component,
   ]);
-  if (launched.code !== 0) throw new Error(`Failed to launch target app ${initialPackage}: ${launched.stderr}`);
+  if (launched.code !== 0) throw (policy === "recorded" ? new Error(`Failed to launch target app ${initialPackage}: ${launched.stderr}`) : new TargetStartupError(`Failed to launch target app ${initialPackage}: ${launched.stderr}`));
   const deadline = Date.now() + 15_000;
+  let stableSince: number | undefined;
   while (Date.now() < deadline) {
-    const focus = await runCapture(adb, ["-s", serial, "shell", "dumpsys", "window"]);
+    const focus = await runCapture(adb, ["-s", serial, "shell", "dumpsys", "window", ...(policy === "recorded" ? [] : ["-a"])]);
     if (focus.code !== 0) throw new Error(`Failed to inspect foreground app: ${focus.stderr}`);
     const activities = await runCapture(adb, ["-s", serial, "shell", "dumpsys", "activity", "activities"]);
     if (activities.code !== 0) throw new Error(`Failed to inspect foreground activity: ${activities.stderr}`);
     if (isInitialTargetForeground(initialPackage, focus.stdout, activities.stdout)) {
+      if (policy !== "recorded") {
+        verifyStableForeground(policy, focus.stdout);
+        if (!isDrawnTargetWindow(initialPackage, focus.stdout, policy === "first-request")) { stableSince = undefined; await delay(250); continue; }
+        stableSince ??= Date.now();
+        if (Date.now() - stableSince < 500) { await delay(250); continue; }
+      }
       await canonicalizeInitialAppState(adb, serial, initialPackage);
       return;
     }
+    stableSince = undefined;
     await delay(250);
   }
-  throw new Error(`Timed out waiting for target app ${initialPackage} to reach the foreground`);
+  const message = `Timed out waiting for target app ${initialPackage} to reach a stable drawn foreground`;
+  throw policy === "recorded" ? new Error(message) : new TargetStartupError(message);
 }
 
 async function canonicalizeInitialAppState(adb: string, serial: string, packageName: string) {

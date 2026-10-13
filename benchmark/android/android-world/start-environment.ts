@@ -5,6 +5,23 @@ import { initialTargetPolicy } from "./initial-target.js";
 
 export type PermissionPolicy = "recorded" | "grant-all" | "first-request";
 type Adb = (args: string[]) => Promise<string>;
+export class TargetStartupError extends Error {}
+
+export async function withStableStartupRecovery<T>(attempt: () => Promise<T>, resetOfficialFixture: () => Promise<void>, preserve: (failure: { attempt: number; error: string }) => Promise<void>) {
+  const startupFailures: Array<{ attempt: number; error: string }> = [];
+  for (let index = 1; index <= 2; index++) {
+    try { return { value: await attempt(), setupAttemptCount: index, startupFailures }; }
+    catch (error) {
+      if (!(error instanceof TargetStartupError)) throw error;
+      const failure = { attempt: index, error: error.message };
+      startupFailures.push(failure);
+      await preserve(failure);
+      if (index === 2) throw error;
+      await resetOfficialFixture();
+    }
+  }
+  throw new Error("Unreachable startup recovery");
+}
 export type StartEnvironment = {
   schemaVersion: 1;
   task: string;
@@ -34,10 +51,13 @@ export async function normalizeStartEnvironment(task: string, apps: unknown, pol
   // The official initializer has already restored app data. Terminate activities
   // before touching permissions, including the target's old permission requester.
   for (const pkg of packages) await adb(["shell", "am", "force-stop", pkg]);
-  await adb(["shell", "wm", "size", "reset"]);
-  await adb(["shell", "wm", "density", "reset"]);
-  await adb(["shell", "settings", "put", "system", "accelerometer_rotation", "0"]);
-  await adb(["shell", "settings", "put", "system", "user_rotation", "0"]);
+  // Avoid unnecessary display reconfiguration while starting an app; clear
+  // actual overrides only, and leave an already-canonical display untouched.
+  if ((await adb(["shell", "wm", "size"])).includes("Override size:")) await adb(["shell", "wm", "size", "reset"]);
+  if ((await adb(["shell", "wm", "density"])).includes("Override density:")) await adb(["shell", "wm", "density", "reset"]);
+  for (const setting of ["accelerometer_rotation", "user_rotation"]) {
+    if ((await adb(["shell", "settings", "get", "system", setting])).trim() !== "0") await adb(["shell", "settings", "put", "system", setting, "0"]);
+  }
   const device = {
     api,
     size: (await adb(["shell", "wm", "size"])).trim(),
@@ -84,6 +104,18 @@ export function verifyStableForeground(policy: PermissionPolicy, windows: string
   if (/permissioncontroller|GrantPermissionsActivity|\/com\.android\.camera\.PermissionsActivity/.test(focused)) {
     throw new Error("Pregranted setup still has a permission requester in the foreground");
   }
+}
+
+/** Focus alone can precede a drawn/nonzero activity surface or a startup crash. */
+export function isDrawnTargetWindow(target: string, windows: string, allowPermissionModal = false): boolean {
+  const focusedLine = windows.split("\n").find(line => line.includes("mCurrentFocus="));
+  const focus = focusedLine?.match(/\b([\w.]+\/[\w.$]+)(?=[\s}])/)?.[1];
+  const token = focusedLine?.match(/Window\{([^\s}]+)/)?.[1];
+  if (!focus || (focus.split("/")[0] !== target && !(allowPermissionModal && /^(com.google.android.permissioncontroller|com.android.permissioncontroller)\//.test(focus)))) return false;
+  const block = windows.split(/(?=^\s*Window #\d+ Window\{)/m).find(value => value.includes(`Window{${token} `) && value.includes(`${focus}}:`));
+  if (!block || !block.includes("mHasSurface=true") || !block.includes("mDrawState=HAS_DRAWN") || !block.includes("mViewVisibility=0x0")) return false;
+  const frame = block.match(/\bframe=\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]/);
+  return !!frame && Number(frame[3]) > Number(frame[1]) && Number(frame[4]) > Number(frame[2]);
 }
 
 export function startEnvironmentParity(original: unknown, replay: unknown) {
