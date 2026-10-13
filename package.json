@@ -46,6 +46,7 @@
     "android-world:start:foreground": "ACTONCE_ANDROID_API=33 ACTONCE_AVD_NAME=actonce_android_world_api33 ACTONCE_EMULATOR_GRPC_PORT=8554 ACTONCE_PARTITION_SIZE_MB=8192 bash scripts/android/start-emulator.sh --foreground",
     "android-world:prepare": "GRPC_VERBOSITY=ERROR .cache/android-world/venv/bin/python benchmark/android/android-world/task.py prepare",
     "android-world:prepare-suite": "tsx benchmark/android/android-world/prepare-suite.ts",
+    "android-world:setup": "tsx benchmark/android/android-world/benchmark.ts --mode setup",
     "android-world:catalog": "tsx benchmark/android/android-world/catalog-cli.ts",
     "android-world:model:verify": "tsx benchmark/android/android-world/model-verify.ts",
     "android:prepare:markor": "bash scripts/android/run-android-ts.sh benchmark/android/markor-fixture.ts",
