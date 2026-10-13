@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { MIDSCENE_ANDROID_WORLD_CASES, MIDSCENE_ANDROID_WORLD_REPORT } from "./catalog.js";
 import {
   modelProfileProvenance,
@@ -17,8 +18,9 @@ import {
 import { captureRuntimePermissionFixture, restoreRuntimePermissionFixture } from "./permission-fixture.js";
 import { initialTargetPolicy, isInitialTargetForeground } from "./initial-target.js";
 import { originalTimingBoundary, validateReplaySelection } from "./replay-module.js";
+import { normalizeStartEnvironment, permissionPolicy, startEnvironmentParity, verifyStartEnvironment, verifyStableForeground } from "./start-environment.js";
 
-type Mode = "all" | "original" | "replay" | "evaluate";
+type Mode = "all" | "original" | "replay" | "evaluate" | "setup";
 const args = parseArgs(process.argv.slice(2));
 const outputDir = resolve(args.output ?? `.cache/android-world/runs/${new Date().toISOString().replaceAll(":", "-")}`);
 const python = resolve(".cache/android-world/venv/bin/python");
@@ -28,10 +30,18 @@ const catalogCase = requireCatalogCase(args.task);
 const modelProfile = requireAndroidWorldModelProfile(args.modelProfile);
 await mkdir(outputDir, { recursive: true });
 
-const releaseDeviceLease = args.mode === "all" || args.mode === "original" || args.mode === "replay"
+const releaseDeviceLease = args.mode !== "evaluate"
   ? await acquireAndroidWorldDeviceLease()
   : undefined;
 try {
+  if (args.mode === "setup") {
+    await releaseStaleCheckpointService();
+    const initialized = await task("initialize", true);
+    await suspendAndroidWorldAccessibilityForwarder();
+    const setup = await prepareBoundary("setup", initialized.apps);
+    await writeJson(resolve(outputDir, "setup.json"), { status: "ready", task: args.task, ...setup });
+    console.log(JSON.stringify({ status: "ready", task: args.task, outputDir }));
+  }
   if (args.mode === "all" || args.mode === "original") await original();
   if (args.mode === "all" || args.mode === "replay") await replay();
   if (args.mode === "all" || args.mode === "evaluate") {
@@ -49,8 +59,7 @@ async function original() {
   await releaseStaleCheckpointService();
   const initialized = await task("initialize", true);
   await suspendAndroidWorldAccessibilityForwarder();
-  const permissionFixture = await preparePermissionFixture("original", initialized.apps);
-  await prepareInitialTargetApp(initialized.apps);
+  const { permissionFixture, startEnvironment } = await prepareBoundary("original", initialized.apps);
   const originalEntry = args.originalEntry ?? "benchmark/android/android-world/generic-task.ts";
   const processResult = await run("node_modules/.bin/tsx", [
     "interceptor/src/cli.ts", "record", "midscene-android",
@@ -80,6 +89,7 @@ async function original() {
     params: initialized.params,
     apps: initialized.apps,
     permissionFixture,
+    startEnvironment,
     fixtureRng: initialized.fixtureRng ?? "unknown",
     executionDurationMs: duration,
     childProcessDurationMs: processResult.durationMs,
@@ -101,8 +111,7 @@ async function replay() {
   await releaseStaleCheckpointService();
   const initialized = await task("initialize");
   await suspendAndroidWorldAccessibilityForwarder();
-  const permissionFixture = await preparePermissionFixture("replay", initialized.apps);
-  await prepareInitialTargetApp(initialized.apps);
+  const { permissionFixture, startEnvironment } = await prepareBoundary("replay", initialized.apps);
   const replayEntry = args.replayEntry ?? (args.task === "SystemBrightnessMax"
     ? "benchmark/android/android-world/system-brightness-max-replay.ts"
     : undefined);
@@ -125,6 +134,7 @@ async function replay() {
     goal: initialized.goal,
     params: initialized.params,
     permissionFixture,
+    startEnvironment,
     fixtureRng: initialized.fixtureRng ?? "unknown",
     executionDurationMs: runtime?.executionDurationMs ?? processResult.durationMs,
     childProcessDurationMs: processResult.durationMs,
@@ -140,7 +150,9 @@ async function replay() {
 async function evaluate() {
   const originalResult = await json(resolve(outputDir, "original/result.json"));
   const replayResult = await json(resolve(outputDir, "replay/benchmark-result.json"));
-  const passed = originalResult?.status === "passed" && replayResult?.status === "passed";
+  const environmentParity = startEnvironmentParity(originalResult?.startEnvironment, replayResult?.startEnvironment);
+  const passed = originalResult?.status === "passed" && replayResult?.status === "passed"
+    && (!environmentParity.required || environmentParity.matched);
   const originalMs = number(originalResult?.executionDurationMs);
   const replayMs = number(replayResult?.executionDurationMs);
   const originalBoundary = object(originalTimingBoundary(originalResult, await json(resolve(outputDir, "original/manifest.json"))));
@@ -161,6 +173,7 @@ async function evaluate() {
       midscenePublishedReport: MIDSCENE_ANDROID_WORLD_REPORT.url,
     },
     model: originalResult?.model ?? modelProfileProvenance(args.modelProfile),
+    startEnvironmentParity: environmentParity,
     correctness: {
       passed,
       oracle: "official AndroidWorld task.is_successful reward == 1.0",
@@ -192,6 +205,7 @@ async function task(command: "initialize" | "evaluate", recordFixtureRng = false
   if (command === "initialize" && recordFixtureRng) taskArgs.push("--record-fixture-rng");
   const result = await runCapture(python, taskArgs, {
     GRPC_VERBOSITY: "ERROR",
+    ACTONCE_EMULATOR_GRPC_PORT: process.env.ACTONCE_EMULATOR_GRPC_PORT || "8554",
   });
   const line = result.stdout.trim().split("\n").at(-1);
   if (result.code !== 0 || !line) throw new Error(`AndroidWorld ${command} failed: ${result.stderr}`);
@@ -263,6 +277,44 @@ async function preparePermissionFixture(mode: "original" | "replay", value: unkn
   if (mode === "replay") return { status: "unavailable", reason: "Legacy original has no permission baseline; supply an evidence-backed --fixture-permissions file if needed" };
   await writeJson(defaultPath, await captureRuntimePermissionFixture(apps, command));
   return { status: "captured", path: defaultPath, sha256: createHash("sha256").update(await readFile(defaultPath)).digest("hex") };
+}
+
+async function prepareBoundary(mode: "original" | "replay" | "setup", apps: unknown) {
+  const contractPath = resolve(stateDir, "start-environment.json");
+  const saved = await json(contractPath);
+  const policy = permissionPolicy(args.task, args.permissionPolicy, saved ?? undefined);
+  if (policy === "recorded") {
+    const permissionFixture = await preparePermissionFixture(mode === "replay" ? "replay" : "original", apps);
+    await prepareInitialTargetApp(apps);
+    return { permissionFixture, startEnvironment: { status: "legacy-recorded", permissionPolicy: policy } };
+  }
+  if (args.fixturePermissions) throw new Error("Stable permission policy cannot be combined with --fixture-permissions");
+  if (!saved && mode === "replay") throw new Error("Stable replay requires the original task-state/start-environment.json; do not reinterpret a legacy recording");
+  if (!saved && await json(resolve(outputDir, "original/manifest.json"))) throw new Error("Cannot change an existing recording's start environment; use a fresh output");
+  const adb = process.env.MIDSCENE_ADB_PATH || "adb";
+  const serial = process.env.ACTONCE_ANDROID_SERIAL || "emulator-5554";
+  const command = async (values: string[]) => {
+    const result = await runCapture(adb, ["-s", serial, ...values]);
+    if (result.code !== 0) throw new Error(`Stable setup command failed: ${result.stderr || result.stdout}`);
+    return result.stdout;
+  };
+  const actual = await normalizeStartEnvironment(args.task, apps, policy, command);
+  if (saved) verifyStartEnvironment(saved, actual);
+  else await writeJson(contractPath, actual);
+  const permissionsPath = resolve(stateDir, "runtime-permissions.json");
+  const existingPermissions = await json(permissionsPath);
+  if (existingPermissions && !isDeepStrictEqual(existingPermissions, actual.permissions)) throw new Error("Saved permission fixture conflicts with stable setup contract");
+  if (!existingPermissions) await writeJson(permissionsPath, actual.permissions);
+  await prepareInitialTargetApp(apps);
+  verifyStableForeground(policy, await command(["shell", "dumpsys", "window"]));
+  // App startup must not silently replace the permanent grants with a new
+  // request; verify once more before recording/replay clocks can start.
+  const launchedPermissions = await captureRuntimePermissionFixture(Array.isArray(apps) ? apps : [], command);
+  if (!isDeepStrictEqual(launchedPermissions, actual.permissions)) throw new Error("Permission baseline changed during app startup");
+  return {
+    permissionFixture: { status: "normalized", permissionPolicy: policy, path: resolve(stateDir, "runtime-permissions.json") },
+    startEnvironment: { status: "verified", permissionPolicy: policy, path: contractPath, sha256: createHash("sha256").update(await readFile(contractPath)).digest("hex") },
+  };
 }
 
 async function prepareInitialTargetApp(value: unknown) {
@@ -363,11 +415,13 @@ function parseArgs(values: string[]): {
   replayEntry?: string;
   replayModule?: string;
   fixturePermissions?: string;
+  permissionPolicy?: string;
   modelProfile: AndroidWorldModelProfile;
 } {
   let mode: Mode = "all", output: string | undefined, task = "SystemBrightnessMax";
   let seed: number | undefined, originalEntry: string | undefined, replayEntry: string | undefined;
   let fixturePermissions: string | undefined;
+  let startPermissionPolicy: string | undefined;
   let replayModule: string | undefined;
   let modelProfile: AndroidWorldModelProfile = "codex-luna";
   for (let index = 0; index < values.length; index += 1) {
@@ -385,14 +439,18 @@ function parseArgs(values: string[]): {
       fixturePermissions = values[++index];
       if (!fixturePermissions || fixturePermissions.startsWith("--")) throw new Error("--fixture-permissions requires a path");
     }
+    else if (values[index] === "--permission-policy") {
+      startPermissionPolicy = values[++index];
+      if (!startPermissionPolicy || !["recorded", "grant-all", "first-request"].includes(startPermissionPolicy)) throw new Error("--permission-policy requires recorded, grant-all or first-request");
+    }
     else if (values[index] === "--model-profile") modelProfile = values[++index] as AndroidWorldModelProfile;
     else throw new Error(`Unknown argument: ${values[index]}`);
   }
-  if (!["all", "original", "replay", "evaluate"].includes(mode)) throw new Error(`Unknown mode: ${mode}`);
+  if (!["all", "original", "replay", "evaluate", "setup"].includes(mode)) throw new Error(`Unknown mode: ${mode}`);
   if (seed !== undefined && !Number.isInteger(seed)) throw new Error(`Invalid seed: ${seed}`);
   requireAndroidWorldModelProfile(modelProfile);
   validateReplaySelection(replayModule, replayEntry);
-  return { mode, output, task, seed, originalEntry, replayEntry, replayModule, fixturePermissions, modelProfile };
+  return { mode, output, task, seed, originalEntry, replayEntry, replayModule, fixturePermissions, permissionPolicy: startPermissionPolicy, modelProfile };
 }
 
 async function json(path: string): Promise<Record<string, unknown> | null> {

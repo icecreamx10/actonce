@@ -121,6 +121,41 @@ Generated cases persist exact AndroidWorld parameters in a sample-local
 `params.pickle` and a readable `task.json` summary. Initialization and official
 validation must reuse that same state directory.
 
+### Stable permission and startup setup
+
+`CameraTakeVideo` defaults to **pregranted permissions**, not the historical
+permission-dialog recording. Use a new sample; never reinterpret an old recording:
+
+```bash
+npm run android-world:setup -- --task CameraTakeVideo --seed 70001 --output <new-sample>
+npm run benchmark:android:android-world -- --mode original --task CameraTakeVideo --seed 70001 --model-profile codex-6.1-sol --output <new-sample>
+```
+
+Standalone setup and both benchmark boundaries use the same code, outside timing:
+official task initialization restores app snapshots, target activities are
+force-stopped, and scoped runtime permissions are revoked and permanently
+regranted to remove expiring grants and refusal history. Installed task packages'
+grants and mutable flags are verified before and after launch. No global permission
+reset, app-data wipe, or measured permission repair is used. Pregranted runs reject
+a remaining permission-request window.
+
+`task-state/start-environment.json` freezes the task/policy, API 33 Pixel 6
+geometry (1080×2400, density 420), gestural navigation, fixed portrait rotation,
+restored pre-launch shared-preference hashes and permission baseline. Subsequent
+initialization must reproduce the contract or fail before measurement. Preserve
+this file **and** `runtime-permissions.json` with parameters when staging replay.
+Task goals and official oracles remain unchanged. Old recordings and failures are
+retained, and already-passed cases are not rerun.
+
+Explicit `--permission-policy grant-all|first-request|recorded` is supported.
+`first-request` restores the official app snapshot and denies permissions with
+cleared mutable refusal history: an OS request baseline, not a claim that every
+official app snapshot is pristine or will request immediately. `recorded` retains
+legacy evidence-backed fixtures and is still every other case's default. A frozen
+policy cannot change in place; stable policies reject `--fixture-permissions`.
+Stable replay without its original contract fails closed rather than silently
+switching a legacy recording to a new baseline.
+
 App-data snapshots do not restore Android runtime permission grants. New original
 runs also capture user-0 grant states and mutable `user-set`/`user-fixed` flags in `task-state/runtime-permissions.json`;
 replay restores and verifies that baseline before launching the app, outside

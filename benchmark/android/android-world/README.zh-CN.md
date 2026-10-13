@@ -1,5 +1,33 @@
 # AndroidWorld Benchmark
 
+## 稳定权限与启动环境
+
+`CameraTakeVideo` 默认预授予权限，使用新 sample，不将旧录制改解释为新策略：
+
+```bash
+npm run android-world:setup -- --task CameraTakeVideo --seed 70001 --output <new-sample>
+npm run benchmark:android:android-world -- --mode original --task CameraTakeVideo --seed 70001 --model-profile codex-6.1-sol --output <new-sample>
+```
+
+独立 setup CLI 和 original/replay 边界复用同一份计时外逻辑：官方 initializer
+恢复 app snapshot，停止目标 app 的旧 activity，再对目标包的运行时权限先
+撤销、永久授予，消除临时授权寿命和拒绝历史；启动前后验证 grant 与可变 flag。
+不重置全机权限、不清空 app 数据，不向计时中的 replay 注入权限修复。
+预授权启动后若仍出现权限请求窗口，setup 失败。
+
+`task-state/start-environment.json` 固定任务/策略、API 33 Pixel 6 几何
+（1080×2400、density 420）、手势导航、固定竖屏、官方恢复后启动前的
+shared preferences 哈希及权限基线。后续初始化不一致就拒绝开始测量。
+转移 replay fixture 时与参数及 `runtime-permissions.json` 一起保留。
+任务目标和官方 evaluator 不变；旧录制、失败和已通过结果保留，不重跑其他 case。
+
+可显式指定 `--permission-policy grant-all|first-request|recorded`。
+`first-request` 在官方 snapshot 上拒绝权限、清理可变拒绝历史，属于系统权限
+申请基线，不保证每个 app snapshot 都是首次安装或必然立刻申请。
+`recorded` 保持旧证据驱动的恢复行为，仍是其他 case 的默认策略。
+已冻结策略不能原地更换；稳定策略不允许与 `--fixture-permissions` 混用。
+稳定 replay 缺少原始环境契约时失败，不悄悄修改旧录制的起点。
+
 生成的任务状态在官方参数生成后、任务构造前保存 Python 与可选 NumPy RNG
 检查点。初始化在连接设备前验证主机状态，并在连接后恢复该边界。旧状态重建
 要求已记录或明确提供且一致的 seed，并严格验证官方参数重新生成结果，绝不
