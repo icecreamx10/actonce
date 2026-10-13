@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { captureRuntimePermissionFixture, restoreRuntimePermissionFixture, type RuntimePermissionFixture } from "./permission-fixture.js";
 import { initialTargetPolicy } from "./initial-target.js";
+import { normalizeCameraPublication } from "./media-publication-fixture.js";
 
 export type PermissionPolicy = "recorded" | "grant-all" | "first-request";
 type Adb = (args: string[]) => Promise<string>;
@@ -23,31 +24,33 @@ export async function withStableStartupRecovery<T>(attempt: () => Promise<T>, re
   throw new Error("Unreachable startup recovery");
 }
 export type StartEnvironment = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   task: string;
   permissionPolicy: Exclude<PermissionPolicy, "recorded">;
   initialization: "official-task-snapshot";
   device: { api: string; size: string; density: string; navigationMode: string; rotation: string; automaticRotation: string };
   preferences: Record<string, string>;
   permissions: RuntimePermissionFixture;
+  publication?: Awaited<ReturnType<typeof normalizeCameraPublication>>["baseline"];
 };
 
 export function permissionPolicy(task: string, explicit?: string, saved?: unknown): PermissionPolicy {
   const persisted = saved as Partial<StartEnvironment> | undefined;
   const value = explicit ?? persisted?.permissionPolicy ?? (task === "CameraTakeVideo" ? "grant-all" : "recorded");
   if (!["recorded", "grant-all", "first-request"].includes(value)) throw new Error(`Invalid permission policy: ${value}`);
-  if (persisted && (persisted.schemaVersion !== 1 || persisted.task !== task || persisted.initialization !== "official-task-snapshot"
+  if (persisted && (![1, 2].includes(persisted.schemaVersion ?? 0) || persisted.task !== task || persisted.initialization !== "official-task-snapshot"
       || persisted.permissionPolicy !== value)) throw new Error("Start environment contract identity/policy mismatch");
   return value as PermissionPolicy;
 }
 
 /** Measurement-external, scoped to task-declared packages. Never reset global permissions. */
-export async function normalizeStartEnvironment(task: string, apps: unknown, policy: Exclude<PermissionPolicy, "recorded">, adb: Adb): Promise<StartEnvironment> {
+export async function normalizeStartEnvironment(task: string, apps: unknown, policy: Exclude<PermissionPolicy, "recorded">, adb: Adb, onPublication?: (value: Awaited<ReturnType<typeof normalizeCameraPublication>>) => void): Promise<StartEnvironment> {
   const { packages } = initialTargetPolicy(task, apps);
   if (!packages.length || packages.some(pkg => !/^[\w]+(?:\.[\w]+)+$/.test(pkg))) throw new Error("No valid task packages for stable setup");
   const api = (await adb(["shell", "getprop", "ro.build.version.sdk"])).trim();
   if (api !== "33") throw new Error(`Stable AndroidWorld setup requires API 33, got ${api}`);
   if ((await adb(["shell", "id", "-u"])).trim() !== "0") throw new Error("Stable setup requires the pinned rooted emulator for app-state verification");
+  if ((await adb(["shell", "am", "get-current-user"])).trim() !== "0") throw new Error("Stable AndroidWorld setup requires foreground user 0");
   // The official initializer has already restored app data. Terminate activities
   // before touching permissions, including the target's old permission requester.
   for (const pkg of packages) await adb(["shell", "am", "force-stop", pkg]);
@@ -91,7 +94,10 @@ export async function normalizeStartEnvironment(task: string, apps: unknown, pol
   await restoreRuntimePermissionFixture(permissions, packages.map(packageName => ({ package: packageName })), adb);
   const actual = await captureRuntimePermissionFixture(packages.map(packageName => ({ package: packageName })), adb);
   if (!isDeepStrictEqual(actual, permissions)) throw new Error("Stable permission baseline did not match");
-  return { schemaVersion: 1, task, permissionPolicy: policy, initialization: "official-task-snapshot", device, preferences, permissions: actual };
+  const publicationResult = task === "CameraTakeVideo" ? await normalizeCameraPublication(adb) : undefined;
+  if (publicationResult) onPublication?.(publicationResult);
+  const publication = publicationResult?.baseline;
+  return { schemaVersion: publication ? 2 : 1, task, permissionPolicy: policy, initialization: "official-task-snapshot", device, preferences, permissions: actual, ...(publication ? { publication } : {}) };
 }
 
 export function verifyStartEnvironment(expected: unknown, actual: StartEnvironment) {

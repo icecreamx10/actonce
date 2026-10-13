@@ -9,6 +9,7 @@ function mock() {
     calls.push(args);
     if (args.includes("getprop")) return "33\n";
     if (args.includes("id")) return "0\n";
+    if (args.includes("get-current-user")) return "0\n";
     if (args.includes("wm")) return args.includes("reset") ? "" : args.includes("size") ? "Physical size: 1080x2400\n" : "Physical density: 420\n";
     if (args.includes("get")) return args.includes("navigation_mode") ? "2\n" : "0\n";
     if (args.includes("revoke")) { granted = false; oneTime = false; }
@@ -18,7 +19,8 @@ function mock() {
       if (args.includes("user-fixed")) userFixed = false;
     }
     if (args.includes("dumpsys")) return `User 0:\n  runtime permissions:\n    ${name}: granted=${granted}, flags=[${userSet ? "USER_SET|" : ""}${userFixed ? "USER_FIXED|" : ""}${oneTime ? "ONE_TIME" : ""}]\n`;
-    if (args[1]?.startsWith("if [")) return "abcdef  /data/user/0/com.android.camera2/shared_prefs/camera.xml\n";
+    if (args[1]?.includes("shared_prefs")) return "abcdef  /data/user/0/com.android.camera2/shared_prefs/camera.xml\n";
+    if (args[1]?.startsWith("content query")) return "No result found.\n";
     return "";
   };
   return { adb, calls, state: () => ({ granted, userSet, userFixed, oneTime }) };

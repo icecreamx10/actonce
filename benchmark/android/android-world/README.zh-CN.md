@@ -35,6 +35,18 @@ shared preferences 哈希及权限基线。后续初始化不一致就拒绝开�
 已冻结策略不能原地更换；稳定策略不允许与 `--fixture-permissions` 混用。
 稳定 replay 缺少原始环境契约时失败，不悄悄修改旧录制的起点。
 
+视频稳定契约使用 schema 2。官方 Camera 初始化清理 `/sdcard/Pictures`、
+`/sdcard/Movies` 文件，却可能留下 MediaStore 记录和隐藏 pending 输出；
+固定时钟产生重复文件名时，可出现旧发布元数据与新文件不一致。
+setup 验证这些输出目录，通过 MediaProvider 清理限定目录内孤立的图片/视频
+索引；严格符合 Camera 命名的 `.pending-*` 文件移至模拟器
+`/data/local/tmp/actonce-android-world/quarantined-camera-publication/<uuid>`，
+可恢复。系统缩略图缓存与其他目录/索引保留。存在已完成文件、未知 pending
+名称或越界记录时停止，不直接删除。Provider 操作使用 Android shell 身份、
+user 0，不直接改数据库；清理数及隔离路径单独记录，不混入冻结契约哈希。
+契约要求输出索引及 pending 捕获为零。旧 schema-1 视频录制保留，需在新
+sample 重新录制，不能事后解释成已采用该基线。
+
 生成的任务状态在官方参数生成后、任务构造前保存 Python 与可选 NumPy RNG
 检查点。初始化在连接设备前验证主机状态，并在连接后恢复该边界。旧状态重建
 要求已记录或明确提供且一致的 seed，并严格验证官方参数重新生成结果，绝不

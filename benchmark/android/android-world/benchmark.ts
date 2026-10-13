@@ -303,6 +303,7 @@ async function prepareBoundaryOnce(mode: "original" | "replay" | "setup", apps: 
     await prepareInitialTargetApp(apps);
     return { permissionFixture, startEnvironment: { status: "legacy-recorded", permissionPolicy: policy } };
   }
+  if (saved && args.task === "CameraTakeVideo" && saved.schemaVersion !== 2) throw new Error("Video start contract predates publication normalization; record a new original in a fresh sample rather than changing the old baseline");
   if (args.fixturePermissions) throw new Error("Stable permission policy cannot be combined with --fixture-permissions");
   if (!saved && mode === "replay") throw new Error("Stable replay requires the original task-state/start-environment.json; do not reinterpret a legacy recording");
   if (!saved && await json(resolve(outputDir, "original/manifest.json"))) throw new Error("Cannot change an existing recording's start environment; use a fresh output");
@@ -313,7 +314,8 @@ async function prepareBoundaryOnce(mode: "original" | "replay" | "setup", apps: 
     if (result.code !== 0) throw new Error(`Stable setup command failed: ${result.stderr || result.stdout}`);
     return result.stdout;
   };
-  const actual = await normalizeStartEnvironment(args.task, apps, policy, command);
+  let publicationCleanup: unknown;
+  const actual = await normalizeStartEnvironment(args.task, apps, policy, command, value => { publicationCleanup = { removedRows: value.removed, quarantinedFiles: value.quarantinedFiles, quarantineDirectory: value.quarantineDirectory }; });
   if (saved) verifyStartEnvironment(saved, actual);
   else await writeJson(contractPath, actual);
   const permissionsPath = resolve(stateDir, "runtime-permissions.json");
@@ -328,7 +330,7 @@ async function prepareBoundaryOnce(mode: "original" | "replay" | "setup", apps: 
   if (!isDeepStrictEqual(launchedPermissions, actual.permissions)) throw new Error("Permission baseline changed during app startup");
   return {
     permissionFixture: { status: "normalized", permissionPolicy: policy, path: resolve(stateDir, "runtime-permissions.json") },
-    startEnvironment: { status: "verified", permissionPolicy: policy, path: contractPath, sha256: createHash("sha256").update(await readFile(contractPath)).digest("hex") },
+    startEnvironment: { status: "verified", permissionPolicy: policy, path: contractPath, sha256: createHash("sha256").update(await readFile(contractPath)).digest("hex"), ...(publicationCleanup ? { publicationCleanup } : {}) },
   };
 }
 
