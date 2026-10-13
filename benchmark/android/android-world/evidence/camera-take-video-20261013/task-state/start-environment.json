@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 2,
+  "task": "CameraTakeVideo",
+  "permissionPolicy": "grant-all",
+  "initialization": "official-task-snapshot",
+  "device": {
+    "api": "33",
+    "size": "Physical size: 1080x2400",
+    "density": "Physical density: 420",
+    "navigationMode": "2",
+    "rotation": "0",
+    "automaticRotation": "0"
+  },
+  "preferences": {
+    "com.android.camera2": "5dfbf9c9060cd032d20f876b08a5e4fab0eae6c2f8ac678c6abedd402278c06c"
+  },
+  "permissions": {
+    "schemaVersion": 1,
+    "userId": 0,
+    "packages": [
+      {
+        "package": "com.android.camera2",
+        "permissions": {
+          "android.permission.POST_NOTIFICATIONS": true,
+          "android.permission.ACCESS_FINE_LOCATION": true,
+          "android.permission.ACCESS_COARSE_LOCATION": true,
+          "android.permission.CAMERA": true,
+          "android.permission.RECORD_AUDIO": true
+        },
+        "permissionFlags": {
+          "android.permission.POST_NOTIFICATIONS": {
+            "user-set": false,
+            "user-fixed": false
+          },
+          "android.permission.ACCESS_FINE_LOCATION": {
+            "user-set": false,
+            "user-fixed": false
+          },
+          "android.permission.ACCESS_COARSE_LOCATION": {
+            "user-set": false,
+            "user-fixed": false
+          },
+          "android.permission.CAMERA": {
+            "user-set": false,
+            "user-fixed": false
+          },
+          "android.permission.RECORD_AUDIO": {
+            "user-set": false,
+            "user-fixed": false
+          }
+        }
+      }
+    ]
+  },
+  "publication": {
+    "kind": "official-camera-empty-directories-and-indexes",
+    "directories": [
+      "Pictures",
+      "Movies"
+    ],
+    "rowCounts": {
+      "Pictures": 0,
+      "Movies": 0
+    },
+    "pendingOutputs": 0,
+    "preservedThumbnailCaches": true
+  }
+}

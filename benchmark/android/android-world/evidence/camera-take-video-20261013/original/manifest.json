@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "recorderVersion": "0.3.0",
+  "recordingId": "original",
+  "platform": "android",
+  "recorder": "midscene-android-profile",
+  "startedAt": "2026-10-13T04:40:50.083Z",
+  "completedAt": "2026-10-13T04:42:56.004Z",
+  "status": "complete",
+  "integrity": "complete",
+  "integrityReasons": [],
+  "eventCount": 47,
+  "sources": [
+    {
+      "type": "checkpoint",
+      "instanceId": "android-checkpoint",
+      "eventCount": 27
+    },
+    {
+      "type": "midscene",
+      "instanceId": "midscene-agent",
+      "eventCount": 20
+    }
+  ],
+  "metadata": {
+    "profile": "midscene-android",
+    "serial": "emulator-5554",
+    "displayId": 0,
+    "publication": {
+      "kind": "action-and-checkpoint-projection",
+      "sourceEventCount": 210,
+      "sourceEventsSha256": "b9b24553a257a62dd6b63c245c2e97383b3eb4f5267141e8661e00cca60d9d46",
+      "omittedEventKinds": [
+        "midscene.progress (except data-free attempt boundaries)",
+        "midscene.execution-dump.updated"
+      ],
+      "originalStatus": "complete",
+      "excludesModelRequestsAndReasoning": true
+    }
+  }
+}

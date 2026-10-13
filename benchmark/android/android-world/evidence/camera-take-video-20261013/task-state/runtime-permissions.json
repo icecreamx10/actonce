@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "userId": 0,
+  "packages": [
+    {
+      "package": "com.android.camera2",
+      "permissions": {
+        "android.permission.POST_NOTIFICATIONS": true,
+        "android.permission.ACCESS_FINE_LOCATION": true,
+        "android.permission.ACCESS_COARSE_LOCATION": true,
+        "android.permission.CAMERA": true,
+        "android.permission.RECORD_AUDIO": true
+      },
+      "permissionFlags": {
+        "android.permission.POST_NOTIFICATIONS": {
+          "user-set": false,
+          "user-fixed": false
+        },
+        "android.permission.ACCESS_FINE_LOCATION": {
+          "user-set": false,
+          "user-fixed": false
+        },
+        "android.permission.ACCESS_COARSE_LOCATION": {
+          "user-set": false,
+          "user-fixed": false
+        },
+        "android.permission.CAMERA": {
+          "user-set": false,
+          "user-fixed": false
+        },
+        "android.permission.RECORD_AUDIO": {
+          "user-set": false,
+          "user-fixed": false
+        }
+      }
+    }
+  ]
+}

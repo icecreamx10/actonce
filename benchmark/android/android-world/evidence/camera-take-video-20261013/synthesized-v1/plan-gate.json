@@ -1,0 +1,15 @@
+{
+  "status": "valid",
+  "phase": "executable-plan",
+  "recordingId": "original",
+  "selectedSequenceRange": {
+    "from": 15,
+    "to": 197
+  },
+  "selectedAttempt": "attempt-1",
+  "completedActionCount": 9,
+  "replayedActionCount": 9,
+  "observationSegmentCount": 0,
+  "exclusionCount": 0,
+  "planSegmentCount": 9
+}

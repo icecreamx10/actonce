@@ -79,9 +79,12 @@ separately. Final evaluation passes; no extra device execution was performed.
 Local root: `.cache/android-world/video-pregranted-20261013/`.
 New source: `published-sample-1/original`; synthesis:
 `published-sample-1/synthesized-v1`; formal: `published-sample-1/formal-replay`.
-These ignored raw artifacts are not bundled with a clean clone. The public
-harness and synthesis Skill can generate new evidence; this audit is not a
-self-contained exact reproduction package.
+An audited [publication projection](evidence/camera-take-video-20261013/README.md)
+is now committed: recorded actions, all checkpoint artifacts, measured synthesis
+and formal replay evidence. Model logs and opaque snapshot state remain local;
+the projection declares its differences and original hashes. The public harness
+and synthesis Skill can generate new evidence; this is not a self-contained
+emulator restore or exact reproduction package.
 
 | Artifact | SHA-256 |
 | --- | --- |

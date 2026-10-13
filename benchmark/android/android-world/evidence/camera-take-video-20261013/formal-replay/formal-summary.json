@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "classification": "formal",
+  "task": "CameraTakeVideo",
+  "seed": 70001,
+  "contextIsolation": {"freshAgent": true, "forkTurns": "none", "inheritedConversationOrSummary": false, "runnerAuthorship": false},
+  "correctness": {"passed": true, "originalReward": 1, "replayReward": 1, "startEnvironmentParity": "verified", "fixtureRng": "checkpoint-restored", "matchedSegments": 9},
+  "measuredReplayAttempts": 1,
+  "originalRerun": false,
+  "performance": {"comparable": true, "originalMs": 125921, "replayMs": 12351.938125, "speedup": 10.1944325437592, "reductionPercent": 90.1907242437719, "timingCaveat": "Original recording-session includes recorder overhead; replay runner-owned device-session includes connect, checkpoints, final evidence and close. Documented scopes are not identical."},
+  "checkpointCapture": {"aggregateMs": 4867, "sourceMs": 3307.485206000002, "screenshotMs": 1437.1833750000005, "visualComparisonMs": 120.011916999998, "settleDelayMs": 4666, "checkedSamples": 64, "timedSamples": 64, "timingComplete": true, "pollCount": 46, "timeoutCount": 0, "excludesFinalEvidenceCapture": true},
+  "retryCount": 0,
+  "fallbackCount": 0,
+  "setup": {"attemptCount": 1, "startupFailures": [], "publicationCleanupRemovedRows": {"Pictures": 0, "Movies": 1}, "quarantinedFiles": [], "costBoundary": "Official initialization, permission/publication normalization, startup checks and official validation outside device-session time; command.log retained. Their individual wall times are not instrumented."},
+  "evidenceReview": {"allSegmentsMatchedCleanly": true, "allMatchedCheckpointDifferencesEmpty": true, "finalScreenshotViewed": true, "finalScreenshotObservation": "Camera video-mode UI, saved circular thumbnail visible, no red recording counter", "finalSource": "rounded_thumbnail_view present; final video-saved checkpoint requires recording_time_rect and mode_options_overlay with active recording_time excluded", "playbackPerformed": false, "oracle": "Official CameraTakeVideo.is_successful reward 1.0; screenshots/checkpoints are supporting evidence, not replacement oracle"},
+  "integrity": {"publishedArtifactsAfter": "all checked entries passed", "qualifiedModuleAfter": "sha256 unchanged", "trackedTreeCleanAfter": true, "codeEdits": false},
+  "deviceOwnership": {"serial": "emulator-5554", "exclusiveWriter": true, "leaseReleased": true, "listener18433After": "none", "releasedToCoordinator": true},
+  "evaluationHistory": "A read-only evaluate command ran before official validation completed and reported missing replay; its output is retained as evaluation-before-validator-completion.json. Final evaluation rerun after completion passes. No additional device run or official evaluator run was performed."
+}
