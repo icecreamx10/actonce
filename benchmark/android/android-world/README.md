@@ -213,6 +213,12 @@ failure stops setup; neither weakens checkpoints nor manufactures a pass.
 Repository-owned patches under `patches/` are applied idempotently by bootstrap
 and remain part of the pinned environment provenance. They may fix setup or
 stability without changing task intent or the official success condition.
+The named-audio evaluator patch also fixes a filename contradiction: generated
+parameters already include `.m4a`, so validation must not append it again.
+It checks the exact requested name (or adds the default for extensionless legacy
+parameters), never an unrelated recording. Preserve original failures and record
+any post-repair oracle revalidation separately; do not overwrite old results or
+claim that revalidation was another recording or timing measurement.
 
 Native fixture preparation also verifies Clipper with a clipboard round-trip
 and VLC with its app-created media database before saving their snapshots.

@@ -1,0 +1,17 @@
+diff --git a/android_world/task_evals/single/audio_recorder.py b/android_world/task_evals/single/audio_recorder.py
+--- a/android_world/task_evals/single/audio_recorder.py
++++ b/android_world/task_evals/single/audio_recorder.py
+@@ -119,7 +119,12 @@ class AudioRecorderRecordAudioWithFileName(_AudioRecorder):
+   def is_successful(self, env: interface.AsyncEnv) -> float:
+     super().is_successful(env)
+     file_name = self.params["file_name"]
++    # Generated parameters already include .m4a. Match the requested filename
++    # exactly; append the default only for legacy extensionless parameters.
++    target_name = (
++        file_name if file_name.lower().endswith(".m4a") else file_name + ".m4a"
++    )
+     exists = file_utils.check_file_or_folder_exists(
+-        file_name + ".m4a", self.create_file_task.data_directory, env.controller
++        target_name, self.create_file_task.data_directory, env.controller
+     )
+     if not exists:
