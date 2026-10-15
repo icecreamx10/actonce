@@ -1,7 +1,12 @@
 node_modules/
 artifacts/
+!benchmark/android/android-world/evidence/camera-take-video-20261013/original/artifacts/
+!benchmark/android/android-world/evidence/camera-take-video-20261013/original/artifacts/**
 midscene_run/
 recordings/
 .cache/
 .env
 .DS_Store
+# Python benchmark bridge caches
+__pycache__/
+*.pyc

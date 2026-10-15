@@ -67,6 +67,7 @@ environment_ready() {
   && [[ "$(git -C "${SOURCE}" rev-parse HEAD 2>/dev/null || true)" == "${ANDROID_WORLD_COMMIT}" ]] \
   && [[ -x "${VENV}/bin/python" ]] \
   && "${VENV}/bin/python" -c 'import android_world' >/dev/null 2>&1 \
+  && "${VENV}/bin/python" -c "import sys; sys.path.insert(0, '${ROOT}/benchmark/android/android-world'); from environment import configure_host; configure_host()" >/dev/null 2>&1 \
   && { [[ -f "${AVD_ROOT}/actonce_android_world_api33.ini" ]] || [[ -d "${AVD_ROOT}/actonce_android_world_api33.avd" ]]; }
 }
 

@@ -1,5 +1,6 @@
 import type { AndroidSession } from "./session.js";
 import type { Point } from "./types.js";
+import { validateAndroidTouchDuration } from "./native-device.js";
 
 export const SUPPORTED_ANDROID_PRIMITIVES = [
   "tap",
@@ -17,6 +18,7 @@ export const SUPPORTED_ANDROID_PRIMITIVES = [
   "recentApps",
   "launchApp",
   "terminateApp",
+  "sleep",
 ] as const;
 export type AndroidPrimitiveOperation =
   (typeof SUPPORTED_ANDROID_PRIMITIVES)[number];
@@ -39,7 +41,7 @@ export async function replayAndroidPrimitive(
   const args = primitive.arguments;
   switch (primitive.operation) {
     case "tap":
-      await android.device.tap(point(args[0], "tap point"));
+      await android.device.tap(point(args[0], "tap point"), args[1] === undefined ? undefined : validateAndroidTouchDuration(args[1]));
       return;
     case "tapUniqueNode":
       await android.device.tapUniqueNode(
@@ -93,11 +95,28 @@ export async function replayAndroidPrimitive(
     case "scroll": {
       const value = options(args[0]);
       if (!value) throw new TypeError("scroll arguments[0] must be an object");
+      if (value.scrollType !== undefined && value.scrollType !== "singleAction")
+        throw new TypeError(`Unsupported recorded scrollType: ${String(value.scrollType)}`);
       const direction = typeof value.direction === "string" ? value.direction : "down";
-      const center = { x: finite(value.x ?? 205, "scroll.x"), y: finite(value.y ?? 450, "scroll.y") };
-      const distance = finite(value.distance ?? 300, "scroll.distance");
+      if (!["up", "down", "left", "right"].includes(direction))
+        throw new TypeError(`Unsupported scroll direction: ${direction}`);
+      const { width, height } = await android.device.size();
+      const horizontal = direction === "left" || direction === "right";
+      // A located scroll starts at the recorded logical point. Unlocated
+      // scrolling uses the recorded source protocol's directional quarter.
+      const center = value.locate !== undefined ? point(value.locate, "scroll locate") : {
+        x: Math.round(finite(value.x ?? (direction === "left" ? width * 3 / 4 : width / 4), "scroll.x")),
+        y: Math.round(finite(value.y ?? (direction === "up" ? height * 3 / 4 : height / 4), "scroll.y")),
+      };
+      center.x = Math.round(center.x);
+      center.y = Math.round(center.y);
+      const distance = Math.round(finite(value.distance || (horizontal ? width : height), "scroll.distance"));
+      if (distance < 0) throw new TypeError("scroll.distance must be nonnegative");
       const end = direction === "up" ? { x: center.x, y: center.y + distance } : direction === "left" ? { x: center.x + distance, y: center.y } : direction === "right" ? { x: center.x - distance, y: center.y } : { x: center.x, y: center.y - distance };
-      await android.device.swipe(center, end, optionalDuration(value));
+      // Never send an endpoint outside the logical display.
+      end.x = Math.round(Math.max(0, Math.min(width, end.x)));
+      end.y = Math.round(Math.max(0, Math.min(height, end.y)));
+      await android.device.swipe(center, end, optionalDuration(value) ?? 1000);
       return;
     }
     case "back":
@@ -115,7 +134,16 @@ export async function replayAndroidPrimitive(
     case "terminateApp":
       await android.terminate(string(args[0], "terminateApp package"));
       return;
+    case "sleep":
+      await new Promise<void>(resolve => setTimeout(resolve, validateAndroidSleepDuration(args[0])));
+      return;
   }
+}
+
+export function validateAndroidSleepDuration(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 2_147_483_647)
+    throw new TypeError("Android sleep duration must be an integer between 0 and 2147483647 milliseconds");
+  return value;
 }
 function point(value: unknown, label: string): Point {
   if (!value || typeof value !== "object")

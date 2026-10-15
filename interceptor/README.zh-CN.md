@@ -31,6 +31,12 @@ source 组合由命名 CLI profile 负责，Skill 和 task module 不直接 atta
 `ios-wda` 是只录协议的 proxy profile。需要其他组合时，应先在 CLI 中新增并测试
 一个命名 profile。
 
+Android 保留动作后的即时截图/UI 树，并在该次捕获完成 250ms 后补充一对独立观测。
+`sampling` 记录采样序号、触发原因、前一捕获的引用及计划延迟；两次观测保留各自
+真实捕获时间和同一动作关联。这是原始证据，不代表已证明 UI 消费了动作或已稳定。
+动作前及手动观测仍只采样一次。新增捕获成本计入 original 执行时间，不能与 replay
+的 settle 等待混淆。
+
 ## iOS / WDA
 
 iOS Interceptor 是 ActOnce 面向 WebDriverAgent 流量的被动“飞行记录仪”。它位于 iOS

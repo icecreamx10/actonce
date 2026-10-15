@@ -22,6 +22,11 @@ UI, recorder shutdown, and repairs performed after recording closed.
 The agent must inspect the cited screenshots/native artifacts before deciding. Do not
 derive inclusion or exclusion from event names alone.
 
+Equal UI captures do not prove that an action was side-effect-free. Before excluding
+apparent exploration or recovery, account for permission, persisted-resource and
+lifecycle effects using its own evidence. If those effects matter to the selected
+successful path and cannot be ruled out, retain the transition or report the gap.
+
 ## Author state transitions before actions
 
 Treat every completed top-level state-changing logical action as a candidate transition:
@@ -36,6 +41,34 @@ If either side lacks independent evidence, stop and report the exact recording g
 Task-start and task-end checks do not substitute for intermediate action boundaries.
 
 ## Map actions and observations independently
+
+Before freezing an observed label or value, classify its role: an explicit task
+input, a necessary outcome, an allocator-generated output, or incidental UI state.
+Keep requested values exact. Do not mistake a default generated name/identifier
+or a model-latency-inflated counter for a user requirement. For generated outputs,
+prove the same causal fact (a newly created resource was saved and is usable),
+using a live binding when identity matters or discriminative completion evidence
+when the literal identifier does not. Merely finding any existing resource is not
+enough; reject the nearest incomplete/unsaved state. Document this decision in
+`assertion-decision.json` before execution. Do not clear unrelated pre-existing
+resources solely to make an incidental literal match the demonstration.
+
+Read an external oracle's actual contract and wait for its completed result before
+classifying success. A directory-count oracle proves a new entry, not necessarily
+usable media. Preserve the recording's discriminative completion evidence (for
+example, a captured preview rather than merely stopped controls), or prove an
+equivalent recorded/live completion fact. An incidental counter may be generalized,
+but not at the expense of the generated resource's necessary saved/usable semantics.
+
+Native dump fields are not automatically task requirements. In particular, an
+intermediate numeric control value may be a rendering-derived value rather than
+an exact requested input. If a displayed summary conflicts with the official
+initializer or that action's coherent control/follow-up evidence, first prove and
+document the contradiction and field role. Do not freeze a stale summary as a
+required precondition. Re-express only the necessary, evidenced semantic state,
+and prove the replacement rejects the nearest relevant negative; exact requested
+values and the final oracle remain unchanged. Insufficient evidence is a blocker,
+not permission to broaden an assertion.
 
 | Recorded action source | Runtime lowering |
 |---|---|

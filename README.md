@@ -21,10 +21,11 @@ Correctness is a hard gate: ActOnce reports speed only when the replay passes th
 | macOS · 3-case Lynxtron suite | 185.49 s | 19.18 s | 9.67× | 3/3, fallback 0 |
 | iOS · checkout | 220.246 s | 10.499 s | 20.98× | 2/2, fallback 0 |
 | Android · checkout | 140.446 s | 17.412 s | 8.07× | 2/2, fallback 0 |
-| AndroidWorld · broader official PASS/PASS validation | 1,760.637 s | 187.664 s | 9.38× | 19/19, fallback 0 |
-| AndroidWorld · strict zero-context formal slice | 972.837 s | 95.938 s | 10.14× | 5/5, fallback 0 |
+| AndroidWorld · historical broader validation | 1,760.637 s | 187.664 s | 9.38× | Historical 19/19, fallback 0 |
+| AndroidWorld · fresh strict slice, Oct 10–12 | Per-case | Per-case | 3.05–24.80× | 5/5, fallback 0 |
+| AndroidWorld · CameraTakeVideo, Oct 13 | 125.921 s | 12.352 s | 10.19× | Reward 1/1, 9 checkpoints, fallback 0 |
 
-The AndroidWorld target is all 113 tasks that passed at least one of Midscene's three published rounds. The 19-case row is a broader serial validation batch in which both original and replay earned official reward `1.0`. The 5-case row is the stricter, independently measured zero-context formal slice: `ClockStopWatchPausedVerify`, `ClockStopWatchRunning`, `ClockTimerEntry`, `BrowserMaze`, and `ExpenseAddMultiple`. A separate 20-candidate campaign produced 14 official-PASS originals and 4 replay-correct cases; incorrect, timed-out, setup-failed, and checkpoint-failed attempts are excluded from performance totals. Full-suite scoring is still in progress.
+The AndroidWorld target is all 113 tasks that passed at least once in Midscene's three published rounds. The Oct 10–13 audits now cover **5/5 strict cases and 19/19 qualified broader replays**, across different revisions—not the full catalog or one homogeneous suite run. Video was re-recorded with a frozen pregranted-permission/startup/media-publication baseline; already-passed cases were not rerun. See the [Oct 10–12 audit](benchmark/android/android-world/REPRODUCTION-2026-10-12.md) and [Oct 13 video audit](benchmark/android/android-world/REPRODUCTION-2026-10-13.md). Original recording time includes recorder overhead; replay includes native connection, checkpoints, final evidence and close. Per-case raw ratios are not combined into a same-scope aggregate. Other platform rows remain historical.
 
 Protocols and evidence:
 

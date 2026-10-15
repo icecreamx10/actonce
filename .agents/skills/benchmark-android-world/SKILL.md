@@ -55,8 +55,13 @@ For each catalog case:
    discarding or renumbering them.
 
 Run exactly one independently initialized original and one replay per case on
-one serially used emulator. Do not parallelize measured cases and do not average
-repetitions. Report suite coverage separately as
+one serially used emulator. When the user explicitly requests concurrency,
+different cases may run on separate cloned API 33 emulators. Each worker must
+have independent serial, console, gRPC, UIAutomator2 and lease ports, fixture
+setup, and output directories. Never run two cases on the same emulator or average
+repetitions. Record device concurrency in the campaign manifest; concurrent
+timings have shared-host contention and must not be mixed with serial scores.
+Report suite coverage separately as
 catalog, original-pass, compiled, replay-correct, and performance-comparable
 counts. A missing, unsupported, setup-failed, or incorrect case remains visible
 in the denominator; never silently skip it.
@@ -88,15 +93,31 @@ API key, and must be verified before the suite with:
 npm run android-world:model:verify
 ```
 
+For the user-requested GPT-6 Luna original-recording campaign, verify
+`--model-profile codex-6-luna` before measurement. The committed
+`parallel-original.ts` CLI persists the exclusion evidence and task assignment:
+
+```bash
+npx tsx benchmark/android/android-world/parallel-original.ts --phase plan
+npx tsx benchmark/android/android-world/parallel-original.ts --phase run --worker 0
+npx tsx benchmark/android/android-world/parallel-original.ts --phase run --worker 1
+```
+
+Delegate each worker to a fresh agent. Read its assigned device and setup from
+`plan.json`; record context isolation separately. This campaign measures original
+recording coverage only. Agent synthesis and an independently measured replay are
+still required before reporting ActOnce speedup.
+
 There is intentionally no benchmark CLI compile phase. After the original
-phase, invoke the published `compile-device-recording` Skill separately for
+phase, invoke the published `synthesize-device-replay` Skill separately for
 every complete official-pass recording. The Skill owns segment selection,
 semantic target mapping, checkpoint decisions, generated code, execution,
 diagnosis, and fresh-fixture repair. Primitive lowering must preserve the raw
 recorded action; never automatically replace a coordinate with a native node
-merely because their bounds overlap. Write `compiled/replay.ts`,
-`recorded-input.ts`, `assertion-decision.json`, `compile-result.json`, and the
-attempt history under the sample directory. A sample-local generated replay is
+merely because their bounds overlap. Save the SDK module, `synthesis-ledger.json`,
+`replay-plan.json`, `replay-oracle.json`, `assertion-decision.json`,
+`execution-environment.json`, per-action lowerings, source hashes, and complete
+development qualification/history under the sample directory. A sample-local generated replay is
 an expected benchmark artifact, not a benchmark-runner code change. Editing the catalog,
 runner, runtime, initializer bridge, validator bridge, or setup patches still
 invalidates the measurement and requires a different fresh agent.
@@ -115,6 +136,19 @@ checkpoint; repair the compiler/runtime; and recompile and rerun until stable or
 a concrete blocker is proven. These are development validation attempts. Only
 then delegate formal replay measurement to a different zero-context agent.
 
+Require two consecutive independently reset development passes of both runtime
+checkpoints and the official oracle before formal replay delegation.
+
+For new AndroidWorld measurements, generate an SDK replay module and invoke the
+public CLI with `--replay-module <module.ts>` (see the benchmark README).
+The module receives the runner-owned `android` session and `flow`; it must not
+connect, close, measure duration, or write its own benchmark result. The CLI's
+monotonic clock includes connection, actions/checkpoints/retries, final evidence
+capture, and close. Module loading and artifact writing are outside the clock.
+Legacy `--replay-entry` results retain correctness evidence but have an unverified
+authored timing boundary; do not claim a new formal speedup from them. Reuse a
+successful original and its complete manifest when validating a new replay module.
+
 Before delegating formal suite work, the coordinator must run the resumable
 measurement-external setup and require `24 ready / 0 failed / 0 pending`:
 
@@ -123,8 +157,10 @@ npm run android-world:prepare-suite -- --output .cache/android-world/setup
 ```
 
 At each measured original/replay boundary, the CLI force-stops declared target
-packages, opens the first official target app, and verifies it is foreground
-before timing starts. AndroidWorld's AccessibilityForwarder is used for official
+packages and applies the public task start-state policy before timing starts:
+normally it opens/verifies the first target app; `OpenAppTaskEval` retains the
+official Home start rather than pre-completing its goal. A permission modal is
+accepted only when its requester is the target app. AndroidWorld's AccessibilityForwarder is used for official
 initialization/validation but suspended during measurement, where Midscene and
 recorder share one persistent UIAutomator2 session. The CLI releases UIAutomator2
 before returning to the official validator.

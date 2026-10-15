@@ -4,7 +4,12 @@ const DEFAULT_LEASE_PORT = 18_433;
 
 export async function acquireAndroidWorldDeviceLease(): Promise<() => Promise<void>> {
   if (process.env.ACTONCE_ANDROID_WORLD_DEVICE_LEASE_OWNER) return async () => {};
-  const port = Number(process.env.ACTONCE_ANDROID_WORLD_DEVICE_LEASE_PORT ?? DEFAULT_LEASE_PORT);
+  const serial = process.env.ACTONCE_ANDROID_SERIAL ?? "emulator-5554";
+  const consolePort = Number(process.env.ACTONCE_EMULATOR_PORT ?? serial.replace(/^emulator-/, ""));
+  if (!Number.isInteger(consolePort) || consolePort < 1 || consolePort > 65_535) {
+    throw new Error(`Invalid AndroidWorld emulator console port: ${consolePort}`);
+  }
+  const port = Number(process.env.ACTONCE_ANDROID_WORLD_DEVICE_LEASE_PORT ?? (DEFAULT_LEASE_PORT + consolePort - 5554));
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error(`Invalid ACTONCE_ANDROID_WORLD_DEVICE_LEASE_PORT: ${port}`);
   }
@@ -19,7 +24,7 @@ function listen(server: Server, port: number): Promise<void> {
       server.off("listening", onListening);
       if (error.code === "EADDRINUSE") {
         reject(new Error(
-          `AndroidWorld device lease ${port} is already held; stop the other benchmark before using emulator-5554`,
+          `AndroidWorld device lease ${port} is already held; stop the other benchmark before using this device`,
         ));
       } else reject(error);
     };

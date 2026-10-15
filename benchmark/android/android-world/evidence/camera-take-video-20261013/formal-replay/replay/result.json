@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 1,
+  "mode": "replay",
+  "status": "passed",
+  "executionDurationMs": 12351.938125,
+  "timingBoundary": {
+    "scope": "device-session",
+    "clock": "monotonic",
+    "managedBy": "benchmark-replay-module-runner",
+    "start": "before AndroidSession.connect",
+    "end": "after AndroidSession.close",
+    "includes": [
+      "native session setup",
+      "authored execution",
+      "final screenshot and native source capture",
+      "native session teardown"
+    ],
+    "excludes": [
+      "module loading",
+      "all artifact writes"
+    ]
+  },
+  "replayDiagnostics": {
+    "strategy": "deterministic",
+    "deterministicRetryCount": 0,
+    "deterministicRetryDurationMs": 0,
+    "fallbackCount": 0,
+    "fallbackDurationMs": 0,
+    "checkpointPollCount": 46,
+    "checkpointCaptureDurationMs": 4867,
+    "checkpointSettleDelayMs": 4666,
+    "checkpointWaitDurationMs": 9533,
+    "checkpointTimeoutCount": 0,
+    "segments": [
+      {
+        "segmentId": "onboarding-next",
+        "runs": 1,
+        "attempts": 3,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 16,
+            "settleDelayMs": 0,
+            "pollCount": 0,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 363,
+            "settleDelayMs": 101,
+            "pollCount": 1,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      },
+      {
+        "segmentId": "exploratory-mode-tap",
+        "runs": 1,
+        "attempts": 10,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 444,
+            "settleDelayMs": 611,
+            "pollCount": 6,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 567,
+            "settleDelayMs": 204,
+            "pollCount": 2,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      },
+      {
+        "segmentId": "edge-swipe",
+        "runs": 1,
+        "attempts": 12,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 621,
+            "settleDelayMs": 303,
+            "pollCount": 3,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 732,
+            "settleDelayMs": 714,
+            "pollCount": 7,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      },
+      {
+        "segmentId": "recover-launch",
+        "runs": 1,
+        "attempts": 5,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 0,
+            "settleDelayMs": 0,
+            "pollCount": 0,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 116,
+            "settleDelayMs": 303,
+            "pollCount": 3,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      },
+      {
+        "segmentId": "second-mode-tap",
+        "runs": 1,
+        "attempts": 13,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 231,
+            "settleDelayMs": 808,
+            "pollCount": 8,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 670,
+            "settleDelayMs": 304,
+            "pollCount": 3,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      },
+      {
+        "segmentId": "open-mode-list",
+        "runs": 1,
+        "attempts": 2,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 0,
+            "settleDelayMs": 0,
+            "pollCount": 0,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 19,
+            "settleDelayMs": 0,
+            "pollCount": 0,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      },
+      {
+        "segmentId": "select-video",
+        "runs": 1,
+        "attempts": 4,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 0,
+            "settleDelayMs": 0,
+            "pollCount": 0,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 161,
+            "settleDelayMs": 202,
+            "pollCount": 2,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      },
+      {
+        "segmentId": "start-recording",
+        "runs": 1,
+        "attempts": 2,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 0,
+            "settleDelayMs": 0,
+            "pollCount": 0,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 427,
+            "settleDelayMs": 0,
+            "pollCount": 0,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      },
+      {
+        "segmentId": "stop-save",
+        "runs": 1,
+        "attempts": 13,
+        "deterministicFailures": 0,
+        "guard": {
+          "precondition": {
+            "captureDurationMs": 104,
+            "settleDelayMs": 914,
+            "pollCount": 9,
+            "timeoutCount": 0
+          },
+          "postcondition": {
+            "captureDurationMs": 396,
+            "settleDelayMs": 202,
+            "pollCount": 2,
+            "timeoutCount": 0
+          }
+        },
+        "fallback": {
+          "count": 0,
+          "durationMs": 0,
+          "outcomes": {
+            "completed": 0,
+            "declined": 0,
+            "failed": 0
+          }
+        },
+        "outcome": "matched",
+        "matchedCleanly": true
+      }
+    ]
+  },
+  "checkpointCaptureBreakdown": {
+    "checkedSamples": 64,
+    "timedSamples": 64,
+    "complete": true,
+    "source": {
+      "samples": 64,
+      "durationMs": 3307.485206000002
+    },
+    "screenshot": {
+      "samples": 11,
+      "durationMs": 1437.1833750000005
+    },
+    "visualComparison": {
+      "samples": 11,
+      "durationMs": 120.011916999998
+    }
+  },
+  "errors": [],
+  "artifacts": {
+    "screenshot": {
+      "path": "final.png",
+      "sha256": "45462ca28a119677cba10e3c433f379e5b9fe7120f7875ec757f48bc5a47e4cf"
+    },
+    "source": {
+      "path": "final-source.json",
+      "sha256": "8cd4b0c82bae306f459defcc125f78a8aa0e0e8882633d825ad66ed5e8e9c756"
+    },
+    "events": "events.json"
+  }
+}

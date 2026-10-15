@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { delimiter } from "node:path";
+import { existsSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import {
   codexAppServerPath,
   modelProfileProvenance,
@@ -18,6 +19,7 @@ describe("AndroidWorld model profiles", () => {
       MIDSCENE_MODEL_REASONING_ENABLED: "true",
       MIDSCENE_MODEL_REASONING_EFFORT: "medium",
       MIDSCENE_REPLANNING_CYCLE_LIMIT: "120",
+      PUPPETEER_SKIP_DOWNLOAD: "true",
     });
     expect(Object.keys(profile.env).some((key) => /key|token|secret/i.test(key))).toBe(false);
   });
@@ -36,10 +38,30 @@ describe("AndroidWorld model profiles", () => {
     expect(() => requireAndroidWorldModelProfile("unknown")).toThrow(/Unknown AndroidWorld model profile/);
   });
 
+  it("keeps the explicit GPT-6.1 Sol profile separate from existing Luna profiles", () => {
+    const profile = requireAndroidWorldModelProfile("codex-6.1-sol");
+    expect(profile.env.MIDSCENE_MODEL_NAME).toBe("gpt-6.1-sol");
+    expect(modelProfileProvenance("codex-6.1-sol").model).toBe("gpt-6.1-sol");
+    expect(requireAndroidWorldModelProfile("codex-6-luna").env.MIDSCENE_MODEL_NAME).toBe("gpt-6-luna");
+    expect(requireAndroidWorldModelProfile("codex-luna").env.MIDSCENE_MODEL_NAME).toBe("gpt-5.6-luna");
+  });
+
+  it("uses the requested GPT-6 Luna for both execution and provenance", () => {
+    const profile = requireAndroidWorldModelProfile("codex-6-luna");
+    expect(profile.env.MIDSCENE_MODEL_NAME).toBe("gpt-6-luna");
+    expect(modelProfileProvenance("codex-6-luna").model).toBe(profile.env.MIDSCENE_MODEL_NAME);
+  });
+
   it("exposes the ChatGPT-bundled Codex CLI to a clean benchmark shell", () => {
-    const bundledPath = "/Applications/ChatGPT.app/Contents/Resources";
+    const bundledPaths = [
+      "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS",
+      "/Applications/ChatGPT.app/Contents/Resources",
+    ];
     const value = codexAppServerPath(["/usr/bin", "/bin"].join(delimiter));
-    if (process.platform === "darwin") expect(value.split(delimiter)[0]).toBe(bundledPath);
+    const availableBundle = process.platform === "darwin"
+      ? bundledPaths.find((directory) => existsSync(join(directory, "codex")))
+      : undefined;
+    if (availableBundle) expect(value.split(delimiter)[0]).toBe(availableBundle);
     else expect(value).toBe(["/usr/bin", "/bin"].join(delimiter));
   });
 });
@@ -58,11 +80,37 @@ describe("AndroidWorld task scaffold", () => {
         setAppNameMapping(value: Record<string, string>) { mapping = value; },
       } as never);
       expect(goal).toContain('already opened the target app "Audio Recorder"');
+      expect(goal).toContain('recover once using Launch with the exact logical name "Audio Recorder"');
       expect(goal).toContain("Create the requested recording");
       expect(mapping).toEqual({ audiorecorder: "com.dimowner.audiorecorder" });
     } finally {
       restoreEnv("ACTONCE_ANDROID_WORLD_GOAL", previousGoal);
       restoreEnv("ACTONCE_ANDROID_WORLD_APPS", previousApps);
+    }
+  });
+});
+
+describe("AndroidWorld official home scaffold", () => {
+  it("does not claim that a candidate app was opened and preserves the requested goal", () => {
+    const previousGoal = process.env.ACTONCE_ANDROID_WORLD_GOAL;
+    const previousApps = process.env.ACTONCE_ANDROID_WORLD_APPS;
+    const previousStart = process.env.ACTONCE_ANDROID_WORLD_START_STATE;
+    process.env.ACTONCE_ANDROID_WORLD_GOAL = "Open the dialer app";
+    process.env.ACTONCE_ANDROID_WORLD_APPS = JSON.stringify([
+      { name: "camera", package: "com.android.camera2" },
+      { name: "dialer", package: "com.android.dialer" },
+    ]);
+    process.env.ACTONCE_ANDROID_WORLD_START_STATE = "official-home";
+    try {
+      const goal = configureAndroidWorldTask({ setAppNameMapping() {} } as never);
+      expect(goal).toContain("official initialized Home screen");
+      expect(goal).toContain('"camera", "dialer"');
+      expect(goal).toContain("Open the dialer app");
+      expect(goal).not.toContain("already opened");
+    } finally {
+      restoreEnv("ACTONCE_ANDROID_WORLD_GOAL", previousGoal);
+      restoreEnv("ACTONCE_ANDROID_WORLD_APPS", previousApps);
+      restoreEnv("ACTONCE_ANDROID_WORLD_START_STATE", previousStart);
     }
   });
 });

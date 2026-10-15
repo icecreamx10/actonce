@@ -4,6 +4,8 @@ import type {
   AndroidPrimitiveOperation,
   RecordedAndroidPrimitive,
 } from "./primitives.js";
+import { validateAndroidSleepDuration } from "./primitives.js";
+import { validateAndroidTouchDuration } from "./native-device.js";
 
 export type RecordedAndroidEvent = {
   kind?: string;
@@ -32,10 +34,8 @@ export function compileAndroidPrimitives(
     sequenceRange?: { from: number; to: number };
   } = {},
 ): CompileAndroidPrimitivesResult {
-  const completed = events.filter((event) => event.kind === "logical.action.completed");
-  const omittedWaitCount = completed.filter(
-    (event) => event.operation === "Sleep",
-  ).length;
+  // Action selection and wait optimization belong to the agent, not this lowerer.
+  const omittedWaitCount = 0;
   const actions = extractAndroidPrimitives(events);
   const range =
     provenance.sequenceRange ??
@@ -74,7 +74,7 @@ export function extractAndroidPrimitives(
   return events
     .filter(
       (event) =>
-        event.kind === "logical.action.completed" && event.operation !== "Sleep",
+        event.kind === "logical.action.completed",
     )
     .map((event) => {
       if (!event.actionId || !Number.isInteger(event.sequence))
@@ -125,6 +125,7 @@ function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
   const mapping: Record<string, AndroidPrimitiveOperation> = {
     Launch: "launchApp",
     Terminate: "terminateApp",
+    Sleep: "sleep",
     Tap: "tap",
     DoubleClick: "doubleClick",
     LongPress: "longPress",
@@ -143,6 +144,8 @@ function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
     throw new Error(
       `Unsupported recorded Android action: ${String(event.operation)}`,
     );
+  if (operation === "sleep")
+    return { operation, arguments: [validateAndroidSleepDuration(args.timeMs)] };
   if (["back", "home", "recentApps"].includes(operation))
     return { operation, arguments: [] };
   if (["launchApp", "terminateApp"].includes(operation)) {
@@ -153,7 +156,21 @@ function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
       );
     return { operation, arguments: [packageName] };
   }
-  if (["tap", "doubleClick", "longPress"].includes(operation))
+  if (operation === "longPress") {
+    const duration = args.duration;
+    if (duration !== undefined &&
+        (typeof duration !== "number" || !Number.isFinite(duration) || duration < 0))
+      throw new Error("Recorded Android LongPress duration must be a nonnegative finite number");
+    return {
+      operation,
+      arguments: [targetPoint(args.locate), ...(duration === undefined ? [] : [duration])],
+    };
+  }
+  if (operation === "tap") {
+    const duration = args.duration ?? args.durationMs;
+    return { operation, arguments: [targetPoint(args.locate), ...(duration === undefined ? [] : [validateAndroidTouchDuration(duration)])] };
+  }
+  if (operation === "doubleClick")
     return { operation, arguments: [targetPoint(args.locate)] };
   if (operation === "typeText") {
     if (typeof args.value !== "string")

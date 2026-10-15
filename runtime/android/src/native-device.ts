@@ -11,26 +11,107 @@ const INSTRUMENTATION = `${TEST_PACKAGE}/androidx.test.runner.AndroidJUnitRunner
 // observations. Keep the persistent checkpoint session alive longer than the
 // pinned model timeout (10 minutes).
 export const UIAUTOMATOR2_NEW_COMMAND_TIMEOUT_SECONDS = 1_200;
+export const UIAUTOMATOR2_CHECKPOINT_SETTINGS = Object.freeze({
+  enableNotificationListener: false,
+  // /source resets its cache through Device.waitForIdle(). Let checkpoint
+  // polling own UI settling instead of hiding idle waits inside capture I/O.
+  waitForIdleTimeout: 0,
+  // Faster reads must still invalidate accessibility/window caches each time.
+  deferAccessibilityCacheReset: false,
+});
+
+/** DELETE /session finishes instrumentation asynchronously. Keep its adb
+ * connection alive until Android has disconnected UiAutomation. */
+export async function waitForInstrumentationExit(
+  child: ChildProcess | undefined,
+  timeoutMs = 5_000,
+): Promise<boolean> {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return true;
+  return new Promise((resolve) => {
+    const finish = (exited: boolean) => {
+      clearTimeout(timer);
+      child.removeListener("exit", onExit);
+      child.removeListener("error", onError);
+      resolve(exited);
+    };
+    const onExit = () => finish(true);
+    const onError = () => finish(false);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    child.once("exit", onExit);
+    child.once("error", onError);
+  });
+}
+
+export function resolveAndroidSystemPort(
+  explicit?: number,
+  environment: string | undefined = process.env.ACTONCE_ANDROID_SYSTEM_PORT,
+): number {
+  const port = explicit ?? (environment === undefined ? 8200 : Number(environment));
+  if (!Number.isInteger(port) || port < 1 || port > 65_535)
+    throw new Error(`Invalid Android UIAutomator2 system port: ${String(explicit ?? environment)}`);
+  return port;
+}
+
+export interface AndroidDisplayGeometry {
+  physicalWidth: number;
+  physicalHeight: number;
+  logicalWidth: number;
+  logicalHeight: number;
+  densityScale: number;
+}
+
+/** wm reports physical first, but an explicit override is the effective value. */
+export function parseAndroidDisplayGeometry(sizeOutput: string, densityOutput: string): AndroidDisplayGeometry {
+  const effective = (output: string, field: string): string => {
+    const lines = output.split(/\r?\n/);
+    const line = lines.find((value) => value.trim().startsWith(`Override ${field}:`))
+      ?? lines.find((value) => value.trim().startsWith(`Physical ${field}:`));
+    if (!line) throw new Error(`Cannot parse Android display ${field}: ${output}`);
+    return line.slice(line.indexOf(":") + 1).trim();
+  };
+  const size = effective(sizeOutput, "size").match(/^(\d+)x(\d+)$/);
+  const density = effective(densityOutput, "density");
+  if (!size || !/^\d+$/.test(density)) throw new Error("Invalid Android display geometry");
+  const physicalWidth = Number(size[1]), physicalHeight = Number(size[2]), dpi = Number(density);
+  if (![physicalWidth, physicalHeight, dpi].every((value) => Number.isSafeInteger(value) && value > 0))
+    throw new Error("Invalid Android display geometry");
+  const densityScale = dpi / 160;
+  const logicalWidth = Math.round(physicalWidth / densityScale);
+  const logicalHeight = Math.round(physicalHeight / densityScale);
+  if (![logicalWidth, logicalHeight].every((value) => Number.isSafeInteger(value) && value > 0))
+    throw new Error("Invalid Android logical display geometry");
+  return { physicalWidth, physicalHeight, logicalWidth, logicalHeight, densityScale };
+}
+
+export function projectAndroidPoint(point: Point, geometry: AndroidDisplayGeometry): Point {
+  return {
+    x: Math.round(point.x * geometry.physicalWidth / geometry.logicalWidth),
+    y: Math.round(point.y * geometry.physicalHeight / geometry.logicalHeight),
+  };
+}
 
 export class NativeAndroidDevice {
   private instrumentation?: ChildProcess;
   private sessionId?: string;
   private sessionRecovery?: Promise<void>;
   private densityScale = 1;
+  private displayGeometry?: AndroidDisplayGeometry;
 
   private constructor(
     readonly serial: string,
     private readonly adbPath: string,
     private readonly systemPort: number,
+    private readonly appNameMapping: Readonly<Record<string, string>>,
   ) {}
 
   static async connect(options: AndroidSessionOptions = {}): Promise<NativeAndroidDevice> {
+    const appNameMapping = validateAndroidAppNameMapping(options.appNameMapping);
     const adbPath = options.androidAdbPath ?? process.env.ACTONCE_ADB_PATH ?? process.env.ANDROID_ADB_PATH ?? "adb";
     const connected = await adb(adbPath, undefined, ["devices"]);
     const serials = connected.split("\n").slice(1).map((line) => line.trim().split(/\s+/)).filter((parts) => parts[1] === "device").map((parts) => parts[0]);
     const serial = options.serial ?? process.env.ACTONCE_ANDROID_SERIAL ?? serials[0];
     if (!serial || !serials.includes(serial)) throw new Error(`Android device ${serial ?? "<none>"} is not connected`);
-    const device = new NativeAndroidDevice(serial, adbPath, options.systemPort ?? 8200);
+    const device = new NativeAndroidDevice(serial, adbPath, resolveAndroidSystemPort(options.systemPort), appNameMapping);
     await device.start();
     return device;
   }
@@ -52,9 +133,7 @@ export class NativeAndroidDevice {
     });
     await waitUntil(async () => (await fetch(this.url("/status"))).ok, 30_000, "UIAutomator2 server did not become ready");
     await this.createSession();
-    const density = await this.shell(["wm", "density"]);
-    const match = density.match(/(?:Override|Physical) density:\s*(\d+)/);
-    this.densityScale = match ? Number(match[1]) / 160 : 1;
+    await this.size();
   }
 
   private async createSession(): Promise<void> {
@@ -73,18 +152,22 @@ export class NativeAndroidDevice {
     // AccessibilityNodeInfo internals that are absent on some Android builds.
     // Disable only that listener; the normal accessibility tree remains intact.
     await this.request("POST", this.sessionPath("/appium/settings"), {
-      settings: { enableNotificationListener: false },
+      settings: UIAUTOMATOR2_CHECKPOINT_SETTINGS,
     });
   }
 
   async close(): Promise<void> {
     if (this.sessionId) await this.request("DELETE", `/session/${this.sessionId}`).catch(() => undefined);
     this.sessionId = undefined;
-    this.instrumentation?.kill("SIGTERM");
-    await Promise.all([
-      this.shell(["am", "force-stop", SERVER_PACKAGE]).catch(() => ""),
-      this.shell(["am", "force-stop", TEST_PACKAGE]).catch(() => ""),
-    ]);
+    // Killing adb here can destroy UiAutomation's binder connection while
+    // Instrumentation.finish() is still disconnecting it, creating an Android
+    // crash dialog after an otherwise successful replay.
+    await waitForInstrumentationExit(this.instrumentation);
+    await this.shell(["am", "force-stop", SERVER_PACKAGE]).catch(() => "");
+    await this.shell(["am", "force-stop", TEST_PACKAGE]).catch(() => "");
+    if (this.instrumentation?.exitCode === null && this.instrumentation.signalCode === null)
+      this.instrumentation.kill("SIGTERM");
+    this.instrumentation = undefined;
     await this.run(["forward", "--remove", `tcp:${this.systemPort}`]).catch(() => "");
   }
 
@@ -107,22 +190,22 @@ export class NativeAndroidDevice {
     if (!value) throw new Error("UIAutomator2 screenshot response did not contain base64 data");
     return value;
   }
-  async size(): Promise<{ width: number; height: number }> { const output = await this.shell(["wm", "size"]); const match = output.match(/(?:Override|Physical) size:\s*(\d+)x(\d+)/); if (!match) throw new Error(`Cannot parse Android display size: ${output}`); return { width: Math.round(Number(match[1]) / this.densityScale), height: Math.round(Number(match[2]) / this.densityScale) }; }
+  async size(): Promise<{ width: number; height: number }> {
+    // Failed refreshes must not leave actions using stale display geometry.
+    this.displayGeometry = undefined;
+    const [size, density] = await Promise.all([this.shell(["wm", "size"]), this.shell(["wm", "density"])]);
+    const geometry = parseAndroidDisplayGeometry(size, density);
+    this.displayGeometry = geometry;
+    this.densityScale = geometry.densityScale;
+    return { width: geometry.logicalWidth, height: geometry.logicalHeight };
+  }
 
-  async tap(point: Point): Promise<void> {
+  async tap(point: Point, duration = 150): Promise<void> {
+    const hold = validateAndroidTouchDuration(duration);
     const p = this.physical(point);
-    await this.sessionRequest("POST", "/actions", {
-      actions: [{
-        type: "pointer",
-        id: "finger1",
-        parameters: { pointerType: "touch" },
-        actions: [
-          { type: "pointerMove", duration: 0, x: p.x, y: p.y },
-          { type: "pointerDown", button: 0 },
-          { type: "pointerUp", button: 0 },
-        ],
-      }],
-    });
+    // A coordinate press is a real platform touch with an explicit hold, not
+    // a zero-duration W3C down/up. Preserve the input command's event cadence.
+    await this.shell(["input", "swipe", `${p.x}`, `${p.y}`, `${p.x}`, `${p.y}`, `${hold}`]);
   }
   async tapUniqueNode(selector: AndroidNodeSelector, coordinateFallback?: Point): Promise<"selector" | "coordinate-fallback"> {
     if (Object.values(selector).every((value) => value === undefined)) throw new TypeError("Android selector must not be empty");
@@ -147,23 +230,12 @@ export class NativeAndroidDevice {
     }
     throw new Error(`Android selector must match exactly one node; matched ${matches.length}: ${JSON.stringify(selector)}`);
   }
-  async doubleClick(point: Point): Promise<void> { await this.tap(point); await delay(80); await this.tap(point); }
+  async doubleClick(point: Point): Promise<void> { await this.tap(point, 0); await delay(80); await this.tap(point, 0); }
   async longPress(point: Point, duration = 800): Promise<void> { const p = this.physical(point); await this.shell(["input", "swipe", `${p.x}`, `${p.y}`, `${p.x}`, `${p.y}`, `${duration}`]); }
   async swipe(start: Point, end: Point, duration = 300): Promise<void> {
+    const elapsed = validateAndroidTouchDuration(duration);
     const a = this.physical(start), b = this.physical(end);
-    await this.sessionRequest("POST", "/actions", {
-      actions: [{
-        type: "pointer",
-        id: "finger1",
-        parameters: { pointerType: "touch" },
-        actions: [
-          { type: "pointerMove", duration: 0, x: a.x, y: a.y },
-          { type: "pointerDown", button: 0 },
-          { type: "pointerMove", duration, x: b.x, y: b.y },
-          { type: "pointerUp", button: 0 },
-        ],
-      }],
-    });
+    await this.shell(["input", "swipe", `${a.x}`, `${a.y}`, `${b.x}`, `${b.y}`, `${elapsed}`]);
   }
   async typeText(value: string): Promise<void> { await this.shell(["input", "text", encodeAndroidInputText(value)]); }
   async keyboardPress(key: string): Promise<void> { await this.shell(["input", "keyevent", keyCode(key)]); }
@@ -195,11 +267,15 @@ export class NativeAndroidDevice {
   async home(): Promise<void> { await this.keyboardPress("HOME"); }
   async recentApps(): Promise<void> { await this.keyboardPress("APP_SWITCH"); }
   async launch(packageName: string): Promise<void> {
-    await activateAndroidPackage(packageName, (args) => this.shell(args));
+    const resolvedPackage = resolveAndroidAppName(packageName, this.appNameMapping);
+    await activateAndroidPackage(resolvedPackage, (args) => this.shell(args));
   }
   async terminate(packageName: string): Promise<void> { await this.shell(["am", "force-stop", packageName]); }
 
-  private physical(point: Point): Point { return { x: Math.round(point.x * this.densityScale), y: Math.round(point.y * this.densityScale) }; }
+  private physical(point: Point): Point {
+    if (!this.displayGeometry) throw new Error("Android display geometry is unavailable; refresh size() before coordinate actions");
+    return projectAndroidPoint(point, this.displayGeometry);
+  }
   private async isKeyboardShown(): Promise<boolean> {
     const output = await this.shell(["dumpsys", "input_method"]);
     return /mInputShown=true\b/.test(output);
@@ -243,6 +319,58 @@ export class NativeAndroidDevice {
 }
 
 type AndroidShell = (args: string[]) => Promise<string>;
+
+const ANDROID_PACKAGE_NAME = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/;
+
+function normalizeAndroidAppName(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** Validate the complete caller mapping before any device I/O and snapshot it. */
+export function validateAndroidAppNameMapping(
+  mapping: AndroidSessionOptions["appNameMapping"],
+): Readonly<Record<string, string>> {
+  const result: Record<string, string> = Object.create(null);
+  const normalized = new Set<string>();
+  if (mapping === undefined) return Object.freeze(result);
+  if (mapping === null || typeof mapping !== "object" || Array.isArray(mapping)
+    || (Object.getPrototypeOf(mapping) !== Object.prototype
+      && Object.getPrototypeOf(mapping) !== null)
+    || Reflect.ownKeys(mapping).some((key) => typeof key !== "string")) {
+    throw new TypeError("Invalid Android appNameMapping: expected a plain string record");
+  }
+  for (const [name, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(mapping))) {
+    const key = normalizeAndroidAppName(name);
+    const packageName: unknown = descriptor.value;
+    if (!key || !("value" in descriptor) || typeof packageName !== "string"
+      || !ANDROID_PACKAGE_NAME.test(packageName)) {
+      throw new TypeError(`Invalid Android appNameMapping entry: ${name}`);
+    }
+    if (normalized.has(key)) {
+      throw new TypeError(`Ambiguous Android appNameMapping name: ${name}`);
+    }
+    if (ANDROID_PACKAGE_NAME.test(name) && name !== packageName) {
+      throw new TypeError(`Android appNameMapping cannot redirect package: ${name}`);
+    }
+    normalized.add(key);
+    result[name] = packageName;
+  }
+  return Object.freeze(result);
+}
+
+/** Exact name first, then trim/collapse whitespace + lowercase; never discover apps. */
+export function resolveAndroidAppName(
+  name: string,
+  mapping?: AndroidSessionOptions["appNameMapping"],
+): string {
+  const validated = validateAndroidAppNameMapping(mapping);
+  if (ANDROID_PACKAGE_NAME.test(name)) return name;
+  if (Object.hasOwn(validated, name)) return validated[name]!;
+  const key = normalizeAndroidAppName(name);
+  const match = Object.keys(validated).find((candidate) => normalizeAndroidAppName(candidate) === key);
+  if (match !== undefined) return validated[match]!;
+  throw new TypeError(`Unmapped Android app name: ${name}`);
+}
 
 /**
  * Encodes a logical string for Android's `input text` command. `adb shell`
@@ -454,4 +582,10 @@ function unionBounds(nodes: AndroidUiTreeNode[]) {
   const right = Math.max(...nodes.map((node) => node.bounds.left + node.bounds.width));
   const bottom = Math.max(...nodes.map((node) => node.bounds.top + node.bounds.height));
   return { left, top, width: right - left, height: bottom - top };
+}
+
+export function validateAndroidTouchDuration(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 2_147_483_647)
+    throw new TypeError("Android touch duration must be an integer between 0 and 2147483647 milliseconds");
+  return value;
 }

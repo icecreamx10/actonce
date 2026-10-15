@@ -12,8 +12,10 @@ export function configureAndroidWorldTask(device: AndroidDevice): string {
   const initialApp = apps.find((app) => app.package);
   if (!initialApp?.package) return goal;
   const additionalApps = apps.filter((app) => app !== initialApp);
-  const setupInstruction = additionalApps.length === 0
-    ? `The benchmark has already opened the target app "${initialApp.name}". Continue from the current screen; do not return Home or relaunch this app.`
+  const setupInstruction = process.env.ACTONCE_ANDROID_WORLD_START_STATE === "official-home"
+    ? `The benchmark retains the official initialized Home screen. Complete the task using Launch with the exact logical app name: ${apps.filter((app) => app.package).map((app) => `"${app.name}"`).join(", ")}. No candidate app has been opened by preparation.`
+    : additionalApps.length === 0
+    ? `The benchmark has already opened the target app "${initialApp.name}". Continue from the current screen; do not return Home unnecessarily. If you inadvertently leave the app, you may recover once using Launch with the exact logical name "${initialApp.name}"; do not repeatedly relaunch.`
     : [
         `The benchmark has already opened the initial target app "${initialApp.name}". Continue from the current screen.`,
         `If the task requires another app, use Launch with its exact logical name: ${additionalApps.map((app) => `"${app.name}"`).join(", ")}. Do not search the Launcher manually.`,

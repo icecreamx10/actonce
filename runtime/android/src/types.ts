@@ -18,6 +18,8 @@ export type AndroidSessionOptions = {
   displayId?: number;
   screenshotStrategy?: "auto" | "always-yadb";
   systemPort?: number;
+  /** Evidence-backed logical app names mapped to Android package names. */
+  appNameMapping?: Readonly<Record<string, string>>;
 };
 export type AndroidReplayContext = {
   android: AndroidSession;

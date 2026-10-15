@@ -139,6 +139,8 @@ for (const [index, segment] of segments.entries()) {
     const expectedOperation = expectedLoweredOperation(manifest.platform, action.operation);
     if (!expectedOperation) {
       errors.push(`${at} recorded operation ${String(action.operation)} has no supported ${String(manifest.platform)} lowering`);
+    } else if (manifest.platform === "android" && action.operation === "Tap" && segment.loweredOperation === "tapUniqueNode") {
+      validateSelectorOptimization(segment, action, at, selectedEventBySequence, errors);
     } else if (segment.loweredOperation !== expectedOperation) {
       errors.push(`${at}.loweredOperation must be ${expectedOperation} for recorded ${String(action.operation)}`);
     }
@@ -240,8 +242,54 @@ function validatePlan(candidate, sourceLedger, sourceSegments, platform, target)
       target.push(`${at}.action must be { operation: string, arguments: unknown[] }`);
     } else if (planSegment.action.operation !== ledgerSegment.loweredOperation) {
       target.push(`${at}.action.operation must equal ledger loweredOperation ${ledgerSegment.loweredOperation}`);
+    } else if (ledgerSegment.loweredOperation === "sleep") {
+      const duration = completedActions.get(ledgerSegment.actionId)?.normalizedArguments?.timeMs;
+      if (!Number.isInteger(duration) || duration < 0 || duration > 2_147_483_647
+          || planSegment.action.arguments.length !== 1 || planSegment.action.arguments[0] !== duration)
+        target.push(`${at}.action must preserve the recorded Sleep timeMs exactly`);
+    } else if (ledgerSegment.loweredOperation === "tapUniqueNode") {
+      const [selector, fallback] = planSegment.action.arguments;
+      if (!sameObject(selector, ledgerSegment.optimization?.selector)
+          || !sameObject(fallback, ledgerSegment.optimization?.coordinateFallback)
+          || planSegment.action.arguments.length !== 2) {
+        target.push(`${at}.action must preserve the ledger selector and recorded coordinate fallback`);
+      }
     }
   }
+}
+
+function validateSelectorOptimization(segment, action, at, events, target) {
+  const decision = segment.optimization;
+  if (!isObject(decision) || decision.kind !== "native-selector" || !nonEmpty(decision.rationale)) {
+    target.push(`${at}.optimization must be an agent-authored native-selector decision with rationale`);
+    return;
+  }
+  const selector = decision.selector;
+  const keys = ["type", "text", "contentDescription", "resourceId"];
+  if (!isObject(selector) || !nonEmpty(selector.type)
+      || !keys.slice(1).some(key => nonEmpty(selector[key]))
+      || Object.keys(selector).some(key => !keys.includes(key) || !nonEmpty(selector[key])))
+    target.push(`${at}.optimization.selector requires type plus semantic identity`);
+  if (decision.uniqueness !== "exactly-one") target.push(`${at}.optimization must declare proven exactly-one uniqueness`);
+  const center = action.normalizedArguments?.locate?.center;
+  const fallback = decision.coordinateFallback;
+  if (!Array.isArray(center) || center.length !== 2 || !center.every(Number.isFinite)
+      || !isObject(fallback) || fallback.x !== center[0] || fallback.y !== center[1])
+    target.push(`${at}.optimization.coordinateFallback must equal the recorded logical center`);
+  validateEvidence(decision.evidence, `${at}.optimization.evidence`, events, target);
+  const ownNative = Array.isArray(decision.evidence) && decision.evidence.some(citation => {
+    const event = events.get(citation?.sequence);
+    return citation?.modality === "native" && event?.kind === "checkpoint.captured"
+      && event.phase === "before-action"
+      && (event.correlation?.logicalActionId ?? event.logicalActionId ?? event.actionId) === segment.actionId
+      && event.evidence?.nativeUi?.status === "available";
+  });
+  if (!ownNative) target.push(`${at}.optimization requires its own available before-action native evidence`);
+}
+
+function sameObject(left, right) {
+  return isObject(left) && isObject(right) && Object.keys(left).length === Object.keys(right).length
+    && Object.keys(left).every(key => left[key] === right[key]);
 }
 
 function validatePlanCheckpoint(checkpoint, decision, at, target) {
@@ -334,6 +382,8 @@ function expectedLoweredOperation(platform, recordedOperation) {
   };
   const android = {
     ...mobile,
+    Launch: "launchApp",
+    Sleep: "sleep",
     AndroidBackButton: "back",
     AndroidHomeButton: "home",
     AndroidRecentAppsButton: "recentApps",

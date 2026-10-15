@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { resolve } from "node:path";
 import {
   modelProfileProvenance,
   requireAndroidWorldModelProfile,
@@ -11,7 +12,9 @@ console.log(JSON.stringify({ verifying: modelProfileProvenance(profileName) }, n
 
 const code = await new Promise<number | null>((resolveRun, reject) => {
   const child = spawn("npm", ["run", "model:verify"], {
-    cwd: process.cwd(),
+    // Keep the repository's developer .env from overriding the pinned formal
+    // profile while Midscene initializes its CLI environment.
+    cwd: resolve("packages/midscene-adapter"),
     env: { ...process.env, ...profile.env },
     stdio: "inherit",
   });

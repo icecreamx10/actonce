@@ -1,5 +1,90 @@
 # AndroidWorld Benchmark
 
+## 稳定权限与启动环境
+
+`CameraTakeVideo` 默认预授予权限，使用新 sample，不将旧录制改解释为新策略：
+
+```bash
+npm run android-world:setup -- --task CameraTakeVideo --seed 70001 --output <new-sample>
+npm run benchmark:android:android-world -- --mode original --task CameraTakeVideo --seed 70001 --model-profile codex-6.1-sol --output <new-sample>
+```
+
+独立 setup CLI 和 original/replay 边界复用同一份计时外逻辑：官方 initializer
+恢复 app snapshot，停止目标 app 的旧 activity，再对目标包的运行时权限先
+撤销、永久授予，消除临时授权寿命和拒绝历史；启动前后验证 grant 与可变 flag。
+不重置全机权限、不清空 app 数据，不向计时中的 replay 注入权限修复。
+预授权启动后若仍出现权限请求窗口，setup 失败。
+
+稳定策略还验证目标焦点窗口可见、已绘制、尺寸非零，并在有限窗口内保持
+该状态；配置已正确时不再重复修改显示参数。启动失败最多完整重新初始化
+官方 fixture 一次，发生在计时前，保留 `setup-startup-failure-*.json` 及
+结果中的 `setupAttemptCount`/`startupFailures`。权限/契约不匹配不重试，
+录制或回放动作开始后也不会自动重跑。启动恢复成本在 setup 范围外显，
+不混作计时中的操作重试。
+
+`task-state/start-environment.json` 固定任务/策略、API 33 Pixel 6 几何
+（1080×2400、density 420）、手势导航、固定竖屏、官方恢复后启动前的
+shared preferences 哈希及权限基线。后续初始化不一致就拒绝开始测量。
+转移 replay fixture 时与参数及 `runtime-permissions.json` 一起保留。
+任务目标和官方 evaluator 不变；旧录制、失败和已通过结果保留，不重跑其他 case。
+
+可显式指定 `--permission-policy grant-all|first-request|recorded`。
+`first-request` 在官方 snapshot 上拒绝权限、清理可变拒绝历史，属于系统权限
+申请基线，不保证每个 app snapshot 都是首次安装或必然立刻申请。
+`recorded` 保持旧证据驱动的恢复行为，仍是其他 case 的默认策略。
+已冻结策略不能原地更换；稳定策略不允许与 `--fixture-permissions` 混用。
+稳定 replay 缺少原始环境契约时失败，不悄悄修改旧录制的起点。
+
+视频稳定契约使用 schema 2。官方 Camera 初始化清理 `/sdcard/Pictures`、
+`/sdcard/Movies` 文件，却可能留下 MediaStore 记录和隐藏 pending 输出；
+固定时钟产生重复文件名时，可出现旧发布元数据与新文件不一致。
+setup 验证这些输出目录，通过 MediaProvider 清理限定目录内孤立的图片/视频
+索引；严格符合 Camera 命名的 `.pending-*` 文件移至模拟器
+`/data/local/tmp/actonce-android-world/quarantined-camera-publication/<uuid>`，
+可恢复。系统缩略图缓存与其他目录/索引保留。存在已完成文件、未知 pending
+名称或越界记录时停止，不直接删除。Provider 操作使用 Android shell 身份、
+user 0，不直接改数据库；清理数及隔离路径单独记录，不混入冻结契约哈希。
+契约要求输出索引及 pending 捕获为零。旧 schema-1 视频录制保留，需在新
+sample 重新录制，不能事后解释成已采用该基线。
+
+生成的任务状态在官方参数生成后、任务构造前保存 Python 与可选 NumPy RNG
+检查点。初始化在连接设备前验证主机状态，并在连接后恢复该边界。旧状态重建
+要求已记录或明确提供且一致的 seed，并严格验证官方参数重新生成结果，绝不
+改写原始状态。seed 与参数相等本身不能证明旧 original 使用了该 RNG 边界；
+只有另有原始参数生成来源证据，才能宣称 fixture 一致。
+无检查点的旧状态保持历史初始化行为，明确输出 `fixtureRng: legacy-uncontrolled`，
+该状态不能证明 fixture 一致。确认 original 的参数确实刚生成后，先复制
+状态目录，再在测量外运行主机命令 `task.py prepare-fixture-rng --task <task>
+--state-dir <staged-copy> --original-state-dir <immutable-original>
+--legacy-generated-params`，仅在副本写入声明及源文件哈希。复用过旧参数的
+original 不得使用该声明。无状态的固定 canary 保持原行为，不保存 RNG 检查点。
+新 original 录制会传入 `--record-fixture-rng`：复用无检查点的参数时捕获当下
+真实 RNG 边界，不重新设 seed、不声称恢复旧 original。已有检查点只恢复不覆盖。
+
+## 新回放的计时协议
+
+新评测使用 `--replay-module <module.ts>`：agent 生成 SDK module，默认导出
+接收 `{ android, flow }` 的执行函数；可选导出 `config` 提供原生 session 配置。
+module 不自行连接、关闭、计时或写 benchmark 结果。调用：
+
+```bash
+npm run benchmark:android:android-world -- --mode replay --task <task> --output <sample> --replay-module <module.ts>
+```
+
+`checkpointCaptureBreakdown` 将逐次检查的 source、截图、视觉比较耗时分别聚合，
+不与真正的 settle delay 混合。阶段样本数与计时覆盖度明确记录；旧产物缺失计时
+时保留 `null`。source 分项包含缓存命中；此细分不包含最终取证采集。
+
+CLI 使用单调时钟，从连接前计时至关闭后，包含动作、checkpoint、重试和最终
+截图/原生树采集；module 加载与文件写入不计时。未解决的 checkpoint 失败不能
+因 module 捕获异常而变成成功。最终证据保存为文件引用及 hash。
+
+成功 original 可携带完整 manifest 原样复用；旧结果仅在时长与完整 manifest
+精确对应时推导 recording 边界，不改写原文件。original 包含 recorder 开销，
+replay 包含原生设备 session 生命周期，两个范围明确但并非完全相同。
+旧 `--replay-entry` 仍兼容，然而自定义计时边界未经验证，不用于新的正式加速比。
+此前 CameraTakePhoto 仅动作阶段的时长也不能与 original 完整录制时长直接比较。
+
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 该 harness 运行官方 AndroidWorld `SystemBrightnessMax` 任务；Midscene 在
@@ -18,9 +103,34 @@ npm run android-world:catalog -- --selection pass@1 --format lines
 npm run android-world:catalog -- --selection pass@3 --format lines
 ```
 
-## 当前正式快照
+## 正式快照
 
-当前零上下文、单 sample 的正式切片覆盖 113 个目标任务中的 4 个。每个 replay
+App-data snapshot 不恢复 Android 运行时权限授予状态。新的 original 会自动保存
+`task-state/runtime-permissions.json`（user 0）；replay 在启动 App、开始计时前恢复并
+验证，正式评测复制参数时也需保留此文件。只允许任务声明 App 已请求的运行时权限，
+不清空全机权限，也不任意恢复 AppOps 或系统/用户权限 flags。
+
+旧录制没有该基线。仅当原始证据证明所需初始授权状态时，才能编写有证据路径和哈希
+审计的 fixture，并用公共 CLI 的 `--fixture-permissions <file>`；不能编造未知权限、
+删除权限弹窗动作，或把权限修复放进计时内回放。格式为
+`{ "schemaVersion": 1, "userId": 0, "packages": [{ "package": "com.example.app", "permissions": { "android.permission.RECORD_AUDIO": false } }] }`。
+新基线还记录可变的 `user-set`、`user-fixed` flags，并逐项恢复验证；不重置 AppOps
+或 system flags。仅恢复 granted=false 不够：user-fixed 仍会让权限弹窗消失。
+旧 grant-only 基线保持原语义，不自动清除 flags。若原始证据证明某个 flag，可在明确的
+fixture package 内补充 `permissionFlags: { "android.permission.ACCESS_FINE_LOCATION": { "user-fixed": false } }`；
+未指定的 flags 保留，不猜测，不修改原始基线。
+缺失的旧基线在结果中明确标为 unavailable；命令或验证失败则停止 setup，不弱化 checkpoint。
+
+原始录制可明确选择 `--model-profile codex-6.1-sol`，通过本地已登录的 Codex
+app server 使用 `gpt-6.1-sol`。计时前运行
+`npm run android-world:model:verify -- --model-profile codex-6.1-sol` 验证。
+既有 Luna profile 和默认值不变；逐 case 保留实际模型与版本来源。Replay 仍不调用
+模型，成功的 original 不因切换模型而重新录制。
+
+[10 月 10–12 日审计](REPRODUCTION-2026-10-12.md) 已新验证严格切片的全部 5 个任务和
+broader 的 6 个任务，明确逐 case 版本及 original 复用，不声称全量通过，也不汇总不同版本。
+
+以下为较早的零上下文、单 sample 正式切片，覆盖 113 个目标任务中的 4 个。每个 replay
 都通过 AndroidWorld 官方 reward 门禁，AI fallback 与 replay retry 均为 0：
 
 | 任务 | Original | Replay | 加速比 |
@@ -36,6 +146,11 @@ npm run android-world:catalog -- --selection pass@3 --format lines
 官方 validator 的 replay。
 
 完整 suite 的 App 安装及 snapshot 属于测量外 setup：
+
+启动脚本默认使用软件模拟的前后摄像头，不调用本机 webcam。可通过
+`ACTONCE_EMULATOR_CAMERA_BACK`、`ACTONCE_EMULATOR_CAMERA_FRONT` 覆盖配置
+（包括 `none`）。要求启用的摄像头必须枚举成功才报告 ready；旧模拟器若关闭了
+摄像头，须重启而不能静默复用来测试 Camera。重启不清空 app 数据。
 
 ```bash
 npm run android-world:prepare-suite
@@ -78,7 +193,11 @@ Midscene 和 recorder 共用一个常驻 UIAutomator2 session 读取原生树；
 `uiautomator dump` 进程。
 
 original 与 replay 使用相同且不计时的 app setup：CLI 会 force-stop 官方声明的
-目标 package，启动第一个目标 app，并确认其处于前台。AndroidWorld
+目标 package，启动第一个目标 app，并确认其处于前台。权限弹窗只有在精确的
+前台 Activity 与请求目标 package 对应时才算 ready，留给计时内的 agent 处理，
+不会提前授权。`OpenAppTaskEval` 保留官方 home 起点，不提前打开候选 app 完成任务。
+原始任务提示允许误离开单 app 后，通过精确逻辑名称执行一次 Launch 恢复，不强制在 Home 停止。
+AndroidWorld
 AccessibilityForwarder 仅在官方初始化和 validator 阶段启用；测量期间暂停，
 Midscene 与 recorder 共用 UIAutomator2 session。设备独占 lease 会拒绝第二个
 benchmark 进程，避免两个执行流操作同一 emulator。

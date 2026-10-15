@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { type AppResult, fixtureRevision, invalidateStaleReady } from "./setup-state.js";
 
 const args = parseArgs(process.argv.slice(2));
 const outputDir = resolve(args.output);
@@ -10,7 +11,11 @@ const taskCli = resolve("benchmark/android/android-world/task.py");
 await mkdir(outputDir, { recursive: true });
 
 const listed = await capture([taskCli, "list-apps"]);
-const allApps = (JSON.parse(lastLine(listed.stdout)) as { apps: string[] }).apps;
+const listing = JSON.parse(lastLine(listed.stdout)) as { apps: string[]; packages: Record<string, string> };
+const allApps = listing.apps;
+await capture([taskCli, "migrate-fixtures"]);
+const inspected = await capture([taskCli, "inspect-fixtures"]);
+const snapshots = new Set<string>((JSON.parse(lastLine(inspected.stdout)) as { snapshots: string[] }).snapshots);
 const apps = args.app ? allApps.filter((app) => app === args.app) : allApps;
 if (args.app && apps.length !== 1) throw new Error(`Unknown AndroidWorld app: ${args.app}`);
 const previous = await json(statePath);
@@ -19,9 +24,16 @@ const results = new Map<string, AppResult>(
     ? (previous.apps as AppResult[]).map((result) => [result.app, result])
     : [],
 );
+// A host manifest can outlive the emulator's data image. Invalidate all stale
+// ready entries before reporting counts, even when preparing only one app.
+invalidateStaleReady(results, listing.packages, snapshots);
+await persist();
 
 for (const app of apps) {
-  if (!args.force && results.get(app)?.status === "ready") continue;
+  const revision = fixtureRevision(app);
+  if (!args.force && results.get(app)?.status === "ready"
+      && (results.get(app)?.fixtureRevision ?? 0) === revision
+      && snapshots.has(listing.packages[app])) continue;
   const started = Date.now();
   const code = await inherit([taskCli, "prepare-app", "--app", app]);
   results.set(app, {
@@ -29,6 +41,7 @@ for (const app of apps) {
     status: code === 0 ? "ready" : "failed",
     durationMs: Date.now() - started,
     exitCode: code,
+    fixtureRevision: revision,
   });
   await persist();
 }
@@ -36,13 +49,6 @@ for (const app of apps) {
 await persist();
 const failed = [...results.values()].filter((result) => result.status === "failed");
 if (failed.length) process.exitCode = 2;
-
-interface AppResult {
-  app: string;
-  status: "ready" | "failed";
-  durationMs: number;
-  exitCode: number | null;
-}
 
 async function persist() {
   const ordered = allApps.map((app) => results.get(app) ?? { app, status: "pending" });
@@ -55,7 +61,8 @@ async function persist() {
     apps: ordered,
   };
   await writeFile(statePath, `${JSON.stringify(value, null, 2)}\n`);
-  console.log(JSON.stringify({ ...value, statePath }, null, 2));
+  console.log(JSON.stringify({ status: value.status, ready: value.ready,
+    failed: value.failed, pending: value.pending, statePath }));
 }
 
 function inherit(childArgs: string[]) {

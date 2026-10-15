@@ -4,57 +4,121 @@
 import argparse
 import dataclasses
 import json
+import os
 import pickle
-import random
+import sys
+from fixture_rng import prepare as prepare_params, prepare_legacy_copy, restore
 from pathlib import Path
 from typing import Any
+
+from environment import (adb, configure_host, configure_shared_adb,
+                         configure_fixture_storage, migrate_legacy_snapshots,
+                         verify_fixture, verify_saved_snapshot)
+
+configure_host()
 
 from android_world import registry
 from android_world.env import env_launcher
 from android_world.env.setup_device import apps, setup
+
+configure_fixture_storage()
 
 TASK = "SystemBrightnessMax"
 PARAMS = {"max_or_min": "max"}
 
 
 def connect():
+  configure_shared_adb()
+  serial = os.environ.get("ACTONCE_ANDROID_SERIAL", "emulator-5554")
+  console_port = int(os.environ.get(
+      "ACTONCE_EMULATOR_PORT", serial.removeprefix("emulator-")))
   return env_launcher.load_and_setup_env(
-      console_port=5554,
+      console_port=console_port,
       adb_path=str(Path.home() / "Library/Android/sdk/platform-tools/adb"),
-      grpc_port=8554,
+      grpc_port=int(os.environ.get("ACTONCE_EMULATOR_GRPC_PORT", "8554")),
       freeze_datetime=False,
   )
 
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument("command", choices=("list-apps", "prepare", "prepare-app", "initialize", "evaluate"))
+  parser.add_argument("command", choices=("list-apps", "inspect-fixtures", "migrate-fixtures", "prepare", "prepare-app", "prepare-fixture-rng", "initialize", "evaluate"))
   parser.add_argument("--task", default=TASK)
   parser.add_argument("--state-dir", type=Path)
   parser.add_argument("--seed", type=int)
+  parser.add_argument("--original-state-dir", type=Path)
+  parser.add_argument("--legacy-generated-params", action="store_true")
+  parser.add_argument("--record-fixture-rng", action="store_true")
   parser.add_argument("--suite", action="store_true")
   parser.add_argument("--app")
   args = parser.parse_args()
-  if args.command == "list-apps":
-    print(json.dumps({"apps": [app.app_name for app in setup._APPS]}), flush=True)
+  if args.command == "prepare-fixture-rng":
+    prepare_legacy_copy(get_task_class(args.task), args.task, args.state_dir,
+                        args.original_state_dir, args.seed, jsonable,
+                        args.legacy_generated_params)
+    print(json.dumps({"status": "fixture-rng-prepared", "task": args.task,
+                      "state_dir": str(args.state_dir.resolve())}), flush=True)
     return
+  if args.command == "list-apps":
+    print(json.dumps({"apps": [app.app_name for app in setup._APPS],
+                      "packages": {app.app_name: app.package_name() for app in setup._APPS}}), flush=True)
+    return
+  if args.command == "inspect-fixtures":
+    from android_world.env import device_constants
+    directories = adb("shell", f"ls {device_constants.SNAPSHOT_DATA} 2>/dev/null || true")
+    print(json.dumps({"snapshots": directories.split()}), flush=True)
+    return
+  if args.command == "migrate-fixtures":
+    migrate_legacy_snapshots({app.package_name() for app in setup._APPS})
+    print(json.dumps({"status": "migrated"}), flush=True)
+    return
+  # Resolve and validate host state before connection/reset can mutate a device.
+  if args.command in ("initialize", "evaluate"):
+    task_class = get_task_class(args.task)
+    if args.command == "initialize":
+      if args.task == TASK and args.state_dir is None and args.seed is None:
+        params, fixture_rng = PARAMS, None
+      else:
+        params, fixture_rng = prepare_params(task_class, args.task, args.state_dir, args.seed, jsonable,
+                                             record_current=args.record_fixture_rng)
+      if fixture_rng is None:
+        print("Warning: fixtureRng=legacy-uncontrolled; fixture equivalence is unproven", file=sys.stderr, flush=True)
+    else:
+      params = load_params(args.task, args.state_dir)
+    if args.command == "evaluate":
+      task = task_class(params)
+      restore_validator_state(task, args.state_dir)
   env = connect()
   try:
     if args.command == "prepare":
       setup.setup_apps(env, None if args.suite else (apps.SettingsApp,))
+      if args.suite:
+        for name in ("clipper", "vlc"):
+          verify_fixture(name, env)
+      for app in (setup._APPS if args.suite else (apps.SettingsApp,)):
+        verify_saved_snapshot(app, env)
       output = {"status": "ready", "scope": "suite" if args.suite else "settings"}
     elif args.command == "prepare-app":
       app = setup.get_app_mapping(args.app)
       if app is None:
         raise ValueError(f"Unknown AndroidWorld app: {args.app}")
       setup.setup_apps(env, (app,))
+      verify_fixture(args.app, env)
+      verify_saved_snapshot(app, env)
       output = {"status": "ready", "scope": "app", "app": args.app}
     elif args.command == "initialize":
       env.reset(go_home=True)
-      task_class = get_task_class(args.task)
-      params = load_or_create_params(task_class, args.task, args.state_dir, args.seed)
+      # Connection may consume randomness: restore the pre-construction boundary.
+      if fixture_rng is not None:
+        restore(fixture_rng)
       task = task_class(params)
       clear_validator_state(args.state_dir)
+      # Upstream warns and skips missing snapshots. A formal benchmark must
+      # instead reject an unprepared device, even if its host manifest is old.
+      for app_name in task_class.app_names:
+        app = setup.get_app_mapping(app_name)
+        if app is not None:
+          verify_saved_snapshot(app, env)
       task.initialize_task(env)
       save_validator_state(task, args.state_dir)
       output = {
@@ -64,12 +128,9 @@ def main():
           "params": jsonable(task.params),
           "apps": task_apps(task_class),
           "state_dir": str(args.state_dir.resolve()) if args.state_dir else None,
+          "fixtureRng": "checkpoint-restored" if fixture_rng is not None else "legacy-uncontrolled",
       }
     else:
-      task_class = get_task_class(args.task)
-      params = load_params(args.task, args.state_dir)
-      task = task_class(params)
-      restore_validator_state(task, args.state_dir)
       reward = task.is_successful(env)
       output = {
           "status": "passed" if reward == 1.0 else "failed",
@@ -101,29 +162,9 @@ def task_apps(task_class):
 
 
 def load_or_create_params(task_class, task_name: str, state_dir: Path | None, seed: int | None):
-  if state_dir and params_path(state_dir).exists():
-    return load_params(task_name, state_dir)
   if task_name == TASK and state_dir is None and seed is None:
     return PARAMS
-  if seed is not None:
-    random.seed(seed)
-    try:
-      import numpy
-      numpy.random.seed(seed % (2**32))
-    except ImportError:
-      pass
-  params = task_class.generate_random_params()
-  if state_dir:
-    state_dir.mkdir(parents=True, exist_ok=True)
-    with params_path(state_dir).open("wb") as output:
-      pickle.dump(params, output)
-    metadata = {
-        "schemaVersion": 1,
-        "task": task_name,
-        "seed": seed,
-        "params": jsonable(params),
-    }
-    (state_dir / "task.json").write_text(json.dumps(metadata, indent=2) + "\n")
+  params, _ = prepare_params(task_class, task_name, state_dir, seed, jsonable)
   return params
 
 

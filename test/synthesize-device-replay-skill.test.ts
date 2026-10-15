@@ -10,6 +10,60 @@ const extractor = resolve("skills/synthesize-device-replay/scripts/extract-segme
 const summarizer = resolve("skills/synthesize-device-replay/scripts/summarize-recording.mjs");
 
 describe("synthesize-device-replay contract", () => {
+  it("validates a selected content dwell and forbids shortening its recorded duration", () => {
+    const fixture = createFixture("Sleep", "sleep");
+    const path = join(fixture.root, "events.ndjson");
+    const events = readFileSync(path, "utf8").trim().split("\n").map(line => JSON.parse(line));
+    events[2].normalizedArguments = { timeMs: 3000 };
+    writeFileSync(path, events.map(event => JSON.stringify(event)).join("\n") + "\n");
+    fixture.planValue.segments[0].action.arguments = [3000];
+    writeFileSync(fixture.plan, JSON.stringify(fixture.planValue));
+    expect(run(fixture.root, fixture.ledger).status).toBe(0);
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+    fixture.planValue.segments[0].action.arguments = [1];
+    writeFileSync(fixture.plan, JSON.stringify(fixture.planValue));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+  });
+  it("requires explicit selector evidence and retains the recorded coordinate in the plan", () => {
+    const fixture = createFixture();
+    const path = join(fixture.root, "events.ndjson");
+    const events = readFileSync(path, "utf8").trim().split("\n").map(line => JSON.parse(line));
+    events[0].evidence.nativeUi = { status: "available" };
+    events[2].normalizedArguments = { locate: { center: [10, 20] } };
+    writeFileSync(path, events.map(event => JSON.stringify(event)).join("\n") + "\n");
+    const ledger = JSON.parse(JSON.stringify(fixture.ledgerValue));
+    ledger.segments[0].loweredOperation = "tapUniqueNode";
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
+    expect(run(fixture.root, fixture.ledger).status).toBe(1);
+    ledger.segments[0].optimization = {
+      kind: "native-selector", selector: { type: "android.widget.Button", text: "Next" },
+      coordinateFallback: { x: 10, y: 20 }, uniqueness: "exactly-one",
+      evidence: [{ sequence: 1, modality: "native" }], rationale: "Unique Next control verified in its own native evidence",
+    };
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
+    expect(run(fixture.root, fixture.ledger).status).toBe(0);
+    const plan = JSON.parse(JSON.stringify(fixture.planValue));
+    plan.segments[0].action = { operation: "tapUniqueNode", arguments: [ledger.segments[0].optimization.selector, { x: 10, y: 20 }] };
+    writeFileSync(fixture.plan, JSON.stringify(plan));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+    plan.segments[0].action.arguments[1].x = 11;
+    writeFileSync(fixture.plan, JSON.stringify(plan));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+    ledger.segments[0].optimization.evidence[0].sequence = 2;
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
+    expect(run(fixture.root, fixture.ledger).status).toBe(1);
+  });
+
+  it("accepts recorded Android Launch only as launchApp through both gates", () => {
+    const fixture = createFixture("Launch", "launchApp");
+    expect(run(fixture.root, fixture.ledger).status).toBe(0);
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+
+    fixture.planValue.segments[0].action.operation = "tap";
+    writeFileSync(fixture.plan, JSON.stringify(fixture.planValue));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+  });
+
   it("accepts one agent-authored segment per recorded action", () => {
     const fixture = createFixture();
     const result = run(fixture.root, fixture.ledger, fixture.plan);
@@ -116,10 +170,10 @@ function run(root: string, ledger: string, plan?: string) {
   });
 }
 
-function createFixture() {
+function createFixture(firstOperation = "Tap", firstLowered = "tap") {
   const root = mkdtempSync(join(tmpdir(), "actonce-synthesis-"));
   const actions = [
-    { id: "action-1", operation: "Tap", lowered: "tap", before: 1, after: 2, completed: 3 },
+    { id: "action-1", operation: firstOperation, lowered: firstLowered, before: 1, after: 2, completed: 3 },
     { id: "action-2", operation: "Input", lowered: "typeText", before: 4, after: 5, completed: 6 },
   ];
   const events = actions.flatMap((action) => [
@@ -162,7 +216,7 @@ function createFixture() {
     segments: ledgerValue.segments.map((segment) => ({
       id: segment.id,
       precondition: { id: segment.precondition.checkpointId, expected: { source: { includes: ["before"] } } },
-      action: { operation: segment.loweredOperation, arguments: [] },
+      action: { operation: segment.loweredOperation, arguments: [] as unknown[] },
       postcondition: { id: segment.postcondition.checkpointId, expected: { source: { includes: ["after"] } } },
       idempotency: segment.idempotency,
     })),
