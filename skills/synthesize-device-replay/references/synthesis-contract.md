@@ -49,6 +49,12 @@ and postcondition must cite that action's own `before-action` and `after-action`
 artifacts; a package name alone is normally only a fixture guard, not proof of a UI
 transition.
 
+All checkpoint citations within an action condition must belong to that action
+and the corresponding phase. Citing its own after checkpoint alongside the next
+action's before checkpoint is still borrowing evidence, not a valid supplement.
+The structural gate rejects these cross-action or cross-phase checkpoint citations;
+the agent must still verify that each asserted fact occurs in the permitted evidence.
+
 Observation-only segments use `kind: "observation"`, omit `actionId`, set
 `loweredOperation` to `noop`, and cite the recorded semantic observation plus its
 supporting screenshot/native artifacts. Keep them separate from state-changing action

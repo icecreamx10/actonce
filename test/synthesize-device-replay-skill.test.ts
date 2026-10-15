@@ -71,6 +71,28 @@ describe("synthesize-device-replay contract", () => {
     expect(JSON.parse(result.stdout).phase).toBe("executable-plan");
   });
 
+  it.each([
+    { segment: 0, side: "postcondition" as const, borrowed: 4 },
+    { segment: 1, side: "precondition" as const, borrowed: 2 },
+    { segment: 0, side: "postcondition" as const, borrowed: 1 },
+  ])("rejects borrowed checkpoint $borrowed even alongside the own $side", ({ segment, side, borrowed }) => {
+    const fixture = createFixture();
+    fixture.ledgerValue.segments[segment][side].evidence.push({ sequence: borrowed, modality: "screenshot" });
+    writeFileSync(fixture.ledger, JSON.stringify(fixture.ledgerValue));
+    for (const plan of [undefined, fixture.plan]) {
+      const result = run(fixture.root, fixture.ledger, plan);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`must not borrow checkpoint ${borrowed}`);
+    }
+  });
+
+  it("allows multiple modalities from the same own checkpoint", () => {
+    const fixture = createFixture();
+    fixture.ledgerValue.segments[0].postcondition.evidence.push({ sequence: 2, modality: "native" });
+    writeFileSync(fixture.ledger, JSON.stringify(fixture.ledgerValue));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+  });
+
   it("rejects task-level start/end coverage that omits an intermediate action", () => {
     const fixture = createFixture();
     const ledger = JSON.parse(JSON.stringify(fixture.ledgerValue));

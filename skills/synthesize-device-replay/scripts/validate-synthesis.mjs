@@ -332,6 +332,14 @@ function validateEvidence(evidence, at, sequenceMap, target) {
 
 function validateActionCheckpoint(decision, at, actionId, phase, sequenceMap, target) {
   if (!isObject(decision) || !Array.isArray(decision.evidence)) return;
+  for (const citation of decision.evidence) {
+    const event = sequenceMap.get(citation?.sequence);
+    if (event?.kind !== "checkpoint.captured") continue;
+    const eventActionId = event.correlation?.logicalActionId ?? event.logicalActionId ?? event.actionId;
+    if (eventActionId !== actionId || event.phase !== phase) {
+      target.push(`${at} must not borrow checkpoint ${citation.sequence} from another action or phase; only this action's own ${phase} checkpoint may support its facts`);
+    }
+  }
   const matched = decision.evidence.some((citation) => {
     const event = sequenceMap.get(citation?.sequence);
     const eventActionId = event?.correlation?.logicalActionId ?? event?.logicalActionId ?? event?.actionId;
