@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EventEmitter } from "node:events";
+import { spawnSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import {
   androidUiAutomatorXmlToUiTree,
@@ -155,6 +156,20 @@ describe("Android caller-supplied appNameMapping", () => {
 });
 
 describe("encodeAndroidInputText", () => {
+  it.each(["header\nbody\n", "\n\nbody", "a\r\nb\tc"])("preserves whitespace through the remote shell argument for %j", value => {
+    const encoded = encodeAndroidInputText(value);
+    const result = spawnSync("sh", ["-c", 'printf "%s" ' + encoded], { encoding: "utf8" });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe(value);
+  });
+
+  it("dispatches multiline input as one native text command, not Enter or clear", async () => {
+    const device = Object.create(NativeAndroidDevice.prototype) as NativeAndroidDevice;
+    const commands: string[][] = [];
+    (device as unknown as { shell: (args: string[]) => Promise<string> }).shell = async args => { commands.push(args); return ""; };
+    await device.typeText("header\nbody\n");
+    expect(commands).toEqual([["input", "text", encodeAndroidInputText("header\nbody\n")]]);
+  });
   it("preserves apostrophes through the remote adb shell transport", () => {
     expect(encodeAndroidInputText("It's a bird, it's a plane."))
       .toBe("It\\'s%sa%sbird,%sit\\'s%sa%splane.");

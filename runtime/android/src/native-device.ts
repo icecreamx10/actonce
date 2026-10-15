@@ -379,7 +379,12 @@ export function resolveAndroidAppName(
  */
 export function encodeAndroidInputText(value: string): string {
   const inputTextPayload = value.replaceAll("%", "%25").replaceAll(" ", "%s");
-  return inputTextPayload.replace(/[\\'"`$&|;<>()[\]{}*?!~]/g, "\\$&");
+  return inputTextPayload.replace(/[\\'"`$&|;<>()[\]{}*?!~]/g, "\\$&")
+    // adb joins shell arguments into a remote command. Unquoted LF ends that
+    // command (and CR/TAB are separators), silently truncating typed text.
+    // Quote these characters as argument fragments without changing the text
+    // primitive into extra key presses or replacing the focused field.
+    .replace(/[\r\n\t]/g, (character) => `'${character}'`);
 }
 
 export async function activateAndroidPackage(

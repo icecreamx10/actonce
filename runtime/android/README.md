@@ -80,6 +80,8 @@ replacement was not disabled. Targetless input inserts at the current caret,
 even when its normalized mode is `replace`; existing text must be preserved.
 This does not change an explicitly authored `typeText` primitive with
 `replace: true`, which can deliberately clear an already-focused field.
+Native text transport quotes LF/CR/TAB so the remote shell preserves multiline
+payloads inside one text command; it does not synthesize extra Enter actions.
 `launchApp` preserves package-level activation semantics by resolving the
 device's launcher component at runtime and starting it explicitly. Generated
 replays keep the recorded package name and never hard-code a development-device
