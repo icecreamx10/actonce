@@ -40,6 +40,16 @@ must never be merged merely because a lowering tool can emit them in one functio
 If either side lacks independent evidence, stop and report the exact recording gap.
 Task-start and task-end checks do not substitute for intermediate action boundaries.
 
+A transitional own checkpoint does not exhaust the recording. Before declaring a
+gap, inspect any independently captured follow-up belonging to that same action
+(for example, its Midscene report `after-calling` screenshot). Keep the mandatory
+own checkpoint citation and prove the supplement's action identity, raw asset,
+capture time, and absence of intervening state-changing actions. It may support
+only its recorded modality: a follow-up screenshot cannot justify native fields
+found solely in the next action's before tree. That next-before checkpoint is
+not an eligible supplement. Preserve an actual gap when same-action evidence
+still does not prove the required fact.
+
 ## Map actions and observations independently
 
 Before freezing an observed label or value, classify its role: an explicit task
