@@ -73,7 +73,7 @@ describe("compileAndroidPrimitives", () => {
     ).toThrow("Unsupported recorded Android action");
   });
 
-  it("lowers app lifecycle actions and focused replace input", () => {
+  it("lowers app lifecycle actions and targetless insertion without clearing", () => {
     const result = compileAndroidPrimitives([
       {
         kind: "logical.action.completed",
@@ -94,7 +94,25 @@ describe("compileAndroidPrimitives", () => {
     expect(result.source).toContain('"operation": "launchApp"');
     expect(result.source).toContain('"com.example.app"');
     expect(result.source).toContain('"operation": "typeText"');
-    expect(result.source).toContain('"replace": true');
+    expect(result.source).toContain('"replace": false');
+  });
+
+  it.each([
+    [{ value: "header", mode: "replace" }, false],
+    [{ value: "header" }, false],
+    [{ value: "header", locate: null, mode: "replace" }, false],
+    [{ value: "header", locate: { center: [42, 65] } }, true],
+    [{ value: "header", locate: { center: [42, 65] }, mode: "replace" }, true],
+    [{ value: "header", locate: { center: [42, 65] }, replace: false, mode: "replace" }, false],
+    [{ value: "header", locate: { center: [42, 65] }, mode: "append" }, false],
+  ])("preserves source Input clearing policy for %j", (normalizedArguments, replace) => {
+    const [action] = extractAndroidPrimitives([{
+      kind: "logical.action.completed", sequence: 1, actionId: "input", operation: "Input", normalizedArguments,
+    }]);
+    expect(action.primitive).toEqual({
+      operation: "typeText",
+      arguments: ["header", { target: "locate" in normalizedArguments ? normalizedArguments.locate : undefined, replace }],
+    });
   });
 
   it("fails closed when a lifecycle action lacks a package name", () => {

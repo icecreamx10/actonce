@@ -75,6 +75,11 @@ execution time. It does not replace the action's required before/after checkpoin
 `typeText` preserves Midscene's Android replace and keyboard-dismiss semantics,
 including a bounded three-second IME dismissal observation window before trying
 the guarded secondary key path.
+For recorded `Input`, clearing is lowered only when a target was located and
+replacement was not disabled. Targetless input inserts at the current caret,
+even when its normalized mode is `replace`; existing text must be preserved.
+This does not change an explicitly authored `typeText` primitive with
+`replace: true`, which can deliberately clear an already-focused field.
 `launchApp` preserves package-level activation semantics by resolving the
 device's launcher component at runtime and starting it explicitly. Generated
 replays keep the recorded package name and never hard-code a development-device
