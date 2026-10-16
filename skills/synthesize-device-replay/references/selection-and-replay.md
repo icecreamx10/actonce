@@ -40,6 +40,16 @@ must never be merged merely because a lowering tool can emit them in one functio
 If either side lacks independent evidence, stop and report the exact recording gap.
 Task-start and task-end checks do not substitute for intermediate action boundaries.
 
+A transitional own checkpoint does not exhaust the recording. Before declaring a
+gap, inspect any independently captured follow-up belonging to that same action
+(for example, its Midscene report `after-calling` screenshot). Keep the mandatory
+own checkpoint citation and prove the supplement's action identity, raw asset,
+capture time, and absence of intervening state-changing actions. It may support
+only its recorded modality: a follow-up screenshot cannot justify native fields
+found solely in the next action's before tree. That next-before checkpoint is
+not an eligible supplement. Preserve an actual gap when same-action evidence
+still does not prove the required fact.
+
 ## Map actions and observations independently
 
 Before freezing an observed label or value, classify its role: an explicit task
@@ -92,6 +102,15 @@ WDA, UIAutomator, DOM, or OCR assertion merely because the runtime exposes it.
 Each action segment must have a precondition and postcondition citing its own recorded
 before/after checkpoint. An event dispatch or successful protocol response is not proof
 that the UI consumed an action. Use bounded polling within the recorded timing budget.
+
+Audit each authored settling budget from dispatch completion to an independently
+captured, same-action observation supporting that condition's modality. Do not
+count before-action capture, action execution, or the next action's precondition
+as extra settling time. Record the raw timestamps and evidence identity; a
+uniform default is not timing evidence. A screenshot follow-up cannot extend a
+native-only fact's budget. If no supported polling window exists, use a single
+check or report the gap. Put the resulting policy in the plan and verify that
+the executable module consumes it unchanged, without hidden timeout overrides.
 
 Classify idempotency as:
 

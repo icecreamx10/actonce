@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { access } from "node:fs/promises";
 import { XMLParser } from "fast-xml-parser";
 import { SERVER_APK_PATH, TEST_APK_PATH } from "appium-uiautomator2-server";
-import type { AndroidNodeSelector, AndroidSessionOptions, Point } from "./types.js";
+import type { AndroidNodeIdentity, AndroidNodeSelector, AndroidSessionOptions, Point } from "./types.js";
 
 const SERVER_PACKAGE = "io.appium.uiautomator2.server";
 const TEST_PACKAGE = `${SERVER_PACKAGE}.test`;
@@ -208,16 +208,19 @@ export class NativeAndroidDevice {
     await this.shell(["input", "swipe", `${p.x}`, `${p.y}`, `${p.x}`, `${p.y}`, `${hold}`]);
   }
   async tapUniqueNode(selector: AndroidNodeSelector, coordinateFallback?: Point): Promise<"selector" | "coordinate-fallback"> {
-    if (Object.values(selector).every((value) => value === undefined)) throw new TypeError("Android selector must not be empty");
+    validateAndroidNodeSelector(selector);
     const tree = androidUiAutomatorXmlToUiTree(await this.sourceXml(), this.densityScale);
     const matches = findAndroidUiTreeNodes(tree.root, selector);
     if (matches.length === 1) {
-      const response = await this.sessionRequest<unknown>("POST", "/element", {
-        strategy: "-android uiautomator",
-        selector: androidUiSelector(selector),
+      const response = await this.sessionRequest<unknown>("POST", "/elements", {
+        strategy: selector.withinParent ? "xpath" : "-android uiautomator",
+        selector: selector.withinParent ? androidNodeSelectorXPath(selector) : androidUiSelector(selector),
       });
       const value = recordValue(response);
-      const element = recordValue(value?.value) ?? value;
+      const elements = Array.isArray(response) ? response : value?.value;
+      if (!Array.isArray(elements) || elements.length !== 1)
+        throw new Error(`Android live selector must match exactly one node; matched ${Array.isArray(elements) ? elements.length : "invalid response"}`);
+      const element = recordValue(elements[0]);
       const elementId = stringValue(element?.["element-6066-11e4-a52e-4f735466cecf"])
         ?? stringValue(element?.ELEMENT);
       if (!elementId) throw new Error(`UIAutomator2 did not return an element id: ${JSON.stringify(response)}`);
@@ -379,7 +382,12 @@ export function resolveAndroidAppName(
  */
 export function encodeAndroidInputText(value: string): string {
   const inputTextPayload = value.replaceAll("%", "%25").replaceAll(" ", "%s");
-  return inputTextPayload.replace(/[\\'"`$&|;<>()[\]{}*?!~]/g, "\\$&");
+  return inputTextPayload.replace(/[\\'"`$&|;<>()[\]{}*?!~]/g, "\\$&")
+    // adb joins shell arguments into a remote command. Unquoted LF ends that
+    // command (and CR/TAB are separators), silently truncating typed text.
+    // Quote these characters as argument fragments without changing the text
+    // primitive into extra key presses or replacing the focused field.
+    .replace(/[\r\n\t]/g, (character) => `'${character}'`);
 }
 
 export async function activateAndroidPackage(
@@ -452,13 +460,53 @@ function launchableComponents(output: string, packageName: string): string[] {
   return [...new Set([...output.matchAll(pattern)].map((match) => match[1]))];
 }
 
-function androidUiSelector(selector: AndroidNodeSelector): string {
+function androidUiSelector(selector: AndroidNodeIdentity): string {
   let value = "new UiSelector()";
   if (selector.type !== undefined) value += `.className(${JSON.stringify(selector.type)})`;
   if (selector.text !== undefined) value += `.text(${JSON.stringify(selector.text)})`;
   if (selector.contentDescription !== undefined) value += `.description(${JSON.stringify(selector.contentDescription)})`;
   if (selector.resourceId !== undefined) value += `.resourceId(${JSON.stringify(selector.resourceId)})`;
   return value;
+}
+
+const identityFields = ["type", "text", "contentDescription", "resourceId"] as const;
+export function validateAndroidNodeSelector(value: unknown): asserts value is AndroidNodeSelector {
+  const identity = (input: unknown, relational: boolean): Record<string, unknown> => {
+    const entry = recordValue(input);
+    if (!entry || Object.keys(entry).some(key => !identityFields.includes(key as typeof identityFields[number]) && !(relational && key === "withinParent"))
+      || !identityFields.some(key => typeof entry[key] === "string")
+      || identityFields.some(key => entry[key] !== undefined && typeof entry[key] !== "string"))
+      throw new TypeError("Android selector requires non-empty identity fields and no unknown fields");
+    return entry;
+  };
+  const entry = identity(value, true);
+  if (entry.withinParent !== undefined) {
+    const context = recordValue(entry.withinParent);
+    if (!context || Object.keys(context).length !== 2 || !Object.hasOwn(context, "selector") || !Object.hasOwn(context, "sibling"))
+      throw new TypeError("Android withinParent requires selector and sibling identities");
+    identity(context.selector, false);
+    identity(context.sibling, false);
+  }
+}
+
+/** XPath 1.0 literal, including labels containing both quote styles. */
+function xpathLiteral(value: string): string {
+  if (!value.includes("'")) return `'${value}'`;
+  if (!value.includes('"')) return `"${value}"`;
+  return `concat(${value.split("'").map(part => `'${part}'`).join(', "\'", ')})`;
+}
+function identityXPath(selector: AndroidNodeIdentity): string {
+  const attributes = { type: "class", text: "text", contentDescription: "content-desc", resourceId: "resource-id" };
+  return identityFields.filter(key => selector[key] !== undefined)
+    .map(key => `@${attributes[key]}=${xpathLiteral(selector[key]!)}`).join(" and ");
+}
+export function androidNodeSelectorXPath(selector: AndroidNodeSelector): string {
+  validateAndroidNodeSelector(selector);
+  const target = identityXPath(selector);
+  if (!selector.withinParent) return `//*[${target}]`;
+  const parent = identityXPath(selector.withinParent.selector);
+  const sibling = identityXPath(selector.withinParent.sibling);
+  return `//*[${target}][parent::*[${parent}]][count(preceding-sibling::*[${sibling}] | following-sibling::*[${sibling}])=1]`;
 }
 
 async function adb(adbPath: string, serial: string | undefined, args: string[]): Promise<string> {
@@ -499,18 +547,43 @@ export type AndroidUiTree = {
   root: AndroidUiTreeNode;
 };
 
+/** Restore ancestry from normalizeAndroidSource's attribute-preserving JSON. */
+export function androidNormalizedSourceToUiTree(source: string): AndroidUiTreeNode {
+  const collect = (value: unknown): AndroidUiTreeNode[] => {
+    if (Array.isArray(value)) return value.flatMap(collect);
+    const entry = recordValue(value);
+    if (!entry) return [];
+    const children = Object.values(entry).flatMap(collect);
+    if (typeof entry.class !== "string") return children;
+    const attrs = Object.fromEntries(Object.entries(entry).filter((pair): pair is [string, string] => typeof pair[1] === "string"));
+    return [{ type: entry.class, attrs, bounds: parseBounds(attrs.bounds, 1), children }];
+  };
+  const roots = collect(JSON.parse(source));
+  if (!roots.length) throw new Error("Android source did not contain a UI node");
+  return roots.length === 1 ? roots[0]! : { type: "hierarchy", attrs: {}, bounds: unionBounds(roots), children: roots };
+}
+
 export function findAndroidUiTreeNodes(
   root: AndroidUiTreeNode,
   selector: AndroidNodeSelector,
 ): AndroidUiTreeNode[] {
+  validateAndroidNodeSelector(selector);
   const matches: AndroidUiTreeNode[] = [];
-  const visit = (node: AndroidUiTreeNode) => {
-    const matched = (selector.type === undefined || node.type === selector.type)
+  const identityMatches = (node: AndroidUiTreeNode, selector: AndroidNodeIdentity) => (selector.type === undefined || node.type === selector.type)
       && (selector.text === undefined || node.attrs.text === selector.text)
       && (selector.contentDescription === undefined || node.attrs["content-desc"] === selector.contentDescription)
       && (selector.resourceId === undefined || node.attrs["resource-id"] === selector.resourceId);
-    if (matched) matches.push(node);
-    for (const child of node.children) visit(child);
+  const visit = (node: AndroidUiTreeNode, parent?: AndroidUiTreeNode) => {
+    if (identityMatches(node, selector)) {
+      const context = selector.withinParent;
+      if (!context) matches.push(node);
+      else if (parent && typeof parent.attrs.class === "string" && identityMatches(parent, context.selector)) {
+        const siblings = parent.children.filter(child => child !== node && identityMatches(child, context.sibling));
+        if (siblings.length > 1) throw new Error("Android selector sibling context is ambiguous");
+        if (siblings.length === 1) matches.push(node);
+      }
+    }
+    for (const child of node.children) visit(child, node);
   };
   visit(root);
   return matches;

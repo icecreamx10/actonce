@@ -24,6 +24,21 @@ describe("content-anchored visual checkpoints", () => {
     expect(resolveAndroidAnchoredRegion(expected, source(100), source(45)))
       .toEqual({ left: 10, top: 5, width: 20, height: 20 });
   });
+  it("uses the same direct-parent/sibling relation for visual anchors", () => {
+    const scoped = { ...expected, anchor: { ...expected.anchor, selector: {
+      ...selector, withinParent: { selector: { type: "Row" }, sibling: { type: "Label", text: "Chosen" } },
+    } } };
+    const scopedSource = (top: number, wrongParent = false, duplicate = false) => JSON.stringify({ hierarchy: { node: [
+      { class: wrongParent ? "Other" : "Row", node: [
+        { class: "Label", text: "Chosen" }, ...(duplicate ? [{ class: "Label", text: "Chosen" }] : []),
+        { class: selector.type, text: selector.text, bounds: `[10,${top}][30,${top + 10}]` },
+      ] },
+      { class: "Row", node: [{ class: "Label", text: "Unrelated" }, { class: selector.type, text: selector.text, bounds: "[10,80][30,90]" }] },
+    ] } });
+    expect(resolveAndroidAnchoredRegion(scoped, scopedSource(100), scopedSource(45))).toEqual({ left: 10, top: 5, width: 20, height: 20 });
+    for (const live of [scopedSource(45, true), scopedSource(45, false, true)])
+      expect(() => resolveAndroidAnchoredRegion(scoped, scopedSource(100), live)).toThrow();
+  });
 
   it("fails closed for missing, duplicate, resized, invalid and unavailable anchors", () => {
     for (const live of [source(45, 0), source(45, 2), source(45, 1, 21), source(0), undefined])

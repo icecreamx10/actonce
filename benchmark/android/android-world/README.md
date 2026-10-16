@@ -41,6 +41,14 @@ npm run android-world:catalog -- --selection pass@3 --format lines
 
 ## Formal snapshots
 
+Latest: the [Oct 15–16 selected follow-up](REPRODUCTION-2026-10-16.md) completed
+22/22 formal-correct replays (19 retained passes plus three repaired cases), all
+with reward 1 and zero retries/fallback/timeouts. Earlier passed cases were not
+rerun. The cumulative local inventory has replay-pass evidence for 55/113 distinct
+tasks across revisions, not a full-suite success rate or homogeneous timing score.
+The linked audit includes a committed 22-case metadata summary; raw recordings
+and new full evidence bundles remain local.
+
 ### Replay measurement contract
 
 New measurements use `--replay-module <module.ts>`, with an agent-authored SDK
@@ -213,6 +221,12 @@ failure stops setup; neither weakens checkpoints nor manufactures a pass.
 Repository-owned patches under `patches/` are applied idempotently by bootstrap
 and remain part of the pinned environment provenance. They may fix setup or
 stability without changing task intent or the official success condition.
+The named-audio evaluator patch also fixes a filename contradiction: generated
+parameters already include `.m4a`, so validation must not append it again.
+It checks the exact requested name (or adds the default for extensionless legacy
+parameters), never an unrelated recording. Preserve original failures and record
+any post-repair oracle revalidation separately; do not overwrite old results or
+claim that revalidation was another recording or timing measurement.
 
 Native fixture preparation also verifies Clipper with a clipboard round-trip
 and VLC with its app-created media database before saving their snapshots.
@@ -278,6 +292,16 @@ force-stops declared target packages, launches the first official target app,
 and verifies foreground focus before timing. A permission modal counts as ready
 only when its exact foreground activity is proven to have been requested by the
 target package; it is left for the measured agent to handle, not pre-granted.
+Known orphan requests are rejected: Android can retain a permission window after
+its `resultTo` activity was removed by force-stop, even though
+`launchedFromPackage` still names the target. A finished/removed requester is not
+a target-app start. Stable
+`grant-all`/`first-request` setup additionally requires a same-task, non-finishing
+live requester; missing lifecycle fields are unknown and are accepted only by
+legacy `recorded` readiness, not treated as evidence of death or stable parity.
+An old recording showing an orphan modal over Home cannot be reinterpreted as a
+normal target-backed modal. Preserve it and record a new controlled baseline;
+do not manufacture the orphan or add measured recovery to obtain equivalence.
 `OpenAppTaskEval` instead retains the official home start without prelaunching any
 candidate app or satisfying the task during preparation.
 The original task scaffold permits one logical-name Launch recovery if the agent

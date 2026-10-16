@@ -96,7 +96,7 @@ describe("replayAndroidPrimitive", () => {
     );
   });
 
-  it("preserves replace semantics for an already-focused input", async () => {
+  it("preserves explicit primitive replace semantics for an already-focused input", async () => {
     const clearInput = vi.fn(async () => undefined);
     const typeText = vi.fn(async () => undefined);
     const hideKeyboard = vi.fn(async () => true);
@@ -119,6 +119,36 @@ describe("replayAndroidPrimitive", () => {
     expect(typeText.mock.invocationCallOrder[0]).toBeLessThan(
       hideKeyboard.mock.invocationCallOrder[0],
     );
+  });
+
+  it.each([
+    [undefined, undefined, "replace", false, false],
+    [undefined, undefined, undefined, false, false],
+    [{ center: [42, 65] }, undefined, "replace", true, true],
+    [{ center: [42, 65] }, false, "replace", true, false],
+    [{ center: [42, 65] }, undefined, "append", true, false],
+  ])("lowers and dispatches Input with source caret/replace semantics (%j,%j,%j)", async (locate, replace, mode, taps, clears) => {
+    let body = "existing body";
+    const tap = vi.fn(async () => undefined);
+    const clearInput = vi.fn(async () => { body = ""; });
+    const typeText = vi.fn(async (value: string) => { body = value + body; });
+    const hideKeyboard = vi.fn(async () => true);
+    const [action] = extractAndroidPrimitives([{
+      kind: "logical.action.completed", sequence: 1, actionId: "input", operation: "Input",
+      normalizedArguments: { value: "header\n", mode, replace, ...(locate ? { locate } : {}) },
+    }]);
+    await replayAndroidPrimitive({ device: { tap, clearInput, typeText, hideKeyboard } } as never, action.primitive);
+    expect(tap).toHaveBeenCalledTimes(taps ? 1 : 0);
+    expect(clearInput).toHaveBeenCalledTimes(clears ? 1 : 0);
+    expect(typeText).toHaveBeenCalledExactlyOnceWith("header\n");
+    expect(hideKeyboard).toHaveBeenCalledOnce();
+    expect(body).toBe(clears ? "header\n" : "header\nexisting body");
+    if (taps) expect(tap).toHaveBeenCalledWith({ x: 42, y: 65 });
+    if (clears) {
+      expect(tap.mock.invocationCallOrder[0]).toBeLessThan(clearInput.mock.invocationCallOrder[0]);
+      expect(clearInput.mock.invocationCallOrder[0]).toBeLessThan(typeText.mock.invocationCallOrder[0]);
+    }
+    expect(typeText.mock.invocationCallOrder[0]).toBeLessThan(hideKeyboard.mock.invocationCallOrder[0]);
   });
 
   it("does not dismiss the keyboard for focus-only input", async () => {

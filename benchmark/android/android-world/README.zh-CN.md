@@ -1,5 +1,13 @@
 # AndroidWorld Benchmark
 
+## 最新评测状态 · 2026-10-16
+
+[10 月 15–16 日选定补测集](REPRODUCTION-2026-10-16.zh-CN.md)现为 22/22 正式
+回放通过：此前 19 个结果保留、不重跑，另三个阻塞修复后独立正式验证。
+22 个均为官方 reward 1，retry、fallback、timeout 全为 0。累计本地库存有
+55/113 个不同任务具备 replay 通过证据，跨版本，不代表全量成功率或同质
+性能总分。审计附有已提交的 22-case 元数据摘要；新原始录制与完整证据仍保留本地。
+
 ## 稳定权限与启动环境
 
 `CameraTakeVideo` 默认预授予权限，使用新 sample，不将旧录制改解释为新策略：
@@ -161,6 +169,10 @@ npm run android-world:prepare-suite
 
 bootstrap 会幂等应用 `patches/` 下由仓库管理的补丁，并把它们纳入环境来源记录；
 补丁只允许修复 setup 或稳定性，不能改变任务意图与官方成功条件。
+命名录音 evaluator 另修复一个文件名矛盾：生成参数已含 `.m4a`，不能再次追加。
+修正后检查准确请求名，仅无扩展名旧参数补默认后缀，不接受其他录音。
+旧失败原样保留；修复后的 oracle 重验单独存档，不覆盖旧结果，
+也不把重验当成另一次录制或耗时测量。
 
 完整矩阵分阶段创建并支持断点续跑：
 
@@ -195,7 +207,13 @@ Midscene 和 recorder 共用一个常驻 UIAutomator2 session 读取原生树；
 original 与 replay 使用相同且不计时的 app setup：CLI 会 force-stop 官方声明的
 目标 package，启动第一个目标 app，并确认其处于前台。权限弹窗只有在精确的
 前台 Activity 与请求目标 package 对应时才算 ready，留给计时内的 agent 处理，
-不会提前授权。`OpenAppTaskEval` 保留官方 home 起点，不提前打开候选 app 完成任务。
+不会提前授权。若 `resultTo` 请求方已移除或 finishing，即使 `launchedFromPackage`
+仍是目标包，也拒绝把残留权限窗口判为 ready。稳定的 `grant-all`/`first-request`
+还要求同 task 中存在非 finishing、具有进程和有效状态的请求方；缺失生命周期字段
+是 unknown，仅兼容旧 `recorded`，不当作死亡证明或稳定环境一致性证明。
+旧录制中覆盖 Home 的孤立弹窗不能改解释为正常 app 弹窗；保留旧记录，使用新的
+可控起始基线录制，不制造孤立状态或在计时内增加恢复动作。
+`OpenAppTaskEval` 保留官方 home 起点，不提前打开候选 app 完成任务。
 原始任务提示允许误离开单 app 后，通过精确逻辑名称执行一次 Launch 恢复，不强制在 Home 停止。
 AndroidWorld
 AccessibilityForwarder 仅在官方初始化和 validator 阶段启用；测量期间暂停，

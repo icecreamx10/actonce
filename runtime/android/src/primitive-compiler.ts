@@ -181,7 +181,10 @@ function lower(event: RecordedAndroidEvent): RecordedAndroidPrimitive {
         args.value,
         {
           target: args.locate,
-          replace: args.mode === "replace" || args.replace !== false,
+          // The source keyboard clears only a located target. A recorder's
+          // default mode does not turn targetless caret insertion into clear.
+          // Explicit primitive replace semantics remain independent.
+          replace: Boolean(args.locate) && args.mode !== "append" && args.replace !== false,
         },
       ],
     };

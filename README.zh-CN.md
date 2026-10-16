@@ -21,11 +21,13 @@ Computer-use Agent 擅长探索陌生界面，但每次都重新发现同一个�
 | macOS · 3-case Lynxtron suite | 185.49 秒 | 19.18 秒 | 9.67× | 3/3，fallback 0 |
 | iOS · checkout | 220.246 秒 | 10.499 秒 | 20.98× | 2/2，fallback 0 |
 | Android · checkout | 140.446 秒 | 17.412 秒 | 8.07× | 2/2，fallback 0 |
-| AndroidWorld · 历史较大验证集 | 1,760.637 秒 | 187.664 秒 | 9.38× | 历史 19/19，fallback 0 |
+| AndroidWorld · 10 月 15–16 日选定补测集 | 逐 case | 2.573–23.393 秒 | 不合并 | 22/22，fallback 0 |
 | AndroidWorld · 10 月 10–12 日新严格切片 | 逐 case | 逐 case | 3.05–24.80× | 5/5，fallback 0 |
 | AndroidWorld · 10 月 13 日 CameraTakeVideo | 125.921 秒 | 12.352 秒 | 10.19× | Reward 1/1，9 个 checkpoint，fallback 0 |
 
-AndroidWorld 完整目标是 Midscene 三轮公开结果中至少通过一次的 113 个任务。10 月 10–13 日审计现覆盖 **严格切片 5/5、较大验证集 19/19 个合格回放**；结果跨版本，不是完整目录或一次同质 suite 测试。视频在固定预授权、启动和媒体发布基线后重新录制；其他已通过 case 未重跑。见 [10 月 10–12 日审计](benchmark/android/android-world/REPRODUCTION-2026-10-12.zh-CN.md) 和 [10 月 13 日视频审计](benchmark/android/android-world/REPRODUCTION-2026-10-13.zh-CN.md)。original 包含 recorder 开销，replay 包含原生连接、checkpoint、最终证据和关闭；逐 case 原始比例不合并成同口径总分。其他平台行仍是历史运行。
+AndroidWorld 完整目标是 Midscene 公开结果中至少通过一次的 **113 个任务**。累计本地库存现有 **55/113 个不同任务具备 replay 通过证据**，结果跨版本，不代表全量通过率。最新选定补测集为 **22/22**：保留此前 19 个正式通过结果、不重跑，另三个阻塞 case 于 10 月 16 日修复后独立正式验证。22 个均为官方 reward 1，replay retry、fallback、checkpoint timeout 全为 0。见 [10 月 15–16 日审计及逐 case 摘要](benchmark/android/android-world/REPRODUCTION-2026-10-16.zh-CN.md)。
+
+original 包含 recorder 开销，replay 包含原生连接、checkpoint、最终证据和关闭；共享主机并发条件、旧 fixture 取证完整度不同，不是完全相同的计时范围，也不合并成统一加速分。此前 [10 月 10–12 日](benchmark/android/android-world/REPRODUCTION-2026-10-12.zh-CN.md) 和 [10 月 13 日视频](benchmark/android/android-world/REPRODUCTION-2026-10-13.zh-CN.md)审计保留为历史结果；覆盖集合不能未经去重直接相加。其他平台行仍是历史运行。
 
 协议与证据：
 

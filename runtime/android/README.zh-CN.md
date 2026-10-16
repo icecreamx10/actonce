@@ -37,6 +37,15 @@ await executeAndroidPlan(plan, {
 缺省按住时间保留已固定原始设备的隐式语义，不再用零时长 W3C down/up；
 注入一致本身不证明 fixture 相同或 UI 确实消费了动作。
 
+重复行控件可由 Skill 基于证据编写 `tapUniqueNode` 关系选择器：
+`withinParent: { selector: { type: "android.view.ViewGroup" }, sibling: { type: "android.widget.TextView", text: "条目标题" } }`。
+目标必须具有指定的直接父节点，且恰有一个不同的直接兄弟节点符合上下文；
+不搜索任意祖先/后代，不使用全局索引。重复上下文、重复行或重复目标均拒绝歧义。
+原生树匹配、视觉锚点和原生 XPath 查询使用相同关系；`/elements` 二次查询必须
+再次恰好返回一个元素，再按 id 点击。二次查询丢失/多匹配不回退坐标；只有初次树中
+零匹配时可使用调用者保留的原始坐标。任何失败都不会改成全局查询。
+观察、查找与点击并非原子操作，仍需 action 自身的 postcondition gate。
+
 截图 checkpoint 可在明确的 `visual.region` 上添加
 `visual.anchor: { selector, referenceSourcePath }`。运行时要求录制与当前原生树中的
 锚点均唯一，只按物理像素位移平移当前裁剪区域；缺失、多匹配、隐藏、禁用、尺寸变化

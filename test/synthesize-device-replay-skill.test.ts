@@ -46,6 +46,37 @@ describe("synthesize-device-replay contract", () => {
     plan.segments[0].action = { operation: "tapUniqueNode", arguments: [ledger.segments[0].optimization.selector, { x: 10, y: 20 }] };
     writeFileSync(fixture.plan, JSON.stringify(plan));
     expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+    // Both files are parsed independently; relational equality is structural,
+    // not reference equality or JSON key-order equality.
+    ledger.segments[0].optimization.selector.withinParent = {
+      selector: { type: "Row" }, sibling: { type: "Label", text: "Selected item" },
+    };
+    plan.segments[0].action.arguments[0] = {
+      ...ledger.segments[0].optimization.selector,
+      withinParent: { sibling: { text: "Selected item", type: "Label" }, selector: { type: "Row" } },
+    };
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
+    writeFileSync(fixture.plan, JSON.stringify(plan));
+    expect(run(fixture.root, fixture.ledger).status).toBe(0);
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+    for (const field of ["selector", "sibling"]) {
+      const original = plan.segments[0].action.arguments[0].withinParent[field].type;
+      plan.segments[0].action.arguments[0].withinParent[field].type = "Wrong";
+      writeFileSync(fixture.plan, JSON.stringify(plan));
+      expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+      plan.segments[0].action.arguments[0].withinParent[field].type = original;
+    }
+    for (const bad of [{ selector: { type: "Row", index: 0 }, sibling: { type: "Label", text: "Item" } },
+      { selector: { type: "Row" }, sibling: { type: "Label" } },
+      { selector: { type: "Row" }, sibling: { type: "Label", text: "Item", withinParent: {} } }]) {
+      const original = ledger.segments[0].optimization.selector.withinParent;
+      ledger.segments[0].optimization.selector.withinParent = bad;
+      writeFileSync(fixture.ledger, JSON.stringify(ledger));
+      expect(run(fixture.root, fixture.ledger).status).toBe(1);
+      expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+      ledger.segments[0].optimization.selector.withinParent = original;
+    }
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
     plan.segments[0].action.arguments[1].x = 11;
     writeFileSync(fixture.plan, JSON.stringify(plan));
     expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
@@ -69,6 +100,28 @@ describe("synthesize-device-replay contract", () => {
     const result = run(fixture.root, fixture.ledger, fixture.plan);
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout).phase).toBe("executable-plan");
+  });
+
+  it.each([
+    { segment: 0, side: "postcondition" as const, borrowed: 4 },
+    { segment: 1, side: "precondition" as const, borrowed: 2 },
+    { segment: 0, side: "postcondition" as const, borrowed: 1 },
+  ])("rejects borrowed checkpoint $borrowed even alongside the own $side", ({ segment, side, borrowed }) => {
+    const fixture = createFixture();
+    fixture.ledgerValue.segments[segment][side].evidence.push({ sequence: borrowed, modality: "screenshot" });
+    writeFileSync(fixture.ledger, JSON.stringify(fixture.ledgerValue));
+    for (const plan of [undefined, fixture.plan]) {
+      const result = run(fixture.root, fixture.ledger, plan);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`must not borrow checkpoint ${borrowed}`);
+    }
+  });
+
+  it("allows multiple modalities from the same own checkpoint", () => {
+    const fixture = createFixture();
+    fixture.ledgerValue.segments[0].postcondition.evidence.push({ sequence: 2, modality: "native" });
+    writeFileSync(fixture.ledger, JSON.stringify(fixture.ledgerValue));
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
   });
 
   it("rejects task-level start/end coverage that omits an intermediate action", () => {
