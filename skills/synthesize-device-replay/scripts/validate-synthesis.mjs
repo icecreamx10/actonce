@@ -266,9 +266,16 @@ function validateSelectorOptimization(segment, action, at, events, target) {
   }
   const selector = decision.selector;
   const keys = ["type", "text", "contentDescription", "resourceId"];
+  const identity = value => isObject(value) && Object.keys(value).length > 0
+    && Object.keys(value).every(key => keys.includes(key) && nonEmpty(value[key]));
+  const context = selector?.withinParent;
+  const validContext = context === undefined || (isObject(context)
+    && Object.keys(context).length === 2 && identity(context.selector) && identity(context.sibling)
+    && nonEmpty(context.selector.type) && nonEmpty(context.sibling.type)
+    && keys.slice(1).some(key => nonEmpty(context.sibling[key])));
   if (!isObject(selector) || !nonEmpty(selector.type)
-      || !keys.slice(1).some(key => nonEmpty(selector[key]))
-      || Object.keys(selector).some(key => !keys.includes(key) || !nonEmpty(selector[key])))
+      || !keys.slice(1).some(key => nonEmpty(selector[key])) || !validContext
+      || Object.keys(selector).some(key => key !== "withinParent" && (!keys.includes(key) || !nonEmpty(selector[key]))))
     target.push(`${at}.optimization.selector requires type plus semantic identity`);
   if (decision.uniqueness !== "exactly-one") target.push(`${at}.optimization must declare proven exactly-one uniqueness`);
   const center = action.normalizedArguments?.locate?.center;
@@ -289,7 +296,7 @@ function validateSelectorOptimization(segment, action, at, events, target) {
 
 function sameObject(left, right) {
   return isObject(left) && isObject(right) && Object.keys(left).length === Object.keys(right).length
-    && Object.keys(left).every(key => left[key] === right[key]);
+    && Object.keys(left).every(key => isObject(left[key]) ? sameObject(left[key], right[key]) : left[key] === right[key]);
 }
 
 function validatePlanCheckpoint(checkpoint, decision, at, target) {

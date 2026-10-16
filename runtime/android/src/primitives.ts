@@ -1,6 +1,6 @@
 import type { AndroidSession } from "./session.js";
 import type { Point } from "./types.js";
-import { validateAndroidTouchDuration } from "./native-device.js";
+import { validateAndroidNodeSelector, validateAndroidTouchDuration } from "./native-device.js";
 
 export const SUPPORTED_ANDROID_PRIMITIVES = [
   "tap",
@@ -165,20 +165,8 @@ function options(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 function nodeSelector(value: unknown) {
-  const entry = options(value);
-  if (!entry) throw new TypeError("tapUniqueNode selector must be an object");
-  const selector = {
-    type: optionalString(entry.type, "tapUniqueNode selector.type"),
-    text: optionalString(entry.text, "tapUniqueNode selector.text"),
-    contentDescription: optionalString(entry.contentDescription, "tapUniqueNode selector.contentDescription"),
-    resourceId: optionalString(entry.resourceId, "tapUniqueNode selector.resourceId"),
-  };
-  if (Object.values(selector).every((item) => item === undefined)) throw new TypeError("tapUniqueNode selector must not be empty");
-  return selector;
-}
-function optionalString(value: unknown, label: string): string | undefined {
-  if (value === undefined) return undefined;
-  return string(value, label);
+  validateAndroidNodeSelector(value);
+  return value;
 }
 function string(value: unknown, label: string): string {
   if (typeof value !== "string")

@@ -46,6 +46,37 @@ describe("synthesize-device-replay contract", () => {
     plan.segments[0].action = { operation: "tapUniqueNode", arguments: [ledger.segments[0].optimization.selector, { x: 10, y: 20 }] };
     writeFileSync(fixture.plan, JSON.stringify(plan));
     expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+    // Both files are parsed independently; relational equality is structural,
+    // not reference equality or JSON key-order equality.
+    ledger.segments[0].optimization.selector.withinParent = {
+      selector: { type: "Row" }, sibling: { type: "Label", text: "Selected item" },
+    };
+    plan.segments[0].action.arguments[0] = {
+      ...ledger.segments[0].optimization.selector,
+      withinParent: { sibling: { text: "Selected item", type: "Label" }, selector: { type: "Row" } },
+    };
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
+    writeFileSync(fixture.plan, JSON.stringify(plan));
+    expect(run(fixture.root, fixture.ledger).status).toBe(0);
+    expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(0);
+    for (const field of ["selector", "sibling"]) {
+      const original = plan.segments[0].action.arguments[0].withinParent[field].type;
+      plan.segments[0].action.arguments[0].withinParent[field].type = "Wrong";
+      writeFileSync(fixture.plan, JSON.stringify(plan));
+      expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+      plan.segments[0].action.arguments[0].withinParent[field].type = original;
+    }
+    for (const bad of [{ selector: { type: "Row", index: 0 }, sibling: { type: "Label", text: "Item" } },
+      { selector: { type: "Row" }, sibling: { type: "Label" } },
+      { selector: { type: "Row" }, sibling: { type: "Label", text: "Item", withinParent: {} } }]) {
+      const original = ledger.segments[0].optimization.selector.withinParent;
+      ledger.segments[0].optimization.selector.withinParent = bad;
+      writeFileSync(fixture.ledger, JSON.stringify(ledger));
+      expect(run(fixture.root, fixture.ledger).status).toBe(1);
+      expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);
+      ledger.segments[0].optimization.selector.withinParent = original;
+    }
+    writeFileSync(fixture.ledger, JSON.stringify(ledger));
     plan.segments[0].action.arguments[1].x = 11;
     writeFileSync(fixture.plan, JSON.stringify(plan));
     expect(run(fixture.root, fixture.ledger, fixture.plan).status).toBe(1);

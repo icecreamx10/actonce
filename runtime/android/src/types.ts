@@ -6,11 +6,15 @@ import type {
 import type { AndroidSession } from "./session.js";
 
 export type Point = { x: number; y: number };
-export type AndroidNodeSelector = {
+export type AndroidNodeIdentity = {
   type?: string;
   text?: string;
   contentDescription?: string;
   resourceId?: string;
+};
+export type AndroidNodeSelector = AndroidNodeIdentity & {
+  /** Exact direct-parent and unique direct-sibling context; never a global index. */
+  withinParent?: { selector: AndroidNodeIdentity; sibling: AndroidNodeIdentity };
 };
 export type AndroidSessionOptions = {
   serial?: string;

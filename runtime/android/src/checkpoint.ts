@@ -12,6 +12,7 @@ import { ReplayFlow } from "@byted-lynx/actonce-replay";
 import type { AndroidSession } from "./session.js";
 import type { AndroidNodeSelector } from "./types.js";
 import { readFile } from "node:fs/promises";
+import { androidNormalizedSourceToUiTree, findAndroidUiTreeNodes } from "./native-device.js";
 
 export type AndroidVisualRegion = { left: number; top: number; width: number; height: number };
 
@@ -274,21 +275,9 @@ export function resolveAndroidAnchoredRegion(
 
 function uniqueAnchorBounds(source: string | undefined, selector: AndroidNodeSelector): AndroidVisualRegion {
   if (!source) throw new Error("visual anchor requires native source evidence");
-  const matches: Record<string, unknown>[] = [];
-  const visit = (value: unknown): void => {
-    if (!value || typeof value !== "object") return;
-    if (Array.isArray(value)) { value.forEach(visit); return; }
-    const node = value as Record<string, unknown>;
-    if (typeof node.class === "string"
-        && (selector.type === undefined || node.class === selector.type)
-        && (selector.text === undefined || node.text === selector.text)
-        && (selector.contentDescription === undefined || node["content-desc"] === selector.contentDescription)
-        && (selector.resourceId === undefined || node["resource-id"] === selector.resourceId)) matches.push(node);
-    Object.values(node).forEach(visit);
-  };
-  visit(JSON.parse(source));
+  const matches = findAndroidUiTreeNodes(androidNormalizedSourceToUiTree(source), selector);
   if (matches.length !== 1) throw new Error(`visual anchor requires exactly one native node, found ${matches.length}`);
-  const node = matches[0]!;
+  const node = matches[0]!.attrs;
   if (node.enabled === "false" || node["visible-to-user"] === "false")
     throw new Error("visual anchor is disabled or not visible");
   const bounds = typeof node.bounds === "string" && node.bounds.match(/^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$/);

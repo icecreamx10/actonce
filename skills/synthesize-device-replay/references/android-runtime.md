@@ -29,6 +29,17 @@ available before-action native tree; the fallback must equal its recorded logica
 center. The single-action lowerer still emits the original tap. The agent—not the
 lowerer—authors this justified optimization, and plan arguments must preserve the
 declared selector and fallback.
+For repeated controls, use only an evidenced direct relation:
+`withinParent: { selector: { type: "android.view.ViewGroup" }, sibling: { type: "android.widget.TextView", text: "Recorded row title" } }`.
+Both identities are flat (type/text/contentDescription/resourceId), and the target
+must have that direct parent plus exactly one distinct direct sibling matching the
+context. Inspect the actual before-action ancestry; do not assume arbitrary
+ancestors or nested descendants are rows. Prove uniqueness of the complete
+selector, including duplicate-title rows and repeated menus. Never add an index,
+instance, bounds, or coordinate binding. The structural gate accepts the shape;
+the agent remains responsible for native evidence and action semantics.
+Ambiguous source context fails closed. A native second lookup returning zero or
+multiple elements fails closed without coordinate fallback or a global re-query.
 When the selector click can report success without satisfying its recorded
 postcondition, mark the segment `observe-before-retry` and register the original
 coordinate as its single `deterministicRetry`; let `ReplayFlow` gate and diagnose it.

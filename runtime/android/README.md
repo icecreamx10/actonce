@@ -90,6 +90,18 @@ The compile Skill may emit `tapUniqueNode` only after proving a selector unique
 and semantically aligned from recorded evidence; the primitive performs a native
 UIAutomator2 element click and retains the normalized recorded coordinate as its
 fallback. Mechanical primitive compilation never invents this mapping.
+For repeated row controls, a selector may add
+`withinParent: { selector: { type: "android.view.ViewGroup" }, sibling: { type: "android.widget.TextView", text: "Item title" } }`.
+The target must have that exact direct parent and exactly one distinct direct
+sibling matching the context identity. Context is not an arbitrary ancestor or
+descendant search. Duplicate context siblings fail closed; duplicate rows or
+controls remain multiple matches and cannot be disambiguated by order/index.
+Both native-tree matching (including visual anchors) and native XPath lookup use
+this relation. Native `/elements` lookup must again return exactly one element
+before clicking its id; a stale zero/multiple result never uses coordinate fallback.
+Only an initial zero-match tree may use the caller's original coordinate fallback.
+No selector failure falls back to a broader/global element query. The source read,
+element lookup and click are not atomic; postcondition gating remains required.
 For an `observe-before-retry` selector segment, the common replay flow can execute
 the recorded coordinate once as `deterministicRetry` only after the selector action's
 postcondition times out. Retry count and duration are reported separately from AI
