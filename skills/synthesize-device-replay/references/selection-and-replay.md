@@ -103,6 +103,15 @@ Each action segment must have a precondition and postcondition citing its own re
 before/after checkpoint. An event dispatch or successful protocol response is not proof
 that the UI consumed an action. Use bounded polling within the recorded timing budget.
 
+Audit each authored settling budget from dispatch completion to an independently
+captured, same-action observation supporting that condition's modality. Do not
+count before-action capture, action execution, or the next action's precondition
+as extra settling time. Record the raw timestamps and evidence identity; a
+uniform default is not timing evidence. A screenshot follow-up cannot extend a
+native-only fact's budget. If no supported polling window exists, use a single
+check or report the gap. Put the resulting policy in the plan and verify that
+the executable module consumes it unchanged, without hidden timeout overrides.
+
 Classify idempotency as:
 
 - `safe`: repetition cannot duplicate or corrupt the outcome;

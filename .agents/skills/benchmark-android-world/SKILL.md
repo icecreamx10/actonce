@@ -139,6 +139,13 @@ then delegate formal replay measurement to a different zero-context agent.
 Require two consecutive independently reset development passes of both runtime
 checkpoints and the official oracle before formal replay delegation.
 
+Before accepting that qualification, inspect the actual module as well as its
+plan: it must not silently override checkpoint expectations or settling policies.
+Require per-action raw timing provenance for authored polling budgets, following
+the synthesis Skill's dispatch-completion/same-action evidence rule. The fresh
+formal agent must independently check this consistency before invocation;
+structural ledger validation alone does not prove executable-plan parity.
+
 For new AndroidWorld measurements, generate an SDK replay module and invoke the
 public CLI with `--replay-module <module.ts>` (see the benchmark README).
 The module receives the runner-owned `android` session and `flow`; it must not
