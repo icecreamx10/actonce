@@ -41,6 +41,14 @@ npm run android-world:catalog -- --selection pass@3 --format lines
 
 ## Formal snapshots
 
+Latest: the [Oct 15–16 selected follow-up](REPRODUCTION-2026-10-16.md) completed
+22/22 formal-correct replays (19 retained passes plus three repaired cases), all
+with reward 1 and zero retries/fallback/timeouts. Earlier passed cases were not
+rerun. The cumulative local inventory has replay-pass evidence for 55/113 distinct
+tasks across revisions, not a full-suite success rate or homogeneous timing score.
+The linked audit includes a committed 22-case metadata summary; raw recordings
+and new full evidence bundles remain local.
+
 ### Replay measurement contract
 
 New measurements use `--replay-module <module.ts>`, with an agent-authored SDK
