@@ -199,7 +199,13 @@ Midscene 和 recorder 共用一个常驻 UIAutomator2 session 读取原生树；
 original 与 replay 使用相同且不计时的 app setup：CLI 会 force-stop 官方声明的
 目标 package，启动第一个目标 app，并确认其处于前台。权限弹窗只有在精确的
 前台 Activity 与请求目标 package 对应时才算 ready，留给计时内的 agent 处理，
-不会提前授权。`OpenAppTaskEval` 保留官方 home 起点，不提前打开候选 app 完成任务。
+不会提前授权。若 `resultTo` 请求方已移除或 finishing，即使 `launchedFromPackage`
+仍是目标包，也拒绝把残留权限窗口判为 ready。稳定的 `grant-all`/`first-request`
+还要求同 task 中存在非 finishing、具有进程和有效状态的请求方；缺失生命周期字段
+是 unknown，仅兼容旧 `recorded`，不当作死亡证明或稳定环境一致性证明。
+旧录制中覆盖 Home 的孤立弹窗不能改解释为正常 app 弹窗；保留旧记录，使用新的
+可控起始基线录制，不制造孤立状态或在计时内增加恢复动作。
+`OpenAppTaskEval` 保留官方 home 起点，不提前打开候选 app 完成任务。
 原始任务提示允许误离开单 app 后，通过精确逻辑名称执行一次 Launch 恢复，不强制在 Home 停止。
 AndroidWorld
 AccessibilityForwarder 仅在官方初始化和 validator 阶段启用；测量期间暂停，

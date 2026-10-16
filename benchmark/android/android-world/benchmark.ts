@@ -363,7 +363,7 @@ async function prepareInitialTargetApp(value: unknown, policy: PermissionPolicy 
     if (focus.code !== 0) throw new Error(`Failed to inspect foreground app: ${focus.stderr}`);
     const activities = await runCapture(adb, ["-s", serial, "shell", "dumpsys", "activity", "activities"]);
     if (activities.code !== 0) throw new Error(`Failed to inspect foreground activity: ${activities.stderr}`);
-    if (isInitialTargetForeground(initialPackage, focus.stdout, activities.stdout)) {
+    if (isInitialTargetForeground(initialPackage, focus.stdout, activities.stdout, policy !== "recorded")) {
       if (policy !== "recorded") {
         verifyStableForeground(policy, focus.stdout);
         if (!isDrawnTargetWindow(initialPackage, focus.stdout, policy === "first-request")) { stableSince = undefined; await delay(250); continue; }

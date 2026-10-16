@@ -284,6 +284,16 @@ force-stops declared target packages, launches the first official target app,
 and verifies foreground focus before timing. A permission modal counts as ready
 only when its exact foreground activity is proven to have been requested by the
 target package; it is left for the measured agent to handle, not pre-granted.
+Known orphan requests are rejected: Android can retain a permission window after
+its `resultTo` activity was removed by force-stop, even though
+`launchedFromPackage` still names the target. A finished/removed requester is not
+a target-app start. Stable
+`grant-all`/`first-request` setup additionally requires a same-task, non-finishing
+live requester; missing lifecycle fields are unknown and are accepted only by
+legacy `recorded` readiness, not treated as evidence of death or stable parity.
+An old recording showing an orphan modal over Home cannot be reinterpreted as a
+normal target-backed modal. Preserve it and record a new controlled baseline;
+do not manufacture the orphan or add measured recovery to obtain equivalence.
 `OpenAppTaskEval` instead retains the official home start without prelaunching any
 candidate app or satisfying the task during preparation.
 The original task scaffold permits one logical-name Launch recovery if the agent
